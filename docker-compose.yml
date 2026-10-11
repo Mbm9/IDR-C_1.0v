@@ -70,6 +70,7 @@ services:
       PGHOST: db
       PGPORT: "5432"
       PGUSER: ${POSTGRES_USER:-postgres}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     restart: "no"
 
   # ---------------------------------------------------------------------------
@@ -100,6 +101,8 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      CRON_SECRET: ${CRON_SECRET:-}
+      CREDENTIALS_KEY: ${CREDENTIALS_KEY:-}
       NODE_ENV: production
 
   # ---------------------------------------------------------------------------

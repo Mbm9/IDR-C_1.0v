@@ -161,6 +161,8 @@ DOMAIN=localhost
 | `npm run db:push` | Push Drizzle schema to PostgreSQL |
 | `npm run db:seed` | Seed sample data (200 identities, groups, violations) |
 | `scripts/setup.sh` | First-time local setup |
+| `scripts/docker-up.sh` | Build + start full Docker stack, wait until healthy (Windows Git Bash/WSL friendly) |
+| `scripts/doctor.sh` | Read-only diagnosis of the Docker deployment with suggested fixes |
 | `scripts/deploy.sh` | One-command production deployment |
 | `scripts/backup.sh` | Database backup with rotation |
 | `scripts/restore.sh` | Database restore from backup |
