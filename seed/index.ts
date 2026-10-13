@@ -95,6 +95,22 @@ async function seed() {
   })
   console.log('Created admin user: admin@acmefs.sa (password set via SEED_ADMIN_PASSWORD env var)')
 
+  // 2b. Subscription — the demo org is on the enterprise tier so API keys
+  // (apiAccess), invitations and integrations can be demonstrated. Orgs created
+  // through onboarding still start on the free tier and stay gated.
+  await db.insert(schema.subscriptions).values({
+    orgId: org.id,
+    tier: 'enterprise',
+    maxIdentities: 100_000,
+    maxIntegrations: 50,
+    maxUsers: 100,
+    maxAiRunsPerMonth: 1_000,
+    retentionDays: 365,
+    apiAccess: true,
+    ssoEnabled: true,
+  })
+  console.log('Created enterprise subscription for demo org (API access enabled)')
+
   // 3. Identities (200 total: 140 human + 60 NHI)
   const identityValues: (typeof schema.identities.$inferInsert)[] = []
 

@@ -132,10 +132,17 @@ export function getBucket(pathname: string, method = 'GET'): RateLimitBucket | n
 
 /**
  * Rate-limit key: authenticated traffic is limited per user, so colleagues
- * behind one NAT address do not share a budget; anonymous traffic and login
- * attempts are limited per client IP.
+ * behind one NAT address do not share a budget; API-key (machine) traffic is
+ * limited per key prefix; anonymous traffic and login attempts are limited
+ * per client IP.
  */
-export function rateLimitKey(bucket: RateLimitBucket, headers: Headers, userId?: string | null): string {
+export function rateLimitKey(
+  bucket: RateLimitBucket,
+  headers: Headers,
+  userId?: string | null,
+  apiKeyPrefix?: string | null,
+): string {
+  if (apiKeyPrefix && bucket !== 'auth') return `apikey:${apiKeyPrefix}`
   if (userId && bucket !== 'auth') return `user:${userId}`
   return `ip:${clientIp(headers)}`
 }

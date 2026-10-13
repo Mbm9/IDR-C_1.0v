@@ -1039,5 +1039,47 @@
       "ciso": "ciso",
       "admin": "admin"
     }
+  },
+  "signup": {
+    "loading": "Loading...",
+    "brand": "Identity Radar",
+    "brandSubtitle": "IAM Posture Management",
+    "heroTitle": "Start managing your identity posture today.",
+    "heroDescription": "Free tier includes 500 identities, 1 integration source, and 3 team members. No credit card required.",
+    "featureUnified": "Unified identity model across all IAM sources",
+    "featureTiering": "AD tiering compliance monitoring",
+    "featureAi": "AI-powered risk scoring and remediation",
+    "featureCompliance": "NCA, SAMA, and PDPL compliance reporting",
+    "title": "Create your account",
+    "subtitle": "Get started with the free tier. No credit card required.",
+    "invitedHint": "Invited by your organization? Sign up with the email address the invitation was sent to and you will join that organization.",
+    "fullName": "Full name",
+    "fullNamePlaceholder": "Ali Al-Moharif",
+    "workEmail": "Work email",
+    "workEmailPlaceholder": "you@company.sa",
+    "password": "Password",
+    "passwordPlaceholder": "Min. 8 characters",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "creating": "Creating account...",
+    "create": "Create account",
+    "haveAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "terms": "By creating an account, you agree to our Terms of Service and Privacy Policy.",
+    "errorCreate": "Failed to create account",
+    "errorSignIn": "Account created but sign-in failed. Please sign in manually.",
+    "errorGeneric": "Something went wrong. Please try again.",
+    "joinedTitle": "You joined an existing organization",
+    "joinedBody": "Your invitation was accepted. You are now a member of {org} with the {role} role.",
+    "joinedBodyNoName": "Your invitation was accepted. You joined the organization with the {role} role.",
+    "signingIn": "Signing you in...",
+    "continueToDashboard": "Continue to dashboard",
+    "roles": {
+      "viewer": "Viewer",
+      "analyst": "Analyst",
+      "iam_admin": "IAM Admin",
+      "ciso": "CISO",
+      "admin": "Admin"
+    }
   }
 }

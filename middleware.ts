@@ -8,10 +8,15 @@ import {
   validateRequestSize,
   handleCors,
 } from '@/lib/middleware/security'
+import { apiKeyPrefix, extractApiKey, isApiKeyPath } from '@/lib/auth/api-key-token'
 
 export default auth((req) => {
   const { pathname } = req.nextUrl
   const isLoggedIn = !!req.auth
+  // Machine clients (SIEM pushes) authenticate with `Authorization: Bearer
+  // idr_…` on allow-listed paths only. The key is verified by the route handler
+  // (lib/auth/api-key.ts, Node runtime); middleware only lets it through.
+  const apiKey = isApiKeyPath(pathname) ? extractApiKey(req.headers) : null
 
   // Handle CORS preflight
   const preflight = handlePreflight(req)
@@ -22,11 +27,17 @@ export default auth((req) => {
   // ------------------------------------------------------------------
   const bucket = getBucket(pathname, req.method)
   if (bucket) {
-    const key = rateLimitKey(bucket, req.headers, req.auth?.user?.id)
+    const key = rateLimitKey(bucket, req.headers, req.auth?.user?.id, apiKey ? apiKeyPrefix(apiKey) : null)
 
     const result = checkRateLimit(key, bucket)
     if (!result.allowed) {
       return rateLimitResponse(result)
+    }
+    // API-key traffic is also limited per client IP: otherwise a caller could
+    // rotate random key prefixes to get a fresh per-key budget each request.
+    if (apiKey) {
+      const ipResult = checkRateLimit(rateLimitKey(bucket, req.headers), bucket)
+      if (!ipResult.allowed) return rateLimitResponse(ipResult)
     }
   }
 
@@ -50,8 +61,9 @@ export default auth((req) => {
   // `Authorization: Bearer $CRON_SECRET` and no session cookie; each route
   // verifies the secret itself via verifyCronSecret().
   const isCronApi = pathname.startsWith('/api/cron/')
+  // `apiKey` is only set for API_KEY_PATHS; the route rejects invalid keys.
 
-  if (isAuthApi || isPublicApi || isCronApi) {
+  if (isAuthApi || isPublicApi || isCronApi || apiKey) {
     const response = NextResponse.next()
     return applySecurityHeaders(handleCors(req, response))
   }

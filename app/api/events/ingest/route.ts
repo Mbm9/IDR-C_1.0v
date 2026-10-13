@@ -6,16 +6,38 @@ import { eq, or, and, inArray } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
 import { unauthorized, forbidden, badRequest } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
+import { extractApiKey, verifyApiKey } from '@/lib/auth/api-key'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+/**
+ * Resolve the caller's organization. Machine clients send
+ * `Authorization: Bearer idr_…` (an API key created in Settings → API keys)
+ * and act with analyst-equivalent permission for ingest; otherwise a
+ * dashboard session with at least the analyst role is required. A request
+ * that presents an API key is never silently downgraded to session auth.
+ */
+async function resolveCaller(req: NextRequest): Promise<{ orgId: string } | Response> {
+  if (extractApiKey(req.headers)) {
+    const key = await verifyApiKey(req)
+    if (!key) return unauthorized()
+    if (!hasRole(key.appRole, 'analyst')) return forbidden()
+    return { orgId: key.orgId }
+  }
+  if (/^Bearer\s+idr_/i.test(req.headers.get('authorization') ?? '')) return unauthorized()
+
+  const session = await auth()
+  if (!session?.user?.orgId) return unauthorized()
+  if (!hasRole((session.user as any).appRole as AppRole, 'analyst')) return forbidden()
+  return { orgId: session.user.orgId }
+}
+
 export async function POST(req: NextRequest) {
   try {
-    const session = await auth()
-    if (!session?.user?.orgId) return unauthorized()
-    if (!hasRole((session.user as any).appRole as AppRole, 'analyst')) return forbidden()
+    const caller = await resolveCaller(req)
+    if (caller instanceof Response) return caller
 
-    const orgId = session.user.orgId
+    const orgId = caller.orgId
     const body = await req.json().catch(() => null)
 
     if (!body || !Array.isArray(body.events)) {

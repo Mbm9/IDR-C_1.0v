@@ -16,12 +16,92 @@ interface RiskFactors {
   supplyChainRisk: boolean
 }
 
+/** What is persisted in identities.risk_factors. */
+export interface StoredRiskFactors extends RiskFactors {
+  riskVelocity: number
+  history: ScoreHistoryPoint[]
+}
+
+/** One point of the compact per-identity score history: day + score. */
+export interface ScoreHistoryPoint {
+  d: string // YYYY-MM-DD (UTC)
+  s: number
+}
+
+/** Days of score history kept in identities.risk_factors.history. */
+export const SCORE_HISTORY_DAYS = 35
+/** Look-back window for risk velocity. */
+export const VELOCITY_WINDOW_DAYS = 30
+
+const DAY_MS = 24 * 60 * 60 * 1000
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/
+
+/** UTC calendar day of a date as YYYY-MM-DD. */
+export function toDayKey(date: Date): string {
+  return date.toISOString().slice(0, 10)
+}
+
+function dayDiff(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / DAY_MS)
+}
+
+/** Extract a well-formed history array from a stored risk_factors value. */
+export function readScoreHistory(riskFactors: unknown): ScoreHistoryPoint[] {
+  if (!riskFactors || typeof riskFactors !== 'object' || Array.isArray(riskFactors)) return []
+  const raw = (riskFactors as { history?: unknown }).history
+  if (!Array.isArray(raw)) return []
+  return raw.filter((p): p is ScoreHistoryPoint =>
+    !!p && typeof p === 'object' &&
+    typeof (p as any).d === 'string' && DAY_RE.test((p as any).d) &&
+    typeof (p as any).s === 'number' && Number.isFinite((p as any).s))
+}
+
 /**
- * Calculate risk velocity: rate of risk score change over 30 days.
+ * Record today's score in the history: one point per day (a later run on the
+ * same day replaces the earlier point), sorted oldest first, trimmed to the
+ * last `keepDays` days.
+ */
+export function appendScoreHistory(
+  history: ScoreHistoryPoint[],
+  score: number,
+  now: Date = new Date(),
+  keepDays: number = SCORE_HISTORY_DAYS,
+): ScoreHistoryPoint[] {
+  const today = toDayKey(now)
+  return [...history.filter((p) => p.d !== today), { d: today, s: score }]
+    .filter((p) => dayDiff(p.d, today) >= 0 && dayDiff(p.d, today) <= keepDays)
+    .sort((a, b) => a.d.localeCompare(b.d))
+}
+
+/**
+ * Calculate risk velocity: rate of risk score change per day.
  * Positive = getting riskier, negative = improving.
  */
-export function calculateRiskVelocity(currentScore: number, score30dAgo: number): number {
-  return Number(((currentScore - score30dAgo) / 30).toFixed(2))
+export function calculateRiskVelocity(currentScore: number, previousScore: number, days = VELOCITY_WINDOW_DAYS): number {
+  if (!(days > 0)) return 0
+  return Number(((currentScore - previousScore) / days).toFixed(2))
+}
+
+/**
+ * Risk velocity from the score history: (score now − score ~30 days ago) / days
+ * elapsed. The reference point is the most recent one at least 30 days old, or
+ * the oldest available when the history is shorter. Returns 0 when there is no
+ * earlier day to compare against.
+ */
+export function velocityFromHistory(
+  history: ScoreHistoryPoint[],
+  currentScore: number,
+  now: Date = new Date(),
+  windowDays: number = VELOCITY_WINDOW_DAYS,
+): number {
+  const today = toDayKey(now)
+  const earlier = history
+    .filter((p) => dayDiff(p.d, today) > 0)
+    .sort((a, b) => a.d.localeCompare(b.d))
+  if (earlier.length === 0) return 0
+  const atWindow = earlier.filter((p) => dayDiff(p.d, today) >= windowDays)
+  const ref = atWindow.length > 0 ? atWindow[atWindow.length - 1] : earlier[0]
+  return calculateRiskVelocity(currentScore, ref.s, dayDiff(ref.d, today))
 }
 
 /**
@@ -133,9 +213,16 @@ export async function recalculateRiskForIdentity(identityId: string, orgId: stri
 
   const score = calculateRiskScore(factors)
 
+  // Compact score history (one point per day) lives alongside the factors so
+  // velocity can be computed without writing an audit entry per scoring run.
+  const now = new Date()
+  const history = appendScoreHistory(readScoreHistory(identity.riskFactors), score, now)
+  const riskVelocity = velocityFromHistory(history, score, now)
+  const storedFactors: StoredRiskFactors = { ...factors, riskVelocity, history }
+
   await db.update(identities)
-    .set({ riskScore: score, riskFactors: factors, updatedAt: new Date() })
+    .set({ riskScore: score, riskFactors: storedFactors, updatedAt: now })
     .where(eq(identities.id, identityId))
 
-  return { identityId, score, factors }
+  return { identityId, score, factors: storedFactors }
 }
