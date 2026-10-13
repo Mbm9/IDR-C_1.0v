@@ -177,3 +177,27 @@ describe('formatPercentage', () => {
     expect(formatPercentage(33.333, 2)).toBe('33.33%')
   })
 })
+
+describe('Arabic locale', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-26T12:00:00Z'))
+  })
+  afterEach(() => vi.useRealTimers())
+
+  it('renders relative times fully in Arabic (no English fragments to reorder in RTL)', () => {
+    const out = formatRelativeTime(new Date('2026-03-20T12:00:00Z'), 'ar')
+    expect(out).toMatch(/[؀-ۿ]/)
+    expect(out).not.toMatch(/ago|days?/i)
+  })
+
+  it('keeps Latin digits and the Gregorian calendar for Arabic dates', () => {
+    const out = formatDate(new Date('2026-03-20T12:00:00Z'), 'ar')
+    expect(out).toMatch(/2026/)
+    expect(out).not.toMatch(/[٠-٩]/) // no Arabic-Indic digits
+  })
+
+  it('keeps the English output unchanged when no locale is given in a non-browser context', () => {
+    expect(formatRelativeTime(new Date('2026-03-20T12:00:00Z'))).toMatch(/ago|days/i)
+  })
+})
