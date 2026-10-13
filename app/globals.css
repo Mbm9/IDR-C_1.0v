@@ -20,22 +20,28 @@
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --font-arabic: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, "Geeza Pro", "Noto Sans Arabic", system-ui, sans-serif;
 
-  /* Backgrounds */
+  /* Backgrounds: canvas (page) < primary (cards, header) */
+  --bg-canvas: #F2F4F7;
   --bg-primary: #FFFFFF;
   --bg-secondary: #F8F9FB;
   --bg-tertiary: #F1F3F6;
+  --bg-hover: #F6F7F9;
 
   /* Text */
   --text-primary: #111318;
   --text-secondary: #5F6B7A;
-  --text-tertiary: #687282; /* 4.6:1 on bg-secondary (WCAG AA) */
+  --text-tertiary: #626C7C; /* >= 4.5:1 on bg-canvas and bg-secondary (WCAG AA) */
 
   /* Borders */
-  --border-default: #E2E5EB;
-  --border-hover: #CCD1DA;
+  --border-default: #E3E7ED;
+  --border-hover: #C9CFD9;
+
+  /* Focus ring (keyboard) */
+  --color-focus: #2563EB;
 
   /* Shadows */
-  --shadow-card: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  --shadow-card: 0 1px 2px rgba(16,24,40,0.04), 0 1px 3px rgba(16,24,40,0.05);
+  --shadow-card-hover: 0 4px 12px rgba(16,24,40,0.08), 0 1px 3px rgba(16,24,40,0.06);
   --shadow-dropdown: 0 4px 16px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
   --shadow-modal: 0 16px 48px rgba(0,0,0,0.12);
 
@@ -70,22 +76,27 @@
   --color-nhi: #7C3AED;
 
   /* Radius */
-  --radius-card: 8px;
+  --radius-card: 12px;
   --radius-button: 6px;
   --radius-badge: 4px;
   --radius-input: 6px;
 }
 
 .dark {
-  --bg-primary: #0F1117;
+  /* Cards sit lighter than the canvas so they lift, as in light mode. */
+  --bg-canvas: #0B0D12;
+  --bg-primary: #141720;
   --bg-secondary: #1A1D27;
   --bg-tertiary: #232733;
+  --bg-hover: #1B1F2A;
   --text-primary: #E8EAF0;
   --text-secondary: #8E99AB;
   --text-tertiary: #7E899B; /* 4.7:1 on bg-secondary (WCAG AA) */
-  --border-default: #2E3340;
+  --border-default: #262B37;
   --border-hover: #3D4455;
-  --shadow-card: none;
+  --color-focus: #60A5FA;
+  --shadow-card: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow-card-hover: 0 6px 16px rgba(0,0,0,0.45);
   --shadow-dropdown: 0 4px 16px rgba(0,0,0,0.3);
   --shadow-modal: 0 16px 48px rgba(0,0,0,0.4);
   --color-critical-bg: #2D1515;
@@ -116,12 +127,27 @@ body {
 }
 
 /* ── Typography ── */
-.text-hero { font-size: 3rem; font-weight: 600; line-height: 1.1; }
-.text-title { font-size: 1.5rem; font-weight: 600; line-height: 1.25; }
-.text-heading { font-size: 1.125rem; font-weight: 500; line-height: 1.4; }
+.text-hero { font-size: 3rem; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; }
+.text-title { font-size: 1.5rem; font-weight: 600; line-height: 1.25; letter-spacing: -0.015em; }
+.text-heading { font-size: 1.125rem; font-weight: 600; line-height: 1.4; letter-spacing: -0.005em; }
 .text-body { font-size: 0.875rem; font-weight: 400; line-height: 1.5; }
 .text-caption { font-size: 0.75rem; font-weight: 400; line-height: 1.5; }
 .text-micro { font-size: 0.6875rem; font-weight: 500; line-height: 1.4; }
+
+/* ── Base refinements (base layer: any utility class still wins) ── */
+@layer base {
+  :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  /* Data tables: even-width figures and a row hover so wide rows stay trackable. */
+  main td { font-variant-numeric: tabular-nums; }
+  main tbody tr { transition: background-color 120ms ease; }
+  main tbody tr:hover { background-color: var(--bg-hover); }
+  main thead th { font-weight: 500; letter-spacing: 0.01em; }
+}
+
+/* Clickable cards lift slightly on hover. */
+.card-interactive { transition: box-shadow 150ms ease, border-color 150ms ease, transform 150ms ease; }
+.card-interactive:hover { box-shadow: var(--shadow-card-hover) !important; border-color: var(--border-hover); transform: translateY(-1px); }
+@media (prefers-reduced-motion: reduce) { .card-interactive:hover { transform: none; } }
 
 /* ── Scrollbar ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }

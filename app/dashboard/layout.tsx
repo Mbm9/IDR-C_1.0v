@@ -17,7 +17,7 @@ export default function DashboardLayout({
   const t = useTranslations('dashboardShell')
   return (
     <KeyboardShortcutsProvider>
-    <div className="min-h-screen bg-[var(--bg-secondary)]">
+    <div className="min-h-screen bg-[var(--bg-canvas)]">
       <Sidebar />
       <CommandPalette />
       <div className="lg:ps-60 print:ps-0 flex flex-col min-h-screen transition-all duration-200">

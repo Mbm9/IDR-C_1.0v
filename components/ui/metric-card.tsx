@@ -19,20 +19,20 @@ export interface MetricCardProps {
   subtitle?: string
 }
 
-// Logical (start) border so the accent stripe sits on the reading-start side in RTL too.
-const SEVERITY_STYLES: Record<string, string> = {
-  critical: 'border-s-[var(--color-critical)]',
-  high: 'border-s-[var(--color-high)]',
-  medium: 'border-s-[var(--color-medium)]',
-  low: 'border-s-[var(--color-low)]',
+// Accent colour shown as a status dot before the label.
+const SEVERITY_ACCENT: Record<string, string> = {
+  critical: 'var(--color-critical)',
+  high: 'var(--color-high)',
+  medium: 'var(--color-medium)',
+  low: 'var(--color-low)',
 }
 
-const COLOR_STYLES: Record<string, string> = {
-  red: 'border-s-[var(--color-critical)]',
-  rose: 'border-s-[var(--color-tier-top)]',
-  orange: 'border-s-[var(--color-high)]',
-  green: 'border-s-[var(--color-low)]',
-  blue: 'border-s-[var(--color-info)]',
+const COLOR_ACCENT: Record<string, string> = {
+  red: 'var(--color-critical)',
+  rose: 'var(--color-tier-top)',
+  orange: 'var(--color-high)',
+  green: 'var(--color-low)',
+  blue: 'var(--color-info)',
 }
 
 export function MetricCard({
@@ -69,6 +69,7 @@ export function MetricCard({
     ? Math.round(((value - previousValue) / previousValue) * 100)
     : null
 
+  const accent = severity ? SEVERITY_ACCENT[severity] : color ? COLOR_ACCENT[color] : null
   const Wrapper = href ? 'a' : 'div'
   const wrapperProps = href ? { href } : {}
 
@@ -77,14 +78,18 @@ export function MetricCard({
       {...wrapperProps}
       className={`
         block rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-5
-        ${severity ? `border-s-[3px] ${SEVERITY_STYLES[severity]}` : color ? `border-s-[3px] ${COLOR_STYLES[color]}` : ''}
-        ${href ? 'cursor-pointer hover:border-[var(--border-hover)] transition-colors' : ''}
+        ${href ? 'cursor-pointer card-interactive' : ''}
       `}
       style={{ boxShadow: 'var(--shadow-card)' }}
     >
-      <p className="text-caption text-[var(--text-secondary)] font-medium uppercase tracking-wider">{label}</p>
-      <div className="mt-2 flex items-baseline gap-2">
-        <p className="text-hero text-[var(--text-primary)] animate-count-up">
+      <p className="flex items-center gap-1.5 text-caption text-[var(--text-secondary)] font-medium uppercase tracking-wider">
+        {accent && (
+          <span className="inline-block size-2 shrink-0 rounded-full" style={{ background: accent, boxShadow: `0 0 0 3px color-mix(in srgb, ${accent} 18%, transparent)` }} aria-hidden="true" />
+        )}
+        {label}
+      </p>
+      <div className="mt-2.5 flex items-baseline gap-2">
+        <p className="text-[2.25rem] font-semibold leading-none tracking-tight tabular-nums text-[var(--text-primary)] animate-count-up">
           {confidence !== undefined && confidence >= 50 && confidence < 80 ? '~' : ''}
           {typeof value === 'number' ? displayValue : value}
         </p>

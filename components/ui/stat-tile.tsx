@@ -77,15 +77,17 @@ export function StatTile(props: StatTileProps) {
   return (
     <Wrap
       {...wrapProps}
-      className={`group relative block overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 ${href ? 'transition-colors hover:border-[var(--border-hover)]' : ''}`}
+      className={`group relative block overflow-hidden rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 ${href ? 'card-interactive' : ''}`}
       style={{ boxShadow: 'var(--shadow-card)' }}
     >
-      <span className="absolute inset-y-0 start-0 w-[3px]" style={{ background: stripe }} aria-hidden="true" />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)] truncate">{label}</p>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="text-2xl font-semibold tabular-nums text-[var(--text-primary)] leading-none">{display}</span>
+          <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)] truncate">
+            <span className="inline-block size-2 shrink-0 rounded-full" style={{ background: stripe, boxShadow: `0 0 0 3px color-mix(in srgb, ${stripe} 18%, transparent)` }} aria-hidden="true" />
+            {label}
+          </p>
+          <div className="mt-2 flex items-baseline gap-2">
+            <span className="text-[1.75rem] font-semibold tabular-nums tracking-tight text-[var(--text-primary)] leading-none">{display}</span>
             {delta != null && (
               <span
                 className={`inline-flex items-center gap-0.5 text-[11px] font-semibold tabular-nums ${deltaGood == null ? 'text-[var(--text-secondary)]' : TONE_TEXT[deltaGood ? 'low' : 'critical']}`}
