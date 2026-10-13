@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { users, invitations, subscriptions, organizations, actionLog } from '@/lib/db/schema'
 import { and, count, desc, eq, inArray, sql } from 'drizzle-orm'
 import bcrypt from 'bcryptjs'
+import { hashInviteToken } from '@/lib/auth/invite-token'
 import type { AppRole } from '@/lib/utils/rbac'
 
 const APP_ROLES: AppRole[] = ['viewer', 'analyst', 'iam_admin', 'ciso', 'admin']
@@ -14,6 +15,9 @@ const signupSchema = z.object({
   name: z.string().trim().max(200).nullish(),
   email: z.string().trim().min(1).max(320).email(),
   password: z.string().max(200),
+  // Token from the invite link (/signup?invite=...). Required to join an
+  // existing organization; knowing an invited email address is not enough.
+  inviteToken: z.string().trim().min(16).max(200).nullish(),
 })
 
 /** Thrown inside the join transaction to abort it with an HTTP response. */
@@ -51,7 +55,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 400 })
     }
-    const { name, email, password } = parsed.data
+    const { name, email, password, inviteToken } = parsed.data
     if (password.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 })
     }
@@ -70,7 +74,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 })
     }
 
-    // Pending invitations for this email, newest first.
+    // Pending invitations for this email, newest first (expired ones are marked).
     const now = new Date()
     const pending = await db
       .select()
@@ -84,7 +88,19 @@ export async function POST(req: NextRequest) {
         .set({ status: 'expired' })
         .where(and(inArray(invitations.id, expiredIds), eq(invitations.status, 'pending')))
     }
-    const invitation = pending.find((i) => new Date(i.expiresAt) > now)
+
+    // Joining requires the invite link's token, and the link must belong to
+    // this email. Without a token the account is created normally.
+    let invitation: (typeof pending)[number] | undefined
+    if (inviteToken) {
+      const tokenHash = hashInviteToken(inviteToken)
+      invitation = pending.find((i) => i.tokenHash === tokenHash && new Date(i.expiresAt) > now)
+      if (!invitation) {
+        return NextResponse.json({
+          error: 'This invitation link is invalid, expired or was issued for a different email address.',
+        }, { status: 400 })
+      }
+    }
 
     const hashedPassword = await bcrypt.hash(password, 12)
 

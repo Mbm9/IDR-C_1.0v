@@ -8,6 +8,7 @@ import { hasRole, ROLE_HIERARCHY } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
 import { prepareConnectorConfig, ConnectorConfigError } from '@/lib/connectors/store-config'
 import { logAction } from '@/lib/actions/helpers'
+import { createInviteToken, inviteUrl, emailInvite } from '@/lib/auth/invite-token'
 
 const appRoleSchema = z.enum(['viewer', 'analyst', 'iam_admin', 'ciso', 'admin'])
 
@@ -144,24 +145,33 @@ export async function POST(req: NextRequest) {
     }
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-    const inviteValues = parsed.data.members.map((m) => ({
+    const tokens = parsed.data.members.map(() => createInviteToken())
+    const inviteValues = parsed.data.members.map((m, i) => ({
       email: m.email.toLowerCase(),
       role: m.role,
       orgId,
       invitedBy: session.user.id,
       status: 'pending' as const,
+      tokenHash: tokens[i].tokenHash,
       expiresAt,
     }))
 
     await db.insert(invitations).values(inviteValues)
+    const [org] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, orgId)).limit(1)
+    const links = await Promise.all(inviteValues.map(async (v, i) => {
+      const url = inviteUrl(tokens[i].token)
+      const emailed = await emailInvite({ to: v.email, url, orgName: org?.name, role: v.role })
+      return { email: v.email, role: v.role, inviteUrl: url, emailed }
+    }))
     await logAction({
       actionType: 'invite_user',
       actorIdentityId: session.user.id,
       orgId,
-      payload: { via: 'onboarding', invites: inviteValues.map(({ email, role }) => ({ email, role })) },
+      payload: { via: 'onboarding', invites: links.map(({ email, role, emailed }) => ({ email, role, emailed })) },
     })
 
-    return NextResponse.json({ invited: inviteValues.length })
+    // Links are returned once so the admin can share them; only hashes are stored.
+    return NextResponse.json({ invited: inviteValues.length, invites: links })
   }
 
   return NextResponse.json({ error: 'Invalid step' }, { status: 400 })

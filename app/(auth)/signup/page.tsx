@@ -1,8 +1,8 @@
 'use client'
 
 import { signIn, useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { Shield, Eye, EyeOff, Users } from 'lucide-react'
@@ -16,9 +16,11 @@ interface JoinedOrganization {
 const ROLE_KEYS = ['viewer', 'analyst', 'iam_admin', 'ciso', 'admin'] as const
 type RoleKey = (typeof ROLE_KEYS)[number]
 
-export default function SignupPage() {
+function SignupForm() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  // Token from the invite link; required to join the inviting organization.
+  const inviteToken = useSearchParams().get('invite') || undefined
   const t = useTranslations('signup')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -67,7 +69,7 @@ export default function SignupPage() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, email, password, inviteToken }),
       })
 
       const data = await res.json().catch(() => ({}))
@@ -178,7 +180,7 @@ export default function SignupPage() {
                 {t('subtitle')}
               </p>
               <p className="text-micro text-[var(--text-tertiary)] mb-6">
-                {t('invitedHint')}
+                {inviteToken ? t('invitedFromLink') : t('invitedHint')}
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
@@ -269,5 +271,13 @@ export default function SignupPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
   )
 }

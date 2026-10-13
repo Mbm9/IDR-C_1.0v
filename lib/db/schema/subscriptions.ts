@@ -23,7 +23,9 @@ export const invitations = pgTable('invitations', {
   role: text('role').notNull().default('viewer'),
   orgId: uuid('org_id').notNull().references(() => organizations.id),
   invitedBy: uuid('invited_by').notNull(),
-  status: text('status').notNull().default('pending'), // pending, accepted, expired
+  status: text('status').notNull().default('pending'), // pending, accepted, expired, revoked
+  // SHA-256 of the single-use token in the invite link (lib/auth/invite-token.ts)
+  tokenHash: text('token_hash').unique(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 })

@@ -45,10 +45,13 @@ test.describe('Invitations (UAT-115)', () => {
     const email = `e2e.invitee.${Date.now()}@acmefs.sa`
     const invite = await page.request.post('/api/settings/team', { data: { email, role: 'analyst' } })
     expect(invite.ok(), await invite.text()).toBeTruthy()
+    const { inviteUrl } = await invite.json()
+    expect(inviteUrl).toContain('/signup?invite=')
 
     const context = await browser.newContext()
     const invitee = await context.newPage()
-    await invitee.goto('/signup')
+    // Joining needs the link's token; the bare email is not enough.
+    await invitee.goto(new URL(inviteUrl).pathname + new URL(inviteUrl).search)
     await invitee.fill('#name', 'E2E Invitee')
     await invitee.fill('#email', email)
     await invitee.fill('#password', 'E2eInvitee#2026')

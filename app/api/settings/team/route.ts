@@ -7,6 +7,19 @@ import { z } from 'zod'
 import { hasRole, ROLE_HIERARCHY } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
 import { logAction } from '@/lib/actions/helpers'
+import { createInviteToken, inviteUrl, emailInvite } from '@/lib/auth/invite-token'
+import { organizations } from '@/lib/db/schema'
+
+/** Invitation columns safe to return (never the token hash). */
+const invitationColumns = {
+  id: invitations.id,
+  email: invitations.email,
+  role: invitations.role,
+  status: invitations.status,
+  invitedBy: invitations.invitedBy,
+  expiresAt: invitations.expiresAt,
+  createdAt: invitations.createdAt,
+}
 
 const APP_ROLES: AppRole[] = ['viewer', 'analyst', 'iam_admin', 'ciso', 'admin']
 const isAppRole = (value: unknown): value is AppRole =>
@@ -34,7 +47,7 @@ export async function GET() {
       createdAt: users.createdAt,
     }).from(users).where(eq(users.orgId, session.user.orgId)),
 
-    db.select().from(invitations)
+    db.select(invitationColumns).from(invitations)
       .where(and(
         eq(invitations.orgId, session.user.orgId),
         eq(invitations.status, 'pending'),
@@ -96,22 +109,29 @@ export async function POST(req: NextRequest) {
   const expiresAt = new Date()
   expiresAt.setDate(expiresAt.getDate() + 7)
 
+  const { token, tokenHash } = createInviteToken()
   const [invite] = await db.insert(invitations).values({
     email,
     role,
     orgId,
     invitedBy: session.user.id,
+    tokenHash,
     expiresAt,
-  }).returning()
+  }).returning(invitationColumns)
+
+  const url = inviteUrl(token)
+  const [org] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, orgId)).limit(1)
+  const emailed = await emailInvite({ to: email, url, orgName: org?.name, role })
 
   await logAction({
     actionType: 'invite_user',
     actorIdentityId: session.user.id,
     orgId: session.user.orgId,
-    payload: { operation: 'created', invitationId: invite.id, email, role },
+    payload: { operation: 'created', invitationId: invite.id, email, role, emailed },
   })
 
-  return NextResponse.json({ invitation: invite })
+  // The link is returned once so the admin can share it; only its hash is stored.
+  return NextResponse.json({ invitation: invite, inviteUrl: url, emailed })
 }
 
 /** Revoke a pending invitation (admin only). Body: { invitationId }. */

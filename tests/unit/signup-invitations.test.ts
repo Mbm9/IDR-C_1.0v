@@ -1,3 +1,4 @@
+import { hashInviteToken } from '@/lib/auth/invite-token'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
@@ -86,9 +87,12 @@ function signup(body: Record<string, unknown>) {
   }))
 }
 
+const TOKEN = 'invite-token-0123456789abcdef'
+
 function invitation(overrides: Record<string, unknown> = {}) {
   return {
     id: 'inv-1',
+    tokenHash: hashInviteToken(TOKEN),
     email: 'New.Analyst@acmefs.sa',
     role: 'analyst',
     orgId: 'org-acme',
@@ -101,6 +105,7 @@ function invitation(overrides: Record<string, unknown> = {}) {
 }
 
 const body = { name: 'New Analyst', email: 'new.analyst@acmefs.sa', password: 'Sup3rSecret!' }
+const invited = { ...body, inviteToken: TOKEN }
 
 describe('POST /api/auth/signup', () => {
   beforeEach(() => {
@@ -136,7 +141,7 @@ describe('POST /api/auth/signup', () => {
     updateReturning.invitations = [{ id: 'inv-1' }]
     insertReturning.users = [{ id: 'user-joined' }]
 
-    const res = await signup(body)
+    const res = await signup(invited)
     expect(res.status).toBe(201)
     expect(await res.json()).toEqual({
       userId: 'user-joined',
@@ -173,7 +178,7 @@ describe('POST /api/auth/signup', () => {
   it('enforces the subscription user limit for invited signups', async () => {
     selectQueue.push([], [invitation()], [{ maxUsers: 3 }], [{ total: 3 }])
 
-    const res = await signup(body)
+    const res = await signup(invited)
     expect(res.status).toBe(403)
     expect((await res.json()).error).toMatch(/user limit/i)
     expect(inserts).toHaveLength(0)
@@ -184,7 +189,7 @@ describe('POST /api/auth/signup', () => {
     selectQueue.push([], [invitation()], [], [])
     updateReturning.invitations = [] // conditional update matched nothing
 
-    const res = await signup(body)
+    const res = await signup(invited)
     expect(res.status).toBe(409)
     expect(inserts.some((i) => i.table === 'users')).toBe(false)
   })
@@ -196,5 +201,22 @@ describe('POST /api/auth/signup', () => {
     expect((await signup({ email: 'a@b.sa' })).status).toBe(400)
     expect((await signup({ ...body, password: 'short' })).status).toBe(400)
     expect((await signup({ ...body, email: 'not-an-email' })).status).toBe(400)
+  })
+
+  it('does not join an org without the invite token, even if the email is invited', async () => {
+    selectQueue.push([], [invitation()]) // pending invitation exists for this email
+    insertReturning.users = [{ id: 'user-new' }]
+
+    const res = await signup(body)
+    expect(res.status).toBe(201)
+    expect((await res.json()).joinedOrganization).toBeNull()
+    expect(updates).not.toContainEqual({ table: 'invitations', values: { status: 'accepted' } })
+  })
+
+  it('rejects a wrong invite token', async () => {
+    selectQueue.push([], [invitation()])
+    const res = await signup({ ...body, inviteToken: 'some-other-token-0000000000' })
+    expect(res.status).toBe(400)
+    expect(inserts.find((x: any) => x.table === 'users')).toBeUndefined()
   })
 })

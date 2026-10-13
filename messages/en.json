@@ -1052,7 +1052,7 @@
     "featureCompliance": "NCA, SAMA, and PDPL compliance reporting",
     "title": "Create your account",
     "subtitle": "Get started with the free tier. No credit card required.",
-    "invitedHint": "Invited by your organization? Sign up with the email address the invitation was sent to and you will join that organization.",
+    "invitedHint": "Invited by your organization? Open the invitation link you received to join it.",
     "fullName": "Full name",
     "fullNamePlaceholder": "Ali Al-Moharif",
     "workEmail": "Work email",
@@ -1080,6 +1080,7 @@
       "iam_admin": "IAM Admin",
       "ciso": "CISO",
       "admin": "Admin"
-    }
+    },
+    "invitedFromLink": "You are accepting an invitation. Sign up with the email address the invitation was sent to."
   }
 }
