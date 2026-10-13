@@ -1,12 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-async function login(page: any) {
-  await page.goto('/')
-  await page.fill('input[type="email"]', 'admin@identityradar.local')
-  await page.fill('input[type="password"]', 'admin123')
-  await page.click('button[type="submit"]')
-  await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
-}
+import { login } from './fixtures'
 
 test.describe('Graph Explorer', () => {
   test.beforeEach(async ({ page }) => {
@@ -25,7 +18,7 @@ test.describe('Graph Explorer', () => {
     await page.waitForLoadState('networkidle')
 
     // Graph uses SVG (d3) or canvas for visualization
-    const graphArea = page.locator('svg, canvas, [class*="graph"], [class*="network"]').first()
+    const graphArea = page.locator('main canvas:visible, main svg[width]:visible').last()
     await expect(graphArea).toBeVisible({ timeout: 15_000 })
   })
 
@@ -63,7 +56,7 @@ test.describe('Graph Explorer', () => {
 
     // Look for filter controls (selects, buttons, etc.)
     const filterControl = page.locator(
-      'select, [class*="filter"], [class*="select"], button'
+      'main select:visible, main button:visible'
     ).first()
     await expect(filterControl).toBeVisible({ timeout: 10_000 })
   })
@@ -73,7 +66,7 @@ test.describe('Graph Explorer', () => {
     await page.waitForLoadState('networkidle')
 
     // Look for edge type labels like "Entitlements", "Memberships", etc.
-    const entitlementLabel = page.getByText(/entitlement/i).first()
+    const entitlementLabel = page.locator('main').getByText(/entitlement/i).first()
     await expect(entitlementLabel).toBeVisible({ timeout: 10_000 })
   })
 
@@ -119,8 +112,10 @@ test.describe('Graph Explorer', () => {
 
     // Filter out known non-critical errors
     const criticalErrors = errors.filter(
-      (e) => !e.includes('favicon') && !e.includes('hydration') && !e.includes('404')
+      (e) => !e.includes('favicon') && !e.includes('hydration') && !e.includes('404') &&
+        // Prefetches and session polls from the previous page are aborted by the navigation itself.
+        !e.includes('Failed to fetch')
     )
-    expect(criticalErrors.length).toBe(0)
+    expect(criticalErrors, criticalErrors.join("\n")).toHaveLength(0)
   })
 })

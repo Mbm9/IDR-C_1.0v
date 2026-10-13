@@ -1,0 +1,121 @@
+[
+ {
+  "route": "/dashboard/identities",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/tiering",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/entitlements",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/exposures",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/attack-paths",
+  "controls": [
+   "Run Scan"
+  ]
+ },
+ {
+  "route": "/dashboard/violations",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/issues",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/import",
+  "controls": [
+   "Skip — Load Demo Data Instead"
+  ]
+ },
+ {
+  "route": "/dashboard/integrations",
+  "controls": [
+   "Connect New Source",
+   "Trigger Sync"
+  ]
+ },
+ {
+  "route": "/dashboard/settings",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/ai",
+  "controls": [
+   "Generate Analysis"
+  ]
+ },
+ {
+  "route": "/dashboard/canaries",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/certifications",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/data-quality",
+  "controls": [
+   "Run Enrichment"
+  ]
+ },
+ {
+  "route": "/dashboard/gpo",
+  "controls": [
+   "Scan GPOs"
+  ]
+ },
+ {
+  "route": "/dashboard/nhi",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/peer-analysis",
+  "controls": [
+   "Dismiss"
+  ]
+ },
+ {
+  "route": "/dashboard/remediation",
+  "controls": [
+   "Scan & Generate Proposals"
+  ]
+ },
+ {
+  "route": "/dashboard/shadow-admins",
+  "controls": [
+   "Run Scan",
+   "Dismiss"
+  ]
+ },
+ {
+  "route": "/dashboard/threats",
+  "controls": [
+   "Dismiss"
+  ]
+ },
+ {
+  "route": "/dashboard/identities/:id",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/attack-paths/:id",
+  "controls": [
+   "Generate Narrative"
+  ]
+ },
+ {
+  "route": "/dashboard/threats/:id",
+  "controls": [
+   "Resolve",
+   "Run Triage"
+  ]
+ }
+]

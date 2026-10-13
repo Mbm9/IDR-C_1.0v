@@ -1,13 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-// Helper to login before each test
-async function login(page: any) {
-  await page.goto('/')
-  await page.fill('input[type="email"]', 'admin@identityradar.local')
-  await page.fill('input[type="password"]', 'admin123')
-  await page.click('button[type="submit"]')
-  await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
-}
+import { login } from './fixtures'
 
 test.describe('Dashboard Overview', () => {
   test.beforeEach(async ({ page }) => {
@@ -35,13 +27,13 @@ test.describe('Dashboard Overview', () => {
     await page.waitForLoadState('networkidle')
 
     // Look for text mentioning "risk" or "riskiest"
-    const riskSection = page.getByText(/risk/i).first()
+    const riskSection = page.locator('main').getByText(/riskiest/i).first()
     await expect(riskSection).toBeVisible({ timeout: 10_000 })
   })
 
   test('navigation sidebar is visible', async ({ page }) => {
     // Look for sidebar nav element
-    const sidebar = page.locator('nav, [class*="sidebar"], aside').first()
+    const sidebar = page.locator('aside:visible, nav:visible').first()
     await expect(sidebar).toBeVisible()
   })
 

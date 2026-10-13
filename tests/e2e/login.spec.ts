@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { credentials } from './fixtures'
 
 test.describe('Login Page', () => {
   test('shows login form on /', async ({ page }) => {
@@ -34,9 +35,10 @@ test.describe('Login Page', () => {
   test('redirects to /dashboard on successful login', async ({ page }) => {
     await page.goto('/')
 
-    // Use seeded admin credentials
-    await page.fill('input[type="email"]', 'admin@identityradar.local')
-    await page.fill('input[type="password"]', 'admin123')
+    // Use seeded admin credentials (see tests/e2e/fixtures.ts)
+    const admin = credentials('admin')!
+    await page.fill('input[type="email"]', admin.email)
+    await page.fill('input[type="password"]', admin.password)
     await page.click('button[type="submit"]')
 
     // Should redirect to dashboard
@@ -46,7 +48,7 @@ test.describe('Login Page', () => {
   test('shows Identity Radar branding', async ({ page }) => {
     await page.goto('/')
 
-    const branding = page.getByText(/identity radar/i)
+    const branding = page.getByRole('heading', { name: /identity radar/i }).locator('visible=true').first()
     await expect(branding).toBeVisible()
   })
 

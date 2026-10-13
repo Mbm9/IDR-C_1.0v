@@ -1,12 +1,5 @@
 import { test, expect } from '@playwright/test'
-
-async function login(page: any) {
-  await page.goto('/')
-  await page.fill('input[type="email"]', 'admin@identityradar.local')
-  await page.fill('input[type="password"]', 'admin123')
-  await page.click('button[type="submit"]')
-  await page.waitForURL(/\/dashboard/, { timeout: 15_000 })
-}
+import { login } from './fixtures'
 
 test.describe('Identities Explorer', () => {
   test.beforeEach(async ({ page }) => {
@@ -64,10 +57,10 @@ test.describe('Identities Explorer', () => {
     await page.waitForLoadState('networkidle')
 
     // Wait for table rows
-    const firstRow = page.locator('table tbody tr, [role="row"]').first()
+    const firstRow = page.locator('table tbody a[href^="/dashboard/identities/"]').first()
     await expect(firstRow).toBeVisible({ timeout: 15_000 })
 
-    // Click the first data row
+    // Rows are not clickable; the identity name links to the detail page
     await firstRow.click()
 
     // Should navigate to identity detail page
@@ -79,14 +72,14 @@ test.describe('Identities Explorer', () => {
     await page.waitForLoadState('networkidle')
 
     // Click first row to go to detail
-    const firstRow = page.locator('table tbody tr, [role="row"]').first()
+    const firstRow = page.locator('table tbody a[href^="/dashboard/identities/"]').first()
     await expect(firstRow).toBeVisible({ timeout: 15_000 })
     await firstRow.click()
 
     await page.waitForLoadState('networkidle')
 
     // Look for tab navigation on detail page
-    const tabs = page.locator('[role="tablist"], [class*="tab"]').first()
+    const tabs = page.locator('main [role="tablist"]:visible, main [role="tab"]:visible, main button:has-text("Overview")').first()
     await expect(tabs).toBeVisible({ timeout: 10_000 })
   })
 
@@ -94,14 +87,14 @@ test.describe('Identities Explorer', () => {
     await page.goto('/dashboard/identities')
     await page.waitForLoadState('networkidle')
 
-    const firstRow = page.locator('table tbody tr, [role="row"]').first()
+    const firstRow = page.locator('table tbody a[href^="/dashboard/identities/"]').first()
     await expect(firstRow).toBeVisible({ timeout: 15_000 })
     await firstRow.click()
 
     await page.waitForLoadState('networkidle')
 
     // Should show some identity name or heading
-    const heading = page.locator('h1, h2, h3, [class*="heading"], [class*="title"]').first()
+    const heading = page.locator('main h1:visible, main h2:visible').first()
     await expect(heading).toBeVisible({ timeout: 10_000 })
     const text = await heading.textContent()
     expect(text).toBeTruthy()
