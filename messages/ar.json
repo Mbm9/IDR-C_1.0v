@@ -978,5 +978,66 @@
       "priorityDefault": "مواصلة المراجعة الاستباقية للشهادات التي تقترب من انتهاء صلاحيتها",
       "priorityLabel": "الأولوية: {text}"
     }
+  },
+  "docs": {
+    "title": "التوثيق",
+    "subtitle": "أدلة المنصة، ومرجع واجهات API، وإعداد الموصلات، وربط متطلبات الامتثال",
+    "searchPlaceholder": "ابحث في التوثيق...",
+    "tabs": {
+      "guide": "دليل المستخدم",
+      "api": "مرجع API",
+      "connectors": "الموصلات",
+      "compliance": "الامتثال"
+    },
+    "guide": {
+      "keyFeatures": "الميزات الرئيسية",
+      "availableActions": "الإجراءات المتاحة",
+      "noResults": "لا توجد أقسام في الدليل تطابق بحثك."
+    },
+    "api": {
+      "endpointCount": "{count, plural, zero {لا توجد نقاط نهاية} one {نقطة نهاية واحدة} two {نقطتا نهاية} few {# نقاط نهاية} many {# نقطة نهاية} other {# نقطة نهاية}}",
+      "requiredRole": "الدور المطلوب",
+      "noResults": "لا توجد نقاط نهاية API تطابق بحثك."
+    },
+    "connectors": {
+      "connectorCount": "{count, plural, zero {لا توجد موصلات} one {موصل واحد} two {موصلان} few {# موصلات} many {# موصلًا} other {# موصل}}",
+      "prerequisites": "المتطلبات المسبقة",
+      "setupSteps": "خطوات الإعداد",
+      "dataImported": "البيانات المستوردة",
+      "syncFrequency": "تكرار المزامنة",
+      "requiredCredentials": "بيانات الاعتماد المطلوبة",
+      "optional": "اختيارية",
+      "troubleshooting": "استكشاف الأخطاء وإصلاحها",
+      "note": "ملاحظة:",
+      "noResults": "لا توجد موصلات تطابق بحثك."
+    },
+    "compliance": {
+      "controlCount": "{count, plural, zero {لا توجد ضوابط} one {ضابط واحد} two {ضابطان} few {# ضوابط} many {# ضابطًا} other {# ضابط}}",
+      "controlId": "معرّف الضابط",
+      "controlName": "اسم الضابط",
+      "feature": "ميزة Identity Radar",
+      "dashboard": "لوحة التحكم",
+      "noResults": "لا توجد ضوابط امتثال تطابق بحثك."
+    },
+    "categories": {
+      "directory": "خدمات الدليل",
+      "sso": "الدخول الموحّد (SSO)",
+      "iga": "حوكمة الهوية وإدارتها (IGA)",
+      "pam": "إدارة الوصول المميز (PAM)",
+      "itsm": "إدارة خدمات تقنية المعلومات (ITSM)",
+      "itdr": "كشف تهديدات الهوية والاستجابة لها (ITDR)",
+      "secrets": "إدارة الأسرار",
+      "siem": "إدارة المعلومات والأحداث الأمنية (SIEM)",
+      "certificate": "الشهادات الرقمية",
+      "import": "الاستيراد"
+    },
+    "roles": {
+      "public": "عام",
+      "viewer": "مُشاهد",
+      "analyst": "محلل",
+      "iam_admin": "مسؤول الهوية والوصول",
+      "ciso": "رئيس أمن المعلومات",
+      "admin": "مدير النظام"
+    }
   }
 }

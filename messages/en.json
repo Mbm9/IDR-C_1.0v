@@ -978,5 +978,66 @@
       "priorityDefault": "Continue proactive review of expiring certifications",
       "priorityLabel": "Priority: {text}"
     }
+  },
+  "docs": {
+    "title": "Documentation",
+    "subtitle": "Platform guides, API reference, connector setup, and compliance mappings",
+    "searchPlaceholder": "Search documentation...",
+    "tabs": {
+      "guide": "User Guide",
+      "api": "API Reference",
+      "connectors": "Connectors",
+      "compliance": "Compliance"
+    },
+    "guide": {
+      "keyFeatures": "Key Features",
+      "availableActions": "Available Actions",
+      "noResults": "No guide sections match your search."
+    },
+    "api": {
+      "endpointCount": "{count, plural, one {# endpoint} other {# endpoints}}",
+      "requiredRole": "Required role",
+      "noResults": "No API endpoints match your search."
+    },
+    "connectors": {
+      "connectorCount": "{count, plural, one {# connector} other {# connectors}}",
+      "prerequisites": "Prerequisites",
+      "setupSteps": "Setup Steps",
+      "dataImported": "Data Imported",
+      "syncFrequency": "Sync Frequency",
+      "requiredCredentials": "Required Credentials",
+      "optional": "Optional",
+      "troubleshooting": "Troubleshooting",
+      "note": "Note:",
+      "noResults": "No connectors match your search."
+    },
+    "compliance": {
+      "controlCount": "{count, plural, one {# control} other {# controls}}",
+      "controlId": "Control ID",
+      "controlName": "Control Name",
+      "feature": "Identity Radar Feature",
+      "dashboard": "Dashboard",
+      "noResults": "No compliance controls match your search."
+    },
+    "categories": {
+      "directory": "Directory",
+      "sso": "SSO",
+      "iga": "IGA",
+      "pam": "PAM",
+      "itsm": "ITSM",
+      "itdr": "ITDR",
+      "secrets": "Secrets",
+      "siem": "SIEM",
+      "certificate": "Certificate",
+      "import": "Import"
+    },
+    "roles": {
+      "public": "public",
+      "viewer": "viewer",
+      "analyst": "analyst",
+      "iam_admin": "iam_admin",
+      "ciso": "ciso",
+      "admin": "admin"
+    }
   }
 }
