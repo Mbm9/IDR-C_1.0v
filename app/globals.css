@@ -28,7 +28,7 @@
   /* Text */
   --text-primary: #111318;
   --text-secondary: #5F6B7A;
-  --text-tertiary: #8E99AB;
+  --text-tertiary: #687282; /* 4.6:1 on bg-secondary (WCAG AA) */
 
   /* Borders */
   --border-default: #E2E5EB;
@@ -40,16 +40,23 @@
   --shadow-modal: 0 16px 48px rgba(0,0,0,0.12);
 
   /* Risk/Severity */
-  --color-critical: #DC2626;
+  --color-critical: #B91C1C;
   --color-critical-bg: #FEF2F2;
-  --color-high: #EA580C;
+  --color-high: #C2410C;
   --color-high-bg: #FFF7ED;
-  --color-medium: #CA8A04;
+  --color-medium: #A16207;
   --color-medium-bg: #FEFCE8;
-  --color-low: #16A34A;
+  --color-low: #15803D;
   --color-low-bg: #F0FDF4;
-  --color-info: #2563EB;
+  --color-info: #1D4ED8;
   --color-info-bg: #EFF6FF;
+  /* Severity colours for TEXT (>= 4.5:1 on page and tinted backgrounds).
+     --color-* stays the fill/border/chart colour, which white text sits on. */
+  --color-critical-text: var(--color-critical);
+  --color-high-text: var(--color-high);
+  --color-medium-text: var(--color-medium);
+  --color-low-text: var(--color-low);
+  --color-info-text: var(--color-info);
 
   /* AD Tiers */
   --color-tier0: #DC2626;
@@ -74,7 +81,7 @@
   --bg-tertiary: #232733;
   --text-primary: #E8EAF0;
   --text-secondary: #8E99AB;
-  --text-tertiary: #5F6B7A;
+  --text-tertiary: #7E899B; /* 4.7:1 on bg-secondary (WCAG AA) */
   --border-default: #2E3340;
   --border-hover: #3D4455;
   --shadow-card: none;
@@ -85,6 +92,18 @@
   --color-medium-bg: #2D2604;
   --color-low-bg: #0D2818;
   --color-info-bg: #0D1B2D;
+  /* Dark mode keeps the 600 fills (white text on them passes) but needs
+     lighter tones for text on the dark background. */
+  --color-critical: #DC2626;
+  --color-high: #EA580C;
+  --color-medium: #CA8A04;
+  --color-low: #16A34A;
+  --color-info: #2563EB;
+  --color-critical-text: #F87171;
+  --color-high-text: #FB923C;
+  --color-medium-text: #FACC15;
+  --color-low-text: #4ADE80;
+  --color-info-text: #60A5FA;
 }
 
 /* ── Base ── */
