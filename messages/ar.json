@@ -352,7 +352,18 @@
     "manageIntegration": "إدارة التكامل",
     "manageApiKey": "إدارة مفتاح API",
     "loginSuccess": "تسجيل دخول ناجح",
-    "loginFailed": "فشل تسجيل الدخول"
+    "loginFailed": "فشل تسجيل الدخول",
+    "manageCanary": "إدارة هوية الكناري",
+    "manageDetectionRule": "إدارة قاعدة الكشف",
+    "manageAutomationRule": "إدارة قاعدة الأتمتة",
+    "manageWebhook": "إدارة خطاف الويب",
+    "manageGpo": "إدارة سياسة المجموعة (GPO)",
+    "importData": "استيراد البيانات",
+    "dataQualityAction": "إجراء جودة البيانات",
+    "updateThreatStatus": "تحديث حالة التهديد",
+    "updateFindingStatus": "تحديث حالة النتيجة",
+    "runScan": "تشغيل الفحص",
+    "manageRemediation": "إدارة خطة المعالجة"
   },
   "integrations": {
     "title": "صحة التكاملات",

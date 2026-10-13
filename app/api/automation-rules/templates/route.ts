@@ -4,6 +4,10 @@ import { db } from '@/lib/db'
 import { automationRules } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { AUTOMATION_TEMPLATES, getTemplate, getTemplatesByCategory } from '@/lib/automation/templates'
+import { z } from 'zod'
+import { logAction, parseJsonBody } from '@/lib/actions/helpers'
+
+const activateSchema = z.object({ templateId: z.string().trim().min(1).max(100) })
 
 /**
  * GET /api/automation-rules/templates
@@ -44,12 +48,9 @@ export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
  * Body: { templateId: string }
  */
 export const POST = withApiHandler(async (req: NextRequest, { orgId, session, log }) => {
-  const body = await req.json()
-  const { templateId } = body
-
-  if (!templateId) {
-    return NextResponse.json({ error: 'templateId is required' }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, activateSchema)
+  if (!parsed.ok) return parsed.response
+  const { templateId } = parsed.data
 
   const template = getTemplate(templateId)
   if (!template) {
@@ -85,6 +86,13 @@ export const POST = withApiHandler(async (req: NextRequest, { orgId, session, lo
     createdBy: session.user.id,
     orgId,
   }).returning()
+
+  await logAction({
+    actionType: 'manage_automation_rule',
+    actorIdentityId: session.user.id,
+    orgId,
+    payload: { operation: 'activate_template', templateId, ruleId: rule.id, name: template.name },
+  })
 
   log.info('Template activated', { templateId, ruleName: template.name, ruleId: rule.id })
 

@@ -4,6 +4,12 @@ import { db } from '@/lib/db'
 import { remediationPlans } from '@/lib/db/schema'
 import { eq, desc } from 'drizzle-orm'
 import { generateTierRemediationProposals } from '@/lib/remediation/tier-proposals'
+import { logAction, parseJsonBody } from '@/lib/actions/helpers'
+import { z } from 'zod'
+
+const generateSchema = z.object({
+  type: z.literal('tier_violations', { message: 'Invalid type. Supported: tier_violations' }),
+})
 
 /**
  * GET /api/remediation
@@ -40,18 +46,25 @@ export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
  *
  * Body: { type: 'tier_violations' }
  */
-export const POST = withApiHandler(async (req: NextRequest, { orgId, log }) => {
-  const body = await req.json().catch(() => ({}))
-  const { type } = body
-
-  if (type !== 'tier_violations') {
-    return NextResponse.json(
-      { error: 'Invalid type. Supported: tier_violations' },
-      { status: 400 }
-    )
-  }
+export const POST = withApiHandler(async (req: NextRequest, { orgId, session, log }) => {
+  const parsed = await parseJsonBody(req, generateSchema)
+  if (!parsed.ok) return parsed.response
+  const { type } = parsed.data
 
   const result = await generateTierRemediationProposals(orgId)
+
+  await logAction({
+    actionType: 'manage_remediation',
+    actorIdentityId: session.user.id,
+    orgId,
+    payload: {
+      operation: 'generate',
+      type,
+      planId: result.planId,
+      totalViolations: result.totalViolations,
+      proposedActions: result.proposedActions,
+    },
+  })
 
   log.info('Remediation proposals generated', result)
 

@@ -3,9 +3,21 @@ import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { detectionRules } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
+import { z } from 'zod'
 import { hasRole } from '@/lib/utils/rbac'
-import { unauthorized, forbidden, badRequest } from '@/lib/actions/helpers'
+import { unauthorized, forbidden, logAction, parseJsonBody, changedKeys } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
+
+const detectionRuleUpdateSchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.string().trim().min(1).max(2000).optional(),
+  threatType: z.string().trim().min(1).max(100).optional(),
+  killChainPhase: z.string().trim().min(1).max(100).optional(),
+  severity: z.enum(['critical', 'high', 'medium', 'low']).optional(),
+  logic: z.record(z.string(), z.unknown()).optional(),
+  enabled: z.boolean().optional(),
+  mitreTechniqueIds: z.array(z.string().max(50)).max(50).optional(),
+})
 
 export async function GET(
   req: NextRequest,
@@ -40,11 +52,12 @@ export async function PUT(
     if (!session?.user?.orgId) return unauthorized()
     if (!hasRole((session.user as any).appRole as AppRole, 'iam_admin')) return forbidden()
 
-    const body = await req.json().catch(() => null)
-    if (!body) return badRequest('Invalid request body')
+    const parsed = await parseJsonBody(req, detectionRuleUpdateSchema)
+    if (!parsed.ok) return parsed.response
+    const body = parsed.data
 
     const [existing] = await db
-      .select({ id: detectionRules.id })
+      .select({ id: detectionRules.id, name: detectionRules.name, enabled: detectionRules.enabled, severity: detectionRules.severity })
       .from(detectionRules)
       .where(and(eq(detectionRules.id, params.id), eq(detectionRules.orgId, session.user.orgId)))
       .limit(1)
@@ -69,6 +82,20 @@ export async function PUT(
       .where(eq(detectionRules.id, params.id))
       .returning()
 
+    await logAction({
+      actionType: 'manage_detection_rule',
+      actorIdentityId: session.user.id,
+      orgId: session.user.orgId,
+      payload: {
+        operation: 'update',
+        ruleId: params.id,
+        name: updated?.name ?? existing.name,
+        changedFields: changedKeys(body),
+        ...(body.enabled !== undefined && { previousEnabled: existing.enabled, newEnabled: body.enabled }),
+        ...(body.severity !== undefined && { previousSeverity: existing.severity, newSeverity: body.severity }),
+      },
+    })
+
     return NextResponse.json(updated)
   } catch (err: any) {
     return NextResponse.json({ error: 'Failed to update rule', details: err.message }, { status: 500 })
@@ -85,7 +112,7 @@ export async function DELETE(
     if (!hasRole((session.user as any).appRole as AppRole, 'iam_admin')) return forbidden()
 
     const [existing] = await db
-      .select({ id: detectionRules.id })
+      .select({ id: detectionRules.id, name: detectionRules.name, threatType: detectionRules.threatType })
       .from(detectionRules)
       .where(and(eq(detectionRules.id, params.id), eq(detectionRules.orgId, session.user.orgId)))
       .limit(1)
@@ -95,6 +122,13 @@ export async function DELETE(
     }
 
     await db.delete(detectionRules).where(eq(detectionRules.id, params.id))
+
+    await logAction({
+      actionType: 'manage_detection_rule',
+      actorIdentityId: session.user.id,
+      orgId: session.user.orgId,
+      payload: { operation: 'delete', ruleId: params.id, name: existing.name, threatType: existing.threatType },
+    })
 
     return NextResponse.json({ success: true })
   } catch (err: any) {

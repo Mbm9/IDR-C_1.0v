@@ -4,8 +4,26 @@ import { db } from '@/lib/db'
 import { identities } from '@/lib/db/schema'
 import { eq, sql, or, isNull, lt } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
-import { logAction, unauthorized, forbidden, badRequest } from '@/lib/actions/helpers'
+import { logAction, unauthorized, forbidden, parseJsonBody } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
+import { z } from 'zod'
+
+// Only descriptive attributes may be filled from a suggestion — never ids, org, risk or tier-violation state.
+const SUGGESTIBLE_FIELDS = [
+  'displayName', 'email', 'upn', 'samAccountName', 'department',
+  'managerIdentityId', 'ownerIdentityId', 'adTier', 'type', 'subType',
+  'expiryAt', 'lastLogonAt',
+] as const
+const DATE_FIELDS = new Set<string>(['expiryAt', 'lastLogonAt'])
+
+const applySuggestionsSchema = z.object({
+  suggestions: z.array(z.object({
+    identityId: z.string().uuid(),
+    field: z.enum(SUGGESTIBLE_FIELDS),
+    value: z.union([z.string().max(1000), z.number(), z.boolean(), z.null()]),
+    confidence: z.number().min(0).max(100).optional(),
+  })).min(1, 'suggestions must be a non-empty array').max(500),
+})
 
 // GET: Query identities with low data quality scores, return top 50 with gaps
 export async function GET(req: NextRequest) {
@@ -75,21 +93,23 @@ export async function POST(req: NextRequest) {
     if (!hasRole((session.user as any).appRole as AppRole, 'iam_admin')) return forbidden()
 
     const orgId = session.user.orgId
-    const body = await req.json().catch(() => ({}))
-    const { suggestions } = body
-
-    if (!Array.isArray(suggestions) || suggestions.length === 0) {
-      return badRequest('suggestions must be a non-empty array')
-    }
+    const parsed = await parseJsonBody(req, applySuggestionsSchema)
+    if (!parsed.ok) return parsed.response
+    const { suggestions } = parsed.data
 
     let applied = 0
     const errors: string[] = []
 
     for (const suggestion of suggestions) {
-      const { identityId, field, value } = suggestion
-      if (!identityId || !field || value === undefined) {
-        errors.push(`Invalid suggestion: missing identityId, field, or value`)
-        continue
+      const { identityId, field } = suggestion
+      let value: unknown = suggestion.value
+      if (DATE_FIELDS.has(field) && typeof value === 'string') {
+        const d = new Date(value)
+        if (Number.isNaN(d.getTime())) {
+          errors.push(`Identity ${identityId}: ${field} must be a valid date`)
+          continue
+        }
+        value = d
       }
 
       try {
@@ -128,12 +148,18 @@ export async function POST(req: NextRequest) {
 
         // Log to action_log
         await logAction({
-          actionType: 'assess_identity',
-          actorIdentityId: (session.user as any).identityId || identityId,
+          actionType: 'data_quality_action',
+          actorIdentityId: session.user.id,
           orgId,
           targetIdentityId: identityId,
-          payload: { field, value, source: 'data_steward_suggestion' },
-          rationale: `Applied data quality suggestion: set ${field} to ${value}`,
+          payload: {
+            operation: 'apply_suggestion',
+            field,
+            previousValue: (identity[0] as any)[field] ?? null,
+            newValue: value,
+            source: 'data_steward_suggestion',
+          },
+          rationale: `Applied data quality suggestion: set ${field} to ${String(suggestion.value)}`,
           source: 'ai_recommended',
         })
 

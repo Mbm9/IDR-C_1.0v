@@ -7,6 +7,20 @@ import { sendWebhook } from '@/lib/webhooks/sender'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
 import { assertSafeConnectorUrl } from '@/lib/connectors/url-guard'
+import { z } from 'zod'
+import { logAction, parseJsonBody, changedKeys } from '@/lib/actions/helpers'
+
+const updateWebhookSchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  url: z.string().trim().url().max(2048).optional(),
+  secret: z.string().max(500).nullable().optional(),
+  events: z.array(z.string().trim().min(1).max(100)).min(1).max(50).optional(),
+  enabled: z.boolean().optional(),
+})
+
+function safeHost(url: string): string | null {
+  try { return new URL(url).host } catch { return null }
+}
 
 const isAdmin = (session: any) => hasRole((session?.user as any)?.appRole as AppRole, 'iam_admin')
 
@@ -47,8 +61,9 @@ export async function PUT(
   }
 
   const { id } = params
-  const body = await req.json()
-  const { name, url, secret, events, enabled } = body
+  const parsed = await parseJsonBody(req, updateWebhookSchema)
+  if (!parsed.ok) return parsed.response
+  const { name, url, secret, events, enabled } = parsed.data
 
   if (url !== undefined) {
     try {
@@ -75,13 +90,37 @@ export async function PUT(
   if (events !== undefined) updates.events = events
   if (enabled !== undefined) updates.enabled = enabled
 
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json(
+      { error: 'Invalid input', details: { formErrors: ['No updatable fields provided'], fieldErrors: {} } },
+      { status: 400 },
+    )
+  }
+
   const [updated] = await db
     .update(webhookEndpoints)
     .set(updates)
     .where(eq(webhookEndpoints.id, id))
     .returning()
 
-  return NextResponse.json(updated)
+  // changedFields lists `secret` when rotated, but never its value.
+  await logAction({
+    actionType: 'manage_webhook',
+    actorIdentityId: session.user.id,
+    orgId: session.user.orgId,
+    payload: {
+      operation: 'update',
+      webhookId: id,
+      name: updated?.name ?? existing.name,
+      changedFields: changedKeys(parsed.data),
+      ...(url !== undefined && { previousHost: safeHost(existing.url), newHost: safeHost(url) }),
+      ...(enabled !== undefined && { previousEnabled: existing.enabled, newEnabled: enabled }),
+    },
+  })
+
+  // Never return the signing secret to the client.
+  const { secret: _s, ...safe } = updated
+  return NextResponse.json({ ...safe, hasSecret: !!updated.secret })
 }
 
 export async function DELETE(
@@ -109,6 +148,13 @@ export async function DELETE(
   }
 
   await db.delete(webhookEndpoints).where(eq(webhookEndpoints.id, id))
+
+  await logAction({
+    actionType: 'manage_webhook',
+    actorIdentityId: session.user.id,
+    orgId: session.user.orgId,
+    payload: { operation: 'delete', webhookId: id, name: existing.name, host: safeHost(existing.url) },
+  })
 
   return NextResponse.json({ success: true })
 }
@@ -163,6 +209,13 @@ export async function POST(
       failureCount: success ? 0 : webhook.failureCount + 1,
     })
     .where(eq(webhookEndpoints.id, id))
+
+  await logAction({
+    actionType: 'manage_webhook',
+    actorIdentityId: session.user.id,
+    orgId: session.user.orgId,
+    payload: { operation: 'test', webhookId: id, name: webhook.name, host: safeHost(webhook.url), delivered: success },
+  })
 
   return NextResponse.json({ success, message: success ? 'Test payload delivered' : 'Delivery failed' })
 }

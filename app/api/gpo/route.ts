@@ -3,9 +3,27 @@ import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { gpoObjects, gpoLinks, gpoPermissions, identities } from '@/lib/db/schema'
 import { eq, and, ilike, desc, sql } from 'drizzle-orm'
-import { unauthorized, forbidden } from '@/lib/actions/helpers'
+import { unauthorized, forbidden, logAction, parseJsonBody } from '@/lib/actions/helpers'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
+import { z } from 'zod'
+
+const isoDate = z.string().refine((v) => !Number.isNaN(Date.parse(v)), 'Invalid date')
+
+const createGpoSchema = z.object({
+  name: z.string().trim().min(1).max(256),
+  displayName: z.string().trim().max(256).optional(),
+  gpoGuid: z.string().trim().max(64).optional(),
+  status: z.enum(['enabled', 'disabled', 'enforced']).optional(),
+  adTier: z.enum(['tier_0', 'tier_1', 'tier_2', 'unclassified']).optional(),
+  version: z.number().int().min(0).optional(),
+  description: z.string().max(2000).optional(),
+  ownerIdentityId: z.string().uuid().optional(),
+  securityFiltering: z.unknown().optional(),
+  wmiFilter: z.string().max(1000).optional(),
+  createdInSourceAt: isoDate.optional(),
+  modifiedInSourceAt: isoDate.optional(),
+})
 
 // GET: List all GPOs with filters
 export async function GET(req: NextRequest) {
@@ -75,7 +93,32 @@ export async function POST(req: NextRequest) {
     if (!hasRole((session.user as any).appRole as AppRole, 'iam_admin')) return forbidden()
 
     const orgId = session.user.orgId
-    const body = await req.json()
+    const parsed = await parseJsonBody(req, createGpoSchema)
+    if (!parsed.ok) return parsed.response
+    const body = parsed.data
+
+    if (body.ownerIdentityId) {
+      const [owner] = await db.select({ id: identities.id })
+        .from(identities)
+        .where(and(eq(identities.id, body.ownerIdentityId), eq(identities.orgId, orgId)))
+        .limit(1)
+      if (!owner) {
+        return NextResponse.json(
+          { error: 'Invalid input', details: { formErrors: [], fieldErrors: { ownerIdentityId: ['Identity not found in this organization'] } } },
+          { status: 400 },
+        )
+      }
+    }
+
+    if (body.gpoGuid) {
+      const [dup] = await db.select({ id: gpoObjects.id })
+        .from(gpoObjects)
+        .where(eq(gpoObjects.gpoGuid, body.gpoGuid))
+        .limit(1)
+      if (dup) {
+        return NextResponse.json({ error: 'A GPO with this gpoGuid already exists' }, { status: 409 })
+      }
+    }
 
     const [gpo] = await db.insert(gpoObjects).values({
       name: body.name,
@@ -92,6 +135,13 @@ export async function POST(req: NextRequest) {
       modifiedInSourceAt: body.modifiedInSourceAt ? new Date(body.modifiedInSourceAt) : undefined,
       orgId,
     }).returning()
+
+    await logAction({
+      actionType: 'manage_gpo',
+      actorIdentityId: session.user.id,
+      orgId,
+      payload: { operation: 'create', gpoId: gpo.id, name: gpo.name, gpoGuid: gpo.gpoGuid, adTier: gpo.adTier, status: gpo.status },
+    })
 
     return NextResponse.json(gpo, { status: 201 })
   } catch (error) {

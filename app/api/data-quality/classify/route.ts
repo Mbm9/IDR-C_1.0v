@@ -54,14 +54,16 @@ export async function POST(req: NextRequest) {
 
     // Log the classification action
     await logAction({
-      actionType: 'assess_identity',
+      actionType: 'data_quality_action',
       actorIdentityId: session.user.id,
       orgId,
       rationale: `Auto-classification: ${applied.length} applied (>80% confidence), ${pendingReview.length} pending review`,
       payload: {
+        operation: 'classify',
         totalResults: results.length,
         appliedCount: applied.length,
         pendingCount: pendingReview.length,
+        appliedIdentityIds: applied.slice(0, 200).map((r) => r.identityId),
       },
     })
 

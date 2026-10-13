@@ -352,7 +352,18 @@
     "manageIntegration": "Manage Integration",
     "manageApiKey": "Manage API Key",
     "loginSuccess": "Login Succeeded",
-    "loginFailed": "Login Failed"
+    "loginFailed": "Login Failed",
+    "manageCanary": "Manage Canary",
+    "manageDetectionRule": "Manage Detection Rule",
+    "manageAutomationRule": "Manage Automation Rule",
+    "manageWebhook": "Manage Webhook",
+    "manageGpo": "Manage GPO",
+    "importData": "Import Data",
+    "dataQualityAction": "Data Quality Action",
+    "updateThreatStatus": "Update Threat Status",
+    "updateFindingStatus": "Update Finding Status",
+    "runScan": "Run Scan",
+    "manageRemediation": "Manage Remediation"
   },
   "integrations": {
     "title": "Integration Health",

@@ -4,6 +4,7 @@ import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
 import { db } from '@/lib/db'
 import { identities, groups, groupMemberships, entitlements, resources, policyViolations, policies } from '@/lib/db/schema'
+import { logAction } from '@/lib/actions/helpers'
 
 // Realistic demo data generator for instant onboarding
 const DEPARTMENTS = ['IT', 'Engineering', 'Finance', 'HR', 'Security', 'Operations', 'Legal', 'Marketing']
@@ -187,16 +188,22 @@ export async function POST(_req: NextRequest) {
     }
     await db.insert(policyViolations).values(demoViolations)
 
-    return NextResponse.json({
-      success: true,
-      summary: {
-        identities: demoIdentities.length,
-        groups: demoGroups.length,
-        resources: RESOURCE_NAMES.length,
-        entitlements: demoEntitlements.length,
-        violations: demoViolations.length,
-      },
+    const summary = {
+      identities: demoIdentities.length,
+      groups: demoGroups.length,
+      resources: RESOURCE_NAMES.length,
+      entitlements: demoEntitlements.length,
+      violations: demoViolations.length,
+    }
+
+    await logAction({
+      actionType: 'import_data',
+      actorIdentityId: session.user.id,
+      orgId,
+      payload: { operation: 'demo_data', policyId: policy.id, ...summary },
     })
+
+    return NextResponse.json({ success: true, summary })
   } catch (err: any) {
     console.error('[Demo] Error:', err)
     return NextResponse.json({ error: 'Failed to generate demo data', details: err.message }, { status: 500 })

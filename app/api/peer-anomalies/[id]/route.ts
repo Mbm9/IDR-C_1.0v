@@ -6,9 +6,11 @@ import { db } from '@/lib/db'
 import { peerAnomalies, peerGroups, identities } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
+import { logAction, parseJsonBody } from '@/lib/actions/helpers'
 
 const patchSchema = z.object({
   status: z.enum(['reviewed', 'dismissed', 'remediated']),
+  rationale: z.string().max(2000).optional(),
 })
 
 export async function GET(
@@ -74,11 +76,8 @@ export async function PATCH(
   }
 
   const { id } = await params
-  const body = await req.json()
-  const parsed = patchSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, patchSchema)
+  if (!parsed.ok) return parsed.response
 
   try {
     const [existing] = await db
@@ -93,6 +92,21 @@ export async function PATCH(
     await db.update(peerAnomalies)
       .set({ status: parsed.data.status })
       .where(eq(peerAnomalies.id, id))
+
+    await logAction({
+      actionType: 'update_finding_status',
+      actorIdentityId: session.user.id,
+      orgId: session.user.orgId,
+      targetIdentityId: existing.identityId,
+      payload: {
+        findingType: 'peer_anomaly',
+        peerAnomalyId: id,
+        anomalyType: existing.anomalyType,
+        previousStatus: existing.status,
+        newStatus: parsed.data.status,
+      },
+      rationale: parsed.data.rationale || `Peer anomaly status changed to ${parsed.data.status}`,
+    })
 
     return NextResponse.json({ success: true, status: parsed.data.status })
   } catch (error) {

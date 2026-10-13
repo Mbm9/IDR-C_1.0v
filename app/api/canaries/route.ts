@@ -6,13 +6,15 @@ import { db } from '@/lib/db'
 import { canaryIdentities, canaryTriggers, identities } from '@/lib/db/schema'
 import { eq, and, desc, sql } from 'drizzle-orm'
 import { z } from 'zod'
+import { logAction, parseJsonBody } from '@/lib/actions/helpers'
 
 const createSchema = z.object({
   canaryType: z.enum(['fake_admin', 'fake_service', 'fake_gmsa', 'fake_vpn', 'fake_api_key']),
-  name: z.string().min(1),
-  description: z.string().min(1),
-  placementLocation: z.string().min(1),
-  alertWebhookUrl: z.string().url().optional(),
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().min(1).max(2000),
+  placementLocation: z.string().trim().min(1).max(500),
+  // The create form posts '' when no alert URL is given.
+  alertWebhookUrl: z.preprocess((v) => (v === '' ? undefined : v), z.string().url().optional()),
 })
 
 export async function GET(req: NextRequest) {
@@ -73,11 +75,8 @@ export async function POST(req: NextRequest) {
   }
 
   const orgId = session.user.orgId
-  const body = await req.json()
-  const parsed = createSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, createSchema)
+  if (!parsed.ok) return parsed.response
 
   const { canaryType, name, description, placementLocation, alertWebhookUrl } = parsed.data
 
@@ -114,6 +113,23 @@ export async function POST(req: NextRequest) {
       alertWebhookUrl: alertWebhookUrl || null,
       orgId,
     }).returning()
+
+    // Never log the alert URL itself: chat/SIEM webhook URLs embed credentials.
+    await logAction({
+      actionType: 'manage_canary',
+      actorIdentityId: session.user.id,
+      orgId,
+      targetIdentityId: identity.id,
+      payload: {
+        operation: 'create',
+        canaryId: canary.id,
+        identityId: identity.id,
+        canaryType,
+        name,
+        placementLocation,
+        hasAlertWebhook: !!alertWebhookUrl,
+      },
+    })
 
     return NextResponse.json({ success: true, canary: { ...canary, identityName: name } })
   } catch (error) {

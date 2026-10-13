@@ -4,7 +4,13 @@ import { db } from '@/lib/db'
 import { remediationPlans } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { executeApprovedActions } from '@/lib/remediation/tier-proposals'
-import { logAction } from '@/lib/actions/helpers'
+import { logAction, parseJsonBody } from '@/lib/actions/helpers'
+import { z } from 'zod'
+
+const decisionSchema = z.object({
+  action: z.enum(['approve', 'reject'], { message: 'Invalid action. Use "approve" or "reject"' }),
+  reason: z.string().max(2000).optional(),
+})
 
 /**
  * GET /api/remediation/[id]
@@ -45,15 +51,9 @@ export const PUT = withApiHandler(async (
   { orgId, session, log },
 ) => {
   const id = req.nextUrl.pathname.split('/').pop()!
-  const body = await req.json()
-  const { action, reason } = body
-
-  if (!['approve', 'reject'].includes(action)) {
-    return NextResponse.json(
-      { error: 'Invalid action. Use "approve" or "reject"' },
-      { status: 400 }
-    )
-  }
+  const parsed = await parseJsonBody(req, decisionSchema)
+  if (!parsed.ok) return parsed.response
+  const { action, reason } = parsed.data
 
   // Fetch the plan
   const [plan] = await db.select()
@@ -79,11 +79,11 @@ export const PUT = withApiHandler(async (
       .where(eq(remediationPlans.id, id))
 
     await logAction({
-      actionType: 'generate_recommendation',
+      actionType: 'manage_remediation',
       actorIdentityId: session.user.id,
       orgId,
-      rationale: `Remediation plan rejected: ${reason || 'No reason provided'}`,
-      payload: { planId: id, action: 'rejected', reason },
+      rationale: reason || 'No reason provided',
+      payload: { operation: 'reject', planId: id, previousStatus: plan.status, newStatus: 'rejected' },
     })
 
     log.info('Remediation plan rejected', { planId: id, reason })
@@ -91,25 +91,33 @@ export const PUT = withApiHandler(async (
     return NextResponse.json({ success: true, planId: id, status: 'rejected' })
   }
 
-  // Approve the plan
+  // Approve the plan. approvedBy is an FK to identities and app users are not
+  // identities, so the approving user is recorded in the action_log entry instead.
   await db.update(remediationPlans)
     .set({
       status: 'approved',
-      approvedBy: session.user.id,
       approvedAt: new Date(),
     })
     .where(eq(remediationPlans.id, id))
 
   await logAction({
-    actionType: 'generate_recommendation',
+    actionType: 'manage_remediation',
     actorIdentityId: session.user.id,
     orgId,
-    rationale: 'Remediation plan approved — executing actions',
-    payload: { planId: id, action: 'approved' },
+    rationale: reason || 'Remediation plan approved — executing actions',
+    payload: { operation: 'approve', planId: id, previousStatus: plan.status, newStatus: 'approved' },
   })
 
   // Execute the approved actions
   const result = await executeApprovedActions(id, orgId, session.user.id)
+
+  await logAction({
+    actionType: 'manage_remediation',
+    actorIdentityId: session.user.id,
+    orgId,
+    source: 'automated',
+    payload: { operation: 'execute', planId: id, executed: result.executed, failed: result.failed },
+  })
 
   log.info('Remediation plan approved and executed', {
     planId: id,

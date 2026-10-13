@@ -23,6 +23,17 @@ const ACTION_TYPE_KEYS: Record<string, string> = {
   manage_api_key: 'manageApiKey',
   login_success: 'loginSuccess',
   login_failed: 'loginFailed',
+  manage_canary: 'manageCanary',
+  manage_detection_rule: 'manageDetectionRule',
+  manage_automation_rule: 'manageAutomationRule',
+  manage_webhook: 'manageWebhook',
+  manage_gpo: 'manageGpo',
+  import_data: 'importData',
+  data_quality_action: 'dataQualityAction',
+  update_threat_status: 'updateThreatStatus',
+  update_finding_status: 'updateFindingStatus',
+  run_scan: 'runScan',
+  manage_remediation: 'manageRemediation',
 }
 
 const SOURCE_STYLES: Record<string, string> = {

@@ -5,6 +5,13 @@ import { entitlements, identities, peerGroups, resources } from '@/lib/db/schema
 import { eq, and, sql } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
+import { parseJsonBody } from '@/lib/actions/helpers'
+import { z } from 'zod'
+
+// Read-only: produces suggestions, writes nothing (so no action_log entry).
+const smartReviewSchema = z.object({
+  identityIds: z.array(z.string().uuid()).min(1, 'identityIds array required').max(200),
+})
 
 interface SmartSuggestion {
   entitlementId: string
@@ -26,13 +33,11 @@ export async function POST(req: NextRequest) {
 
   const orgId = session.user.orgId
 
-  try {
-    const body = await req.json()
-    const { identityIds } = body
+  const parsed = await parseJsonBody(req, smartReviewSchema)
+  if (!parsed.ok) return parsed.response
+  const { identityIds } = parsed.data
 
-    if (!identityIds || !Array.isArray(identityIds) || identityIds.length === 0) {
-      return NextResponse.json({ error: 'identityIds array required' }, { status: 400 })
-    }
+  try {
 
     const suggestions: SmartSuggestion[] = []
 

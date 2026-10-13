@@ -3,12 +3,14 @@ import { auth } from '@/lib/auth/config'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
 import { db } from '@/lib/db'
-import { shadowAdmins, identities, actionLog } from '@/lib/db/schema'
+import { shadowAdmins, identities } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
+import { logAction, parseJsonBody } from '@/lib/actions/helpers'
 
 const patchSchema = z.object({
   status: z.enum(['confirmed', 'dismissed', 'remediated']),
+  rationale: z.string().max(2000).optional(),
 })
 
 export async function GET(
@@ -70,11 +72,8 @@ export async function PATCH(
   }
 
   const { id } = await params
-  const body = await req.json()
-  const parsed = patchSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, patchSchema)
+  if (!parsed.ok) return parsed.response
 
   try {
     const [existing] = await db
@@ -94,20 +93,19 @@ export async function PATCH(
       })
       .where(eq(shadowAdmins.id, id))
 
-    // Log to action_log
-    await db.insert(actionLog).values({
-      actionType: 'acknowledge_violation',
-      actorIdentityId: existing.identityId, // use the shadow admin's identity as a reference
+    await logAction({
+      actionType: 'update_finding_status',
+      actorIdentityId: session.user.id,
+      orgId: session.user.orgId,
       targetIdentityId: existing.identityId,
       payload: {
+        findingType: 'shadow_admin',
         shadowAdminId: id,
         previousStatus: existing.status,
         newStatus: parsed.data.status,
         detectionMethod: existing.detectionMethod,
       },
-      rationale: `Shadow admin status changed to ${parsed.data.status}`,
-      source: 'manual',
-      orgId: session.user.orgId,
+      rationale: parsed.data.rationale || `Shadow admin status changed to ${parsed.data.status}`,
     })
 
     return NextResponse.json({ success: true, status: parsed.data.status })

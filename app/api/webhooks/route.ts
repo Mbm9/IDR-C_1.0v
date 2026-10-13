@@ -6,6 +6,15 @@ import { eq } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
 import { assertSafeConnectorUrl } from '@/lib/connectors/url-guard'
+import { z } from 'zod'
+import { logAction, parseJsonBody } from '@/lib/actions/helpers'
+
+const createWebhookSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  url: z.string().trim().url().max(2048),
+  secret: z.string().max(500).nullable().optional(),
+  events: z.array(z.string().trim().min(1).max(100)).min(1).max(50),
+})
 
 export async function GET() {
   const session = await auth()
@@ -33,12 +42,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden: iam_admin role required' }, { status: 403 })
   }
 
-  const body = await req.json()
-  const { name, url, secret, events } = body
-
-  if (!name || !url || !events?.length) {
-    return NextResponse.json({ error: 'Missing required fields: name, url, events' }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, createWebhookSchema)
+  if (!parsed.ok) return parsed.response
+  const { name, url, secret, events } = parsed.data
 
   // SSRF guard: block loopback / link-local / cloud-metadata destinations.
   try {
@@ -55,6 +61,18 @@ export async function POST(req: NextRequest) {
     orgId: session.user.orgId,
   }).returning()
 
+  // Never log the signing secret or the full URL (it may embed tokens) — host only.
+  await logAction({
+    actionType: 'manage_webhook',
+    actorIdentityId: session.user.id,
+    orgId: session.user.orgId,
+    payload: { operation: 'create', webhookId: created.id, name, host: safeHost(url), events, hasSecret: !!created.secret },
+  })
+
   const { secret: _s, ...safe } = created
   return NextResponse.json({ ...safe, hasSecret: !!created.secret }, { status: 201 })
+}
+
+function safeHost(url: string): string | null {
+  try { return new URL(url).host } catch { return null }
 }

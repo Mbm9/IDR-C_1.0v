@@ -4,8 +4,24 @@ import { db } from '@/lib/db'
 import { identityThreats, identities } from '@/lib/db/schema'
 import { eq, and, desc, gte, lte, sql, count } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
-import { logAction, unauthorized, forbidden, badRequest } from '@/lib/actions/helpers'
+import { logAction, unauthorized, forbidden, parseJsonBody } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
+import { threatTypeEnum, killChainPhaseEnum, severityEnum } from '@/lib/db/schema/enums'
+import { z } from 'zod'
+
+const createThreatSchema = z.object({
+  threatType: z.enum(threatTypeEnum.enumValues),
+  severity: z.enum(severityEnum.enumValues),
+  identityId: z.string().uuid(),
+  killChainPhase: z.enum(killChainPhaseEnum.enumValues),
+  evidence: z.record(z.string(), z.unknown()).optional(),
+  sourceIp: z.string().max(100).optional(),
+  sourceLocation: z.string().max(200).optional(),
+  targetResource: z.string().max(500).optional(),
+  mitreTechniqueIds: z.array(z.string().max(50)).max(50).optional(),
+  mitreTechniqueName: z.string().max(200).optional(),
+  confidence: z.number().int().min(0).max(100).optional(),
+})
 
 export async function GET(req: NextRequest) {
   try {
@@ -86,17 +102,23 @@ export async function POST(req: NextRequest) {
     if (!hasRole((session.user as any).appRole as AppRole, 'analyst')) return forbidden()
 
     const orgId = session.user.orgId
-    const body = await req.json().catch(() => null)
-    if (!body) return badRequest('Invalid request body')
+    const parsed = await parseJsonBody(req, createThreatSchema)
+    if (!parsed.ok) return parsed.response
 
     const {
       threatType, severity, identityId, killChainPhase,
       evidence, sourceIp, sourceLocation, targetResource,
       mitreTechniqueIds, mitreTechniqueName, confidence,
-    } = body
+    } = parsed.data
 
-    if (!threatType || !severity || !identityId || !killChainPhase) {
-      return badRequest('Required: threatType, severity, identityId, killChainPhase')
+    // The reported identity must belong to the caller's org.
+    const [target] = await db
+      .select({ id: identities.id })
+      .from(identities)
+      .where(and(eq(identities.id, identityId), eq(identities.orgId, orgId)))
+      .limit(1)
+    if (!target) {
+      return NextResponse.json({ error: 'Identity not found' }, { status: 404 })
     }
 
     const now = new Date()
@@ -112,7 +134,7 @@ export async function POST(req: NextRequest) {
       targetResource,
       mitreTechniqueIds: mitreTechniqueIds || [],
       mitreTechniqueName,
-      confidence: confidence || 50,
+      confidence: confidence ?? 50,
       firstSeenAt: now,
       lastSeenAt: now,
       orgId,
@@ -124,7 +146,7 @@ export async function POST(req: NextRequest) {
       orgId,
       targetIdentityId: identityId,
       rationale: `Manual threat report: ${threatType}`,
-      payload: { threatId: threat.id },
+      payload: { operation: 'report_threat', threatId: threat.id, threatType, severity, killChainPhase },
       source: 'manual',
     })
 

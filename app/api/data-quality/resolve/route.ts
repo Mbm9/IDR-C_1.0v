@@ -5,8 +5,19 @@ import { identityAliases, identities } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
 import { resolveIdentities } from '@/lib/data-quality/resolver'
-import { unauthorized, forbidden } from '@/lib/actions/helpers'
+import { unauthorized, forbidden, logAction, parseJsonBody } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
+import { z } from 'zod'
+
+const reviewAliasSchema = z.object({
+  aliasId: z.string().uuid(),
+  status: z.enum(['confirmed', 'rejected']),
+  rationale: z.string().max(2000).optional(),
+})
+
+const resolveRunSchema = z.object({
+  skipAI: z.boolean().optional(),
+})
 
 export async function GET(req: NextRequest) {
   try {
@@ -58,12 +69,9 @@ export async function PATCH(req: NextRequest) {
     if (!hasRole((session.user as any).appRole as AppRole, 'iam_admin')) return forbidden()
 
     const orgId = session.user.orgId
-    const body = await req.json().catch(() => ({}))
-    const { aliasId, status } = body
-
-    if (!aliasId || !['confirmed', 'rejected'].includes(status)) {
-      return NextResponse.json({ error: 'aliasId and status (confirmed|rejected) required' }, { status: 400 })
-    }
+    const parsed = await parseJsonBody(req, reviewAliasSchema)
+    if (!parsed.ok) return parsed.response
+    const { aliasId, status, rationale } = parsed.data
 
     // Verify alias belongs to this org
     const [alias] = await db
@@ -85,6 +93,22 @@ export async function PATCH(req: NextRequest) {
       })
       .where(eq(identityAliases.id, aliasId))
 
+    await logAction({
+      actionType: 'data_quality_action',
+      actorIdentityId: session.user.id,
+      orgId,
+      targetIdentityId: alias.canonicalIdentityId,
+      rationale: rationale ?? null,
+      payload: {
+        operation: 'review_alias',
+        aliasId,
+        sourceSystem: alias.sourceSystem,
+        sourceId: alias.sourceId,
+        previousStatus: alias.status,
+        newStatus: status,
+      },
+    })
+
     return NextResponse.json({ success: true, aliasId, status })
   } catch (err: any) {
     console.error('[Data Quality] Resolve PATCH error:', err)
@@ -99,10 +123,26 @@ export async function POST(req: NextRequest) {
     if (!hasRole((session.user as any).appRole as AppRole, 'iam_admin')) return forbidden()
 
     const orgId = session.user.orgId
-    const body = await req.json().catch(() => ({}))
-    const { skipAI } = body
+    const parsed = await parseJsonBody(req, resolveRunSchema)
+    if (!parsed.ok) return parsed.response
+    const { skipAI } = parsed.data
 
     const report = await resolveIdentities(orgId, { skipAI: !!skipAI })
+
+    await logAction({
+      actionType: 'data_quality_action',
+      actorIdentityId: session.user.id,
+      orgId,
+      payload: {
+        operation: 'resolve',
+        skipAI: !!skipAI,
+        totalPairs: report.totalPairs,
+        deterministicMatches: report.deterministicMatches,
+        fuzzyMatches: report.fuzzyMatches,
+        aiMatches: report.aiMatches,
+        pendingReview: report.pendingReview,
+      },
+    })
 
     return NextResponse.json(report)
   } catch (err: any) {

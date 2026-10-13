@@ -6,11 +6,12 @@ import { db } from '@/lib/db'
 import { canaryIdentities, canaryTriggers, identities } from '@/lib/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
 import { z } from 'zod'
+import { logAction, parseJsonBody } from '@/lib/actions/helpers'
 
 const updateSchema = z.object({
   enabled: z.boolean().optional(),
   alertWebhookUrl: z.string().url().nullable().optional(),
-  description: z.string().min(1).optional(),
+  description: z.string().trim().min(1).max(2000).optional(),
 })
 
 export async function GET(
@@ -76,11 +77,8 @@ export async function PUT(
   }
 
   const { id } = await params
-  const body = await req.json()
-  const parsed = updateSchema.safeParse(body)
-  if (!parsed.success) {
-    return NextResponse.json({ error: 'Invalid input', details: parsed.error.flatten() }, { status: 400 })
-  }
+  const parsed = await parseJsonBody(req, updateSchema)
+  if (!parsed.ok) return parsed.response
 
   try {
     const [existing] = await db
@@ -98,6 +96,22 @@ export async function PUT(
     if (parsed.data.description !== undefined) updateData.description = parsed.data.description
 
     await db.update(canaryIdentities).set(updateData).where(eq(canaryIdentities.id, id))
+
+    await logAction({
+      actionType: 'manage_canary',
+      actorIdentityId: session.user.id,
+      orgId: session.user.orgId,
+      targetIdentityId: existing.identityId,
+      payload: {
+        operation: 'update',
+        canaryId: id,
+        changedFields: Object.keys(updateData).filter((k) => k !== 'updatedAt'),
+        ...(parsed.data.enabled !== undefined && {
+          previousEnabled: existing.enabled,
+          newEnabled: parsed.data.enabled,
+        }),
+      },
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -138,6 +152,14 @@ export async function DELETE(
     await db.update(identities)
       .set({ status: 'disabled', updatedAt: new Date() })
       .where(eq(identities.id, existing.identityId))
+
+    await logAction({
+      actionType: 'manage_canary',
+      actorIdentityId: session.user.id,
+      orgId: session.user.orgId,
+      targetIdentityId: existing.identityId,
+      payload: { operation: 'retire', canaryId: id, identityId: existing.identityId, previousEnabled: existing.enabled },
+    })
 
     return NextResponse.json({ success: true })
   } catch (error) {

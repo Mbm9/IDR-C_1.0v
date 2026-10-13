@@ -4,8 +4,9 @@ import { db } from '@/lib/db'
 import { identityThreats, identities, detectionRules } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
-import { logAction, unauthorized, forbidden, badRequest } from '@/lib/actions/helpers'
+import { logAction, unauthorized, forbidden, parseJsonBody } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
+import { z } from 'zod'
 
 export async function GET(
   req: NextRequest,
@@ -55,6 +56,11 @@ export async function GET(
 
 const VALID_STATUSES = ['active', 'investigating', 'contained', 'resolved', 'false_positive'] as const
 
+const patchThreatSchema = z.object({
+  status: z.enum(VALID_STATUSES),
+  rationale: z.string().max(2000).optional(),
+})
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: { id: string } }
@@ -66,18 +72,13 @@ export async function PATCH(
 
     const orgId = session.user.orgId
     const { id } = params
-    const body = await req.json().catch(() => null)
-    if (!body) return badRequest('Invalid request body')
-
-    const { status, rationale } = body
-
-    if (!status || !VALID_STATUSES.includes(status)) {
-      return badRequest(`Invalid status. Must be one of: ${VALID_STATUSES.join(', ')}`)
-    }
+    const parsed = await parseJsonBody(req, patchThreatSchema)
+    if (!parsed.ok) return parsed.response
+    const { status, rationale } = parsed.data
 
     // Verify threat belongs to org
     const [existing] = await db
-      .select({ id: identityThreats.id, identityId: identityThreats.identityId })
+      .select({ id: identityThreats.id, identityId: identityThreats.identityId, status: identityThreats.status, threatType: identityThreats.threatType })
       .from(identityThreats)
       .where(and(eq(identityThreats.id, id), eq(identityThreats.orgId, orgId)))
       .limit(1)
@@ -87,12 +88,13 @@ export async function PATCH(
     }
 
     const updates: Partial<typeof identityThreats.$inferInsert> = {
-      status: status as any,
+      status,
     }
 
+    // resolvedBy is an FK to identities and app users are not identities, so the
+    // resolving user is recorded in the action_log entry below instead.
     if (status === 'resolved' || status === 'false_positive') {
       updates.resolvedAt = new Date()
-      updates.resolvedBy = session.user.id
     }
 
     const [updated] = await db
@@ -102,12 +104,12 @@ export async function PATCH(
       .returning()
 
     await logAction({
-      actionType: 'acknowledge_violation',
+      actionType: 'update_threat_status',
       actorIdentityId: session.user.id,
       orgId,
       targetIdentityId: existing.identityId,
       rationale: rationale || `Threat status changed to ${status}`,
-      payload: { threatId: id, newStatus: status },
+      payload: { threatId: id, threatType: existing.threatType, previousStatus: existing.status, newStatus: status },
       source: 'manual',
     })
 

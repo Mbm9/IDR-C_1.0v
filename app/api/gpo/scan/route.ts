@@ -123,11 +123,11 @@ export async function POST(req: NextRequest) {
     }
 
     await logAction({
-      actionType: 'assess_identity',
+      actionType: 'run_scan',
       actorIdentityId: session.user.id,
       orgId,
       rationale: `GPO risk scan completed: ${violationsCreated} new violations created`,
-      payload: { violationsCreated, t0GpoCount: t0GpoIds.size },
+      payload: { scan: 'gpo_risk', violationsCreated, t0GpoCount: t0GpoIds.size, t2EditPermissionsFlagged: t2EditPerms.length },
     })
 
     return NextResponse.json({

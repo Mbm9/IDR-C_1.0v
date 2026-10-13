@@ -5,6 +5,13 @@ import { integrationSources } from '@/lib/db/schema'
 import { executeSync } from '@/lib/connectors/sync-engine'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
+import { z } from 'zod'
+import { logAction, parseJsonBody } from '@/lib/actions/helpers'
+
+const csvImportSchema = z.object({
+  fileContent: z.string().min(1, 'fileContent is required'),
+  mapping: z.record(z.string(), z.string()),
+})
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,18 +24,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Forbidden: iam_admin role required' }, { status: 403 })
     }
 
-    const body = await req.json().catch(() => null)
-    if (!body?.fileContent || !body?.mapping) {
-      return NextResponse.json(
-        { error: 'fileContent and mapping are required' },
-        { status: 400 },
-      )
-    }
+    const parsed = await parseJsonBody(req, csvImportSchema)
+    if (!parsed.ok) return parsed.response
 
-    const { fileContent, mapping } = body as {
-      fileContent: string
-      mapping: Record<string, string>
-    }
+    const { fileContent, mapping } = parsed.data
     const orgId = session.user.orgId
 
     // Create a temporary integration source for this CSV import
@@ -56,6 +55,23 @@ export async function POST(req: NextRequest) {
         },
       },
       skipReconcile: true, // CSV imports don't need reconciliation
+    })
+
+    // Audit counts and the column mapping only — never the raw CSV content.
+    await logAction({
+      actionType: 'import_data',
+      actorIdentityId: session.user.id,
+      orgId,
+      payload: {
+        operation: 'csv_import',
+        integrationId: integration.id,
+        bytes: fileContent.length,
+        mappedColumns: Object.keys(mapping).length,
+        identitiesUpserted: report.identitiesUpserted,
+        groupsUpserted: report.groupsUpserted,
+        entitlementsUpserted: report.entitlementsUpserted,
+        errorCount: Array.isArray(report.errors) ? report.errors.length : 0,
+      },
     })
 
     return NextResponse.json({
