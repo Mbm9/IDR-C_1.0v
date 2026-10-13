@@ -54,17 +54,25 @@ err()  { echo -e "  ${RED}[FAIL]${NC} $1"; [[ -n "${2:-}" ]] && echo -e "       
 note() { echo -e "  ${CYAN}[INFO]${NC} $*"; }
 section() { echo -e "\n${BOLD}$*${NC}"; }
 
-# Read a value from .env (last occurrence wins, like compose)
-env_get() { [[ -f .env ]] && grep -E "^$1=" .env | tail -n1 | cut -d= -f2- | tr -d '\r' ; }
+# Read a value from .env (last occurrence wins and surrounding quotes are
+# stripped, like compose does)
+env_get() {
+  [[ -f .env ]] || return 0
+  local v
+  v="$(grep -E "^$1=" .env | tail -n1 | cut -d= -f2- | tr -d '\r')"
+  v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+  printf '%s' "$v"
+}
 
 # Is a TCP port listening on the host? Works with Windows netstat (Git Bash),
-# ss (Linux/WSL) or lsof (macOS).
+# ss (Linux/WSL) or lsof (macOS). The local address is column 2 in Windows
+# netstat but column 4 in BSD/Linux netstat, so both are checked.
 port_in_use() {
   local p="$1"
   if command -v ss >/dev/null 2>&1; then
     ss -ltnH 2>/dev/null | awk '{print $4}' | grep -Eq "[:.]${p}\$"
   elif command -v netstat >/dev/null 2>&1; then
-    netstat -an 2>/dev/null | grep -Ei 'listen' | awk '{print $2}' | grep -Eq "[:.]${p}\$"
+    netstat -an 2>/dev/null | grep -Ei 'listen' | awk '{print $2; print $4}' | grep -Eq "[:.]${p}\$"
   elif command -v lsof >/dev/null 2>&1; then
     lsof -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1
   else
@@ -118,17 +126,22 @@ else
   DOCKER_OK=true
   ok "Docker engine $(docker version --format '{{.Server.Version}}' 2>/dev/null) running"
 
-  os_type="$(docker info --format '{{.OSType}}' 2>/dev/null)"
+  # One daemon round trip for all engine facts (each call is slow on Docker Desktop)
+  IFS='|' read -r os_type op_sys kernel mem_bytes cpus < <(
+    docker info --format '{{.OSType}}|{{.OperatingSystem}}|{{.KernelVersion}}|{{.MemTotal}}|{{.NCPU}}' 2>/dev/null
+  )
   if [[ "$os_type" != "linux" ]]; then
     err "Docker is in '$os_type' container mode" "right-click the Docker tray icon > 'Switch to Linux containers...'"
   else
     ok "Linux containers mode"
   fi
 
-  op_sys="$(docker info --format '{{.OperatingSystem}}' 2>/dev/null)"
-  kernel="$(docker info --format '{{.KernelVersion}}' 2>/dev/null)"
   note "Engine OS: $op_sys (kernel $kernel)"
-  if [[ "$op_sys" == *"Docker Desktop"* && "$kernel" != *"WSL2"* && "$kernel" != *"microsoft"* ]]; then
+  # The WSL 2 backend only exists on Windows; macOS/Linux Docker Desktop use linuxkit.
+  ON_WINDOWS=false
+  case "$UNAME" in MINGW*|MSYS*|CYGWIN*) ON_WINDOWS=true ;; esac
+  grep -qi microsoft /proc/version 2>/dev/null && ON_WINDOWS=true
+  if $ON_WINDOWS && [[ "$op_sys" == *"Docker Desktop"* && "$kernel" != *"WSL2"* && "$kernel" != *"microsoft"* ]]; then
     warn "Docker Desktop does not appear to use the WSL 2 backend" "Settings > General > 'Use the WSL 2 based engine'"
   fi
 
@@ -139,9 +152,8 @@ else
     DOCKER_OK=false
   fi
 
-  mem_bytes="$(docker info --format '{{.MemTotal}}' 2>/dev/null || echo 0)"
   mem_gb=$(( ${mem_bytes:-0} / 1024 / 1024 / 1024 ))
-  cpus="$(docker info --format '{{.NCPU}}' 2>/dev/null || echo ?)"
+  cpus="${cpus:-?}"
   model="$(env_get OLLAMA_MODEL)"; model="${model:-qwen2.5:1.5b}"
   need=4; [[ "$model" == *7b* ]] && need=8
   if (( mem_gb < need )); then
@@ -184,7 +196,7 @@ for f in docker/*.sh scripts/*.sh docker/Caddyfile .env; do
 done
 if (( ${#crlf_files[@]} > 0 )); then
   err "Windows (CRLF) line endings in: ${crlf_files[*]} — containers will fail with '\\r: not found'" \
-      "run ./scripts/docker-up.sh (auto-converts), or: git config core.autocrlf input && git rm -r --cached . -q && git reset --hard"
+      "quick fix: sed -i 's/\\\\r\$//' scripts/*.sh docker/*.sh docker/Caddyfile   permanent: git config core.autocrlf input, commit or stash your changes, then git rm -r --cached -q . && git reset --hard (discards uncommitted edits)"
 else
   ok "Shell scripts use LF line endings"
 fi
@@ -266,11 +278,9 @@ if $DOCKER_OK; then
       continue
     fi
 
-    status="$(docker inspect -f '{{.State.Status}}' "$c")"
-    health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' "$c")"
-    restarts="$(docker inspect -f '{{.RestartCount}}' "$c")"
-    exit_code="$(docker inspect -f '{{.State.ExitCode}}' "$c")"
-    oom="$(docker inspect -f '{{.State.OOMKilled}}' "$c")"
+    IFS='|' read -r status health restarts exit_code oom < <(
+      docker inspect -f '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}|{{.RestartCount}}|{{.State.ExitCode}}|{{.State.OOMKilled}}' "$c"
+    )
     label="$c: $status${health:+ ($health)}"
 
     if [[ "$c" == "idr-init" ]]; then

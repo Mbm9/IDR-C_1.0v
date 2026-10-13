@@ -50,12 +50,22 @@ export function sanitizeInput(data: unknown): unknown {
 // Content-Type Validation
 // ---------------------------------------------------------------------------
 
+/** True when the request carries a body (non-zero length or chunked). */
+function hasBody(request: Pick<NextRequest, 'headers'>): boolean {
+  const contentLength = request.headers.get('content-length')
+  if (contentLength !== null) return parseInt(contentLength, 10) > 0
+  return request.headers.has('transfer-encoding')
+}
+
 /**
- * For mutation requests (POST/PUT/PATCH/DELETE), verify the Content-Type
- * header is application/json. Returns an error Response or null if valid.
+ * For mutation requests (POST/PUT/PATCH/DELETE) that carry a body, verify the
+ * Content-Type header is application/json or multipart/form-data. Body-less
+ * mutations (e.g. "mark all read", DELETE by id) send no Content-Type and are
+ * allowed. Returns an error Response or null if valid.
  */
-export function validateContentType(request: NextRequest): Response | null {
+export function validateContentType(request: Pick<NextRequest, 'method' | 'headers'>): Response | null {
   if (!MUTATION_METHODS.has(request.method)) return null
+  if (!hasBody(request)) return null
 
   const contentType = request.headers.get('content-type') || ''
   if (!contentType.includes('application/json') && !contentType.includes('multipart/form-data')) {
@@ -75,7 +85,7 @@ export function validateContentType(request: NextRequest): Response | null {
  * Reject requests whose Content-Length exceeds MAX_BODY_SIZE.
  * Returns an error Response or null if within limits.
  */
-export function validateRequestSize(request: NextRequest): Response | null {
+export function validateRequestSize(request: Pick<NextRequest, 'headers'>): Response | null {
   const contentLength = request.headers.get('content-length')
   if (contentLength && parseInt(contentLength, 10) > MAX_BODY_SIZE) {
     return new Response(

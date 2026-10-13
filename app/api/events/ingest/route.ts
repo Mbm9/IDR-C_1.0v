@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { identityEvents, identities } from '@/lib/db/schema'
-import { eq, or, and } from 'drizzle-orm'
+import { eq, or, and, inArray } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
 import { unauthorized, forbidden, badRequest } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,15 +31,35 @@ export async function POST(req: NextRequest) {
       return badRequest('Maximum 1000 events per batch')
     }
 
+    // Client-supplied identity IDs are only honoured when they belong to the
+    // caller's organization; anything else is treated as unresolved.
+    const suppliedIds = Array.from(new Set(
+      events.map((e) => e?.identityId).filter((id): id is string => typeof id === 'string' && UUID_RE.test(id))
+    ))
+    const ownedIds = new Set<string>()
+    if (suppliedIds.length > 0) {
+      const owned = await db
+        .select({ id: identities.id })
+        .from(identities)
+        .where(and(eq(identities.orgId, orgId), inArray(identities.id, suppliedIds)))
+      for (const row of owned) ownedIds.add(row.id)
+    }
+
     // Resolve identities by UPN/email/samAccountName
     const resolvedEvents: (typeof identityEvents.$inferInsert)[] = []
+    let skipped = 0
 
     for (const event of events) {
-      if (!event.eventType || !event.source || !event.eventTimestamp) continue
+      if (!event?.eventType || !event.source || !event.eventTimestamp) { skipped++; continue }
 
-      let identityId: string | undefined = event.identityId
+      // One bad timestamp must not fail the whole batch.
+      const eventTimestamp = new Date(event.eventTimestamp)
+      if (Number.isNaN(eventTimestamp.getTime())) { skipped++; continue }
 
-      // If no identityId provided, try to resolve from parsed fields
+      let identityId: string | undefined =
+        typeof event.identityId === 'string' && ownedIds.has(event.identityId) ? event.identityId : undefined
+
+      // If no (owned) identityId provided, try to resolve from parsed fields
       if (!identityId) {
         const upn = event.parsedFields?.upn || event.upn
         const email = event.parsedFields?.email || event.email
@@ -75,7 +97,7 @@ export async function POST(req: NextRequest) {
           eventId: event.eventId,
           sessionId: event.sessionId,
         },
-        eventTimestamp: new Date(event.eventTimestamp),
+        eventTimestamp,
         orgId,
       })
     }
@@ -91,9 +113,10 @@ export async function POST(req: NextRequest) {
       inserted: inserted.length,
       resolved: resolvedEvents.filter(e => e.identityId).length,
       unresolved: resolvedEvents.filter(e => !e.identityId).length,
+      skipped,
     })
   } catch (err: any) {
     console.error('[Events Ingest] Error:', err)
-    return NextResponse.json({ error: 'Event ingestion failed', details: err.message }, { status: 500 })
+    return NextResponse.json({ error: 'Event ingestion failed' }, { status: 500 })
   }
 }

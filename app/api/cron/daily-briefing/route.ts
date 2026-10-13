@@ -6,16 +6,10 @@ import {
 } from '@/lib/db/schema'
 import { eq, and, count, sql, desc, gte } from 'drizzle-orm'
 import { DAILY_BRIEFING_PROMPT } from '@/lib/ai/prompts'
+import { verifyCronSecret } from '@/lib/auth/cron'
 
 const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
-
-function verifyCronSecret(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return process.env.NODE_ENV !== 'production' // no secret: allow in dev, DENY in prod
-  const auth = request.headers.get('authorization')
-  return auth === `Bearer ${secret}`
-}
 
 async function getOrgMetrics(orgId: string) {
   const [identityCount] = await db.select({ count: count() })

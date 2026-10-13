@@ -85,6 +85,26 @@ export function checkRateLimit(ip: string, bucket: RateLimitBucket): RateLimitRe
 }
 
 /**
+ * Resolve the client IP used as the rate-limit key.
+ *
+ * Caddy sets X-Real-IP from the TCP peer address and overwrites
+ * X-Forwarded-For, so X-Real-IP is preferred. When only X-Forwarded-For is
+ * present the right-most entry is used: it is the one appended by the nearest
+ * proxy, whereas left-most entries are supplied by the client and can be
+ * rotated per request to dodge the limiter.
+ */
+export function clientIp(headers: Headers): string {
+  const realIp = headers.get('x-real-ip')?.trim()
+  if (realIp) return realIp
+  const forwarded = headers.get('x-forwarded-for')
+  if (forwarded) {
+    const hops = forwarded.split(',').map((h) => h.trim()).filter(Boolean)
+    if (hops.length > 0) return hops[hops.length - 1]
+  }
+  return '127.0.0.1'
+}
+
+/**
  * Determine the rate-limit bucket for a given pathname.
  */
 export function getBucket(pathname: string): RateLimitBucket | null {

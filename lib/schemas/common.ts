@@ -36,6 +36,8 @@ export const actionTypeSchema = z.enum([
   'assess_identity', 'certify_entitlement', 'revoke_access', 'approve_exception',
   'escalate_risk', 'trigger_review', 'update_tier', 'sync_source',
   'generate_recommendation', 'acknowledge_violation',
+  'login_success', 'login_failed',
+  'change_role', 'invite_user', 'manage_integration', 'manage_api_key',
 ])
 export const actionSourceSchema = z.enum(['manual', 'automated', 'ai_recommended'])
 

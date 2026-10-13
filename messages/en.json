@@ -332,7 +332,13 @@
     "updateTier": "Update Tier",
     "syncSource": "Sync Source",
     "generateRecommendation": "Generate Recommendation",
-    "acknowledgeViolation": "Acknowledge Violation"
+    "acknowledgeViolation": "Acknowledge Violation",
+    "changeRole": "Change Role",
+    "inviteUser": "Invite User",
+    "manageIntegration": "Manage Integration",
+    "manageApiKey": "Manage API Key",
+    "loginSuccess": "Login Succeeded",
+    "loginFailed": "Login Failed"
   },
   "integrations": {
     "title": "Integration Health",

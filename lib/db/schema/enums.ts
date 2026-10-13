@@ -103,6 +103,7 @@ export const actionTypeEnum = pgEnum('action_type', [
   'escalate_risk', 'trigger_review', 'update_tier', 'sync_source',
   'generate_recommendation', 'acknowledge_violation',
   'login_success', 'login_failed',
+  'change_role', 'invite_user', 'manage_integration', 'manage_api_key',
 ])
 export const actionSourceEnum = pgEnum('action_source', ['manual', 'automated', 'ai_recommended'])
 

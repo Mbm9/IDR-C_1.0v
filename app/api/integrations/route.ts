@@ -5,8 +5,8 @@ import { integrationSources } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
-import { encryptCredentials, safeDecryptCredentials } from '@/lib/crypto/credentials'
-import { validateConnectorConfig } from '@/lib/connectors/url-guard'
+import { prepareConnectorConfig, ConnectorConfigError } from '@/lib/connectors/store-config'
+import { logAction } from '@/lib/actions/helpers'
 
 export async function GET() {
   const session = await auth()
@@ -18,7 +18,11 @@ export async function GET() {
   // Strip credentials from response — never expose to frontend
   const sanitized = sources.map(({ config, ...rest }) => ({
     ...rest,
-    hasCredentials: !!config && Object.keys(safeDecryptCredentials(config)).length > 0,
+    // Encrypted configs are non-empty strings; legacy plaintext configs are objects.
+    // Decrypting here only to compute a boolean would 500 the whole list on a key rotation.
+    hasCredentials: typeof config === 'string'
+      ? config.length > 0
+      : !!config && typeof config === 'object' && Object.keys(config).length > 0,
   }))
 
   return NextResponse.json({ sources: sanitized })
@@ -39,23 +43,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing name or type' }, { status: 400 })
     }
 
-    // SSRF guard: reject endpoints pointing at loopback / link-local / metadata
+    // SSRF guard + credential encryption (fails closed in production)
+    let storedConfig: Record<string, unknown> | string
     try {
-      validateConnectorConfig(config)
-    } catch (e: any) {
-      return NextResponse.json({ error: e.message || 'Invalid connector endpoint' }, { status: 400 })
-    }
-
-    // Encrypt credentials before storage
-    let storedConfig: any = {}
-    if (config && Object.keys(config).length > 0) {
-      try {
-        storedConfig = encryptCredentials(config)
-      } catch {
-        // CREDENTIALS_KEY not set — store as-is in dev, warn
-        console.warn('[integrations] CREDENTIALS_KEY not set — storing credentials unencrypted')
-        storedConfig = config
+      storedConfig = prepareConnectorConfig(config)
+    } catch (e) {
+      if (e instanceof ConnectorConfigError) {
+        return NextResponse.json({ error: e.message }, { status: e.status })
       }
+      throw e
     }
 
     const [created] = await db.insert(integrationSources).values({
@@ -66,6 +62,13 @@ export async function POST(req: NextRequest) {
       syncFrequencyMinutes: syncFrequencyMinutes || 360,
       orgId: session.user.orgId,
     }).returning()
+
+    await logAction({
+      actionType: 'manage_integration',
+      actorIdentityId: session.user.id,
+      orgId: session.user.orgId,
+      payload: { operation: 'create', integrationId: created.id, name, type },
+    })
 
     return NextResponse.json({ integration: { ...created, config: undefined } }, { status: 201 })
   } catch (err: any) {

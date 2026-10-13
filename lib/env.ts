@@ -8,6 +8,12 @@
 
 import { z } from 'zod'
 
+/** Values shipped in compose defaults and .env templates; never valid secrets. */
+const PLACEHOLDER_SECRETS = new Set([
+  'identity-radar-secret-key-change-in-production',
+  'generate-a-random-secret-here',
+])
+
 const envSchema = z.object({
   // Database (required)
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required').url('DATABASE_URL must be a valid URL'),
@@ -17,7 +23,7 @@ const envSchema = z.object({
     .string()
     .min(16, 'NEXTAUTH_SECRET must be at least 16 characters')
     .refine(
-      (val) => val !== 'identity-radar-secret-key-change-in-production',
+      (val) => !PLACEHOLDER_SECRETS.has(val) && !val.startsWith('CHANGE_ME'),
       'NEXTAUTH_SECRET is still using the default placeholder — generate a secure random secret'
     ),
   NEXTAUTH_URL: z.string().url('NEXTAUTH_URL must be a valid URL').optional(),
@@ -53,7 +59,12 @@ export type Env = z.infer<typeof envSchema>
  * In production, throws on missing required vars.
  */
 export function validateEnv(): Env {
-  const result = envSchema.safeParse(process.env)
+  // Docker Compose passes unset variables as empty strings (`${VAR:-}`);
+  // treat those as absent so optional fields validate.
+  const raw = Object.fromEntries(
+    Object.entries(process.env).filter(([, value]) => value !== '')
+  )
+  const result = envSchema.safeParse(raw)
 
   if (!result.success) {
     const errors = result.error.flatten().fieldErrors

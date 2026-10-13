@@ -4,13 +4,7 @@ import { identities, identityAliases, organizations, actionLog } from '@/lib/db/
 import { eq, and } from 'drizzle-orm'
 import { scoreIdentityQuality } from '@/lib/data-quality/scorer'
 import { enrichIdentities } from '@/lib/data-quality/enricher'
-
-function verifyCronSecret(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return process.env.NODE_ENV !== 'production' // no secret: allow in dev, DENY in prod
-  const auth = request.headers.get('authorization')
-  return auth === `Bearer ${secret}`
-}
+import { verifyCronSecret } from '@/lib/auth/cron'
 
 export async function GET(request: NextRequest) {
   if (!verifyCronSecret(request)) {

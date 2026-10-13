@@ -22,10 +22,12 @@ export async function logLoginAttempt(params: {
   try {
     const actionType = params.success ? 'login_success' : 'login_failed'
 
-    await db.insert(actionLog).values({
+    // action_log.org_id is a foreign key: attempts that cannot be tied to a
+    // known user in an organization go to the application log only.
+    if (params.userId && params.orgId) await db.insert(actionLog).values({
       actionType,
-      actorIdentityId: params.userId || '00000000-0000-0000-0000-000000000000',
-      orgId: params.orgId || '00000000-0000-0000-0000-000000000000',
+      actorIdentityId: params.userId,
+      orgId: params.orgId,
       source: 'manual',
       rationale: params.success
         ? `Successful login for ${params.email}`

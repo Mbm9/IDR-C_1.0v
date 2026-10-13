@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { BLAST_RADIUS_PROMPT } from '@/lib/ai/prompts'
 
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.orgId) {
@@ -23,11 +26,11 @@ ${JSON.stringify({ center, rings, stats }, null, 2)}`
 
     // Try Ollama first, then fall back to a simple deterministic narrative
     try {
-      const ollamaRes = await fetch('http://localhost:11434/api/generate', {
+      const ollamaRes = await fetch(`${OLLAMA_URL}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'llama3.2',
+          model: OLLAMA_MODEL,
           prompt,
           stream: false,
           format: 'json',
@@ -38,10 +41,11 @@ ${JSON.stringify({ center, rings, stats }, null, 2)}`
       if (ollamaRes.ok) {
         const ollamaData = await ollamaRes.json()
         const parsed = JSON.parse(ollamaData.response)
-        return NextResponse.json(parsed)
+        return NextResponse.json({ ...parsed, generatedBy: 'ai', model: OLLAMA_MODEL })
       }
-    } catch {
-      // Ollama not available, fall back
+      console.warn(`[blast-radius] Ollama returned ${ollamaRes.status}; using deterministic narrative`)
+    } catch (err) {
+      console.warn('[blast-radius] Ollama unavailable; using deterministic narrative:', (err as Error).message)
     }
 
     // Deterministic fallback
@@ -70,6 +74,7 @@ ${JSON.stringify({ center, rings, stats }, null, 2)}`
         'Rotate credentials for all reachable service accounts',
         'Notify the SOC team and begin investigation',
       ].filter(Boolean),
+      generatedBy: 'deterministic',
     }
 
     return NextResponse.json(narrative)

@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth/config'
 import { NextResponse } from 'next/server'
-import { checkRateLimit, getBucket, rateLimitResponse } from '@/lib/middleware/rate-limit'
+import { checkRateLimit, clientIp, getBucket, rateLimitResponse } from '@/lib/middleware/rate-limit'
 import {
   applySecurityHeaders,
   handlePreflight,
@@ -22,10 +22,7 @@ export default auth((req) => {
   // ------------------------------------------------------------------
   const bucket = getBucket(pathname)
   if (bucket) {
-    const ip =
-      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
-      req.headers.get('x-real-ip') ||
-      '127.0.0.1'
+    const ip = clientIp(req.headers)
 
     const result = checkRateLimit(ip, bucket)
     if (!result.allowed) {
@@ -49,18 +46,20 @@ export default auth((req) => {
   // ------------------------------------------------------------------
   const isAuthApi = pathname.startsWith('/api/auth')
   const isPublicApi = pathname === '/api/health'
+  // Cron jobs are called by an external scheduler with
+  // `Authorization: Bearer $CRON_SECRET` and no session cookie; each route
+  // verifies the secret itself via verifyCronSecret().
+  const isCronApi = pathname.startsWith('/api/cron/')
 
-  if (isAuthApi || isPublicApi) {
+  if (isAuthApi || isPublicApi || isCronApi) {
     const response = NextResponse.next()
     return applySecurityHeaders(handleCors(req, response))
   }
 
-  if (pathname.startsWith('/dashboard') && !isLoggedIn) {
-    return Response.redirect(new URL('/login', req.nextUrl))
-  }
-
-  if (pathname.startsWith('/onboarding') && !isLoggedIn) {
-    return Response.redirect(new URL('/login', req.nextUrl))
+  if ((pathname.startsWith('/dashboard') || pathname.startsWith('/onboarding')) && !isLoggedIn) {
+    const loginUrl = new URL('/login', req.nextUrl)
+    loginUrl.searchParams.set('callbackUrl', pathname + req.nextUrl.search)
+    return Response.redirect(loginUrl)
   }
 
   if (pathname.startsWith('/api/') && !isLoggedIn) {

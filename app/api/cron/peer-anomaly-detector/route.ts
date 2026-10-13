@@ -2,13 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { peerGroups, peerAnomalies, identities, entitlements, organizations } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
-
-function verifyCronSecret(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return process.env.NODE_ENV !== 'production' // no secret: allow in dev, DENY in prod
-  const auth = request.headers.get('authorization')
-  return auth === `Bearer ${secret}`
-}
+import { verifyCronSecret } from '@/lib/auth/cron'
 
 export async function GET(request: NextRequest) {
   if (!verifyCronSecret(request)) {

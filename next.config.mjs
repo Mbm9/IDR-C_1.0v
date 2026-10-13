@@ -5,6 +5,10 @@ const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+  experimental: {
+    // Runs instrumentation.ts at server start (startup env validation).
+    instrumentationHook: true,
+  },
   async headers() {
     return [
       {

@@ -15,13 +15,7 @@ import { runGpoAudit, type GpoInput } from '@/lib/itdr/gpo-audit'
 import { runSecretScan, type FileArtifact } from '@/lib/itdr/secret-scan'
 import type { RawFinding } from '@/lib/itdr/exposure-types'
 import { recordIssueEvents } from '@/lib/issues/aggregate'
-
-function verifyCronSecret(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return process.env.NODE_ENV !== 'production' // no secret: allow in dev, DENY in prod
-  const auth = request.headers.get('authorization')
-  return auth === `Bearer ${secret}`
-}
+import { verifyCronSecret } from '@/lib/auth/cron'
 
 const POSTURE_TYPES = Object.keys(VIOLATION_IMPACT) as PostureViolationType[]
 const SEVERITY_WEIGHT: Record<string, number> = { critical: 10, high: 5, medium: 2, low: 1 }

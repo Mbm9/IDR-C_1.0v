@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { apiKeys, subscriptions } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
+import { logAction } from '@/lib/actions/helpers'
 import { hasRole } from '@/lib/utils/rbac'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
@@ -45,12 +46,19 @@ export async function POST(req: NextRequest) {
   const keyPrefix = rawKey.slice(0, 12)
   const keyHash = await bcrypt.hash(rawKey, 10)
 
-  await db.insert(apiKeys).values({
+  const [created] = await db.insert(apiKeys).values({
     label,
     keyPrefix,
     keyHash,
     orgId: session.user.orgId,
     createdBy: session.user.id,
+  }).returning({ id: apiKeys.id })
+
+  await logAction({
+    actionType: 'manage_api_key',
+    actorIdentityId: session.user.id,
+    orgId: session.user.orgId,
+    payload: { operation: 'create', keyId: created.id, label, keyPrefix },
   })
 
   // Return the full key only on creation — it won't be shown again
@@ -64,9 +72,20 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden: admin role required' }, { status: 403 })
 
   const { keyId } = await req.json()
-  await db.update(apiKeys)
+  if (!keyId) return NextResponse.json({ error: 'keyId required' }, { status: 400 })
+  const revoked = await db.update(apiKeys)
     .set({ revoked: true })
     .where(and(eq(apiKeys.id, keyId), eq(apiKeys.orgId, session.user.orgId)))
+    .returning({ id: apiKeys.id })
+
+  if (revoked.length > 0) {
+    await logAction({
+      actionType: 'manage_api_key',
+      actorIdentityId: session.user.id,
+      orgId: session.user.orgId,
+      payload: { operation: 'revoke', keyId },
+    })
+  }
 
   return NextResponse.json({ success: true })
 }

@@ -1,14 +1,18 @@
 'use client'
 
 import { signIn, useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { Shield, Eye, EyeOff } from 'lucide-react'
 
-export default function LoginPage() {
+function LoginForm() {
   const { data: session, status } = useSession()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  // Only same-origin relative paths are honoured, to avoid an open redirect.
+  const requested = searchParams.get('callbackUrl') || ''
+  const callbackUrl = requested.startsWith('/') && !requested.startsWith('//') ? requested : '/dashboard'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -20,10 +24,10 @@ export default function LoginPage() {
       if (!session.user.orgId) {
         router.push('/onboarding')
       } else {
-        router.push('/dashboard')
+        router.push(callbackUrl)
       }
     }
-  }, [session, router])
+  }, [session, router, callbackUrl])
 
   if (status === 'loading') {
     return (
@@ -44,7 +48,7 @@ export default function LoginPage() {
     if (result?.error) {
       setError('Invalid email or password')
     } else {
-      router.push('/dashboard')
+      router.push(callbackUrl)
     }
   }
 
@@ -164,5 +168,13 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   )
 }

@@ -12,10 +12,10 @@ The stack (`docker-compose.yml`):
 
 | Container | Role | Port |
 |-----------|------|------|
-| `idr-db` | PostgreSQL 16 | 5432 |
+| `idr-db` | PostgreSQL 16 | 5432 (localhost only) |
 | `idr-ollama` | Local AI (Ollama, downloads the model on first start) | internal |
 | `idr-init` | One-shot: pushes the schema, creates views, seeds sample data, then exits | — |
-| `idr-app` | Next.js application | 3000 |
+| `idr-app` | Next.js application | 3000 (localhost only; set `APP_BIND_ADDRESS=0.0.0.0` in `.env` to expose it) |
 | `idr-caddy` | HTTPS reverse proxy (optional) | 80 / 443 |
 
 ---
@@ -75,8 +75,17 @@ git clone https://github.com/ASHS21/IDR-C.git
 cd IDR-C
 ```
 
-> Already cloned with CRLF endings? `docker-up.sh` converts the `.sh` files
-> for you, and `doctor.sh` reports any it finds.
+> Already cloned with CRLF endings? `docker-up.sh` cannot fix itself: bash
+> stops at its first line with `set: pipefail\r: invalid option name`. Convert
+> the scripts once, then run it normally:
+>
+> ```bash
+> sed -i 's/\r$//' scripts/*.sh docker/*.sh docker/Caddyfile
+> ```
+>
+> To fix the checkout for good, commit or stash your changes first, then run
+> `git config core.autocrlf input && git rm -r --cached -q . && git reset --hard`.
+> The reset discards any uncommitted edits.
 
 ---
 
@@ -94,11 +103,13 @@ What it does:
 2. Fixes CRLF line endings in the shell scripts.
 3. Creates `.env` with random secrets if it doesn't exist yet (`POSTGRES_PASSWORD`,
    `NEXTAUTH_SECRET`, `CRON_SECRET`, `CREDENTIALS_KEY`, `SEED_ADMIN_PASSWORD`).
-   It never overwrites an existing `.env`.
+   It keeps an existing `.env`, only adding `NEXTAUTH_SECRET`, `CRON_SECRET` or
+   `CREDENTIALS_KEY` when they are missing.
 4. Validates the compose file, then builds the `init` and `app` images.
-5. Starts `db → ollama → init → app → caddy`.
-6. Waits for `init` to finish and for `http://localhost:3000/api/health` to respond.
-7. Prints the URL and the admin login.
+5. Starts `db` and `init`, and shows the init logs if seeding fails.
+6. Starts `ollama` and reports progress while the model downloads.
+7. Starts `app` (and `caddy`), then waits for the app container's health check to pass.
+8. Prints the URL and the admin login.
 
 The first run takes a while: the image build (~5–10 min) plus the AI model
 download (~1 GB for `qwen2.5:1.5b`, ~4.4 GB for `qwen2.5:7b`). Later runs start in seconds.
@@ -164,7 +175,8 @@ The exit code is `0` when there are no errors (warnings are allowed) and `1` oth
 |----------------|-------|-----|
 | `Docker daemon not reachable` | Docker Desktop isn't running, or WSL integration is off | Start Docker Desktop. In WSL, enable Settings → Resources → WSL integration |
 | `Docker is in 'windows' container mode` | Windows containers selected | Tray icon → *Switch to Linux containers…* |
-| `Windows (CRLF) line endings` / logs show `\r: not found` | Git converted line endings | `./scripts/docker-up.sh` converts them; or `git config core.autocrlf input && git rm -r --cached . -q && git reset --hard` |
+| `Windows (CRLF) line endings` / logs show `\r: not found` | Git converted line endings | `sed -i 's/\r$//' scripts/*.sh docker/*.sh docker/Caddyfile`, then see section 2 for the permanent fix |
+| `required variable NEXTAUTH_SECRET is missing a value` | `.env` predates the generated secrets | Run `./scripts/docker-up.sh`, which adds the missing secrets, or add `NEXTAUTH_SECRET=$(openssl rand -hex 32)` to `.env` |
 | `Port 5432 is already used` | A local PostgreSQL service is running | Stop it (`services.msc` → postgresql) or change the port mapping in `docker-compose.yml` (e.g. `"5433:5432"`) |
 | `Port 80/443 is already used` | IIS / World Wide Web Publishing Service, or another proxy | Use `--no-caddy`, or stop the service: `net stop w3svc` (admin) |
 | `Port 3000 is already used` | Another dev server | Find it with `netstat -ano \| findstr :3000` and end that PID in Task Manager |

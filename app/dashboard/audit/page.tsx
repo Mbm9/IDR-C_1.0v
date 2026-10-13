@@ -17,6 +17,12 @@ const ACTION_TYPE_KEYS: Record<string, string> = {
   sync_source: 'syncSource',
   generate_recommendation: 'generateRecommendation',
   acknowledge_violation: 'acknowledgeViolation',
+  change_role: 'changeRole',
+  invite_user: 'inviteUser',
+  manage_integration: 'manageIntegration',
+  manage_api_key: 'manageApiKey',
+  login_success: 'loginSuccess',
+  login_failed: 'loginFailed',
 }
 
 const SOURCE_STYLES: Record<string, string> = {

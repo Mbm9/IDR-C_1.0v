@@ -67,6 +67,26 @@ warn()    { echo -e "${YELLOW}[WARN]${NC}  $*"; }
 fail()    { echo -e "${RED}[ERROR]${NC} $*" >&2; echo -e "        Run ${BOLD}./scripts/doctor.sh${NC} for a full diagnosis." >&2; exit 1; }
 step()    { echo -e "\n${BOLD}==> $*${NC}"; }
 
+# Portable in-place edit: GNU and BSD (macOS) sed disagree on `-i`, so write
+# to a temp file and copy back (keeps the file's permissions).
+rewrite_file() {
+  local file="$1"; shift
+  "$@" < "$file" > "$file.tmp.$$" && cat "$file.tmp.$$" > "$file"
+  local rc=$?
+  rm -f "$file.tmp.$$"
+  return $rc
+}
+strip_cr() { rewrite_file "$1" tr -d '\r'; }
+
+# Value of KEY in .env (last occurrence wins, surrounding quotes stripped like compose)
+env_get() {
+  [[ -f .env ]] || return 0
+  local v
+  v="$(grep -E "^$1=" .env | tail -n1 | cut -d= -f2- | tr -d '\r' || true)"
+  v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+  printf '%s' "$v"
+}
+
 random_hex() {
   local bytes="$1"
   if command -v openssl >/dev/null 2>&1; then
@@ -94,7 +114,7 @@ crlf_fixed=0
 for f in docker/*.sh scripts/*.sh docker/Caddyfile; do
   [[ -f "$f" ]] || continue
   if grep -q $'\r' "$f"; then
-    sed -i 's/\r$//' "$f"
+    strip_cr "$f"
     crlf_fixed=$((crlf_fixed + 1))
     warn "Converted CRLF -> LF: $f"
   fi
@@ -107,8 +127,18 @@ done
 step "Environment"
 
 if [[ -f .env ]]; then
-  if grep -q $'\r' .env; then sed -i 's/\r$//' .env; warn "Converted CRLF -> LF: .env"; fi
+  if grep -q $'\r' .env; then strip_cr .env; warn "Converted CRLF -> LF: .env"; fi
   success ".env exists — keeping your values"
+  # Older .env files may predate these secrets. Compose refuses to start without
+  # NEXTAUTH_SECRET, and cron/credential encryption need the other two.
+  for key in NEXTAUTH_SECRET CRON_SECRET CREDENTIALS_KEY; do
+    if [[ -z "$(env_get "$key")" ]]; then
+      grep -vE "^${key}=" .env > .env.tmp.$$ || true
+      cat .env.tmp.$$ > .env; rm -f .env.tmp.$$
+      echo "${key}=$(random_hex 32)" >> .env
+      warn "Added missing ${key} to .env"
+    fi
+  done
 else
   info "Creating .env with generated secrets"
   cat > .env <<EOF
@@ -139,11 +169,9 @@ EOF
 fi
 
 if [[ -n "$MODEL" ]]; then
-  if grep -q '^OLLAMA_MODEL=' .env; then
-    sed -i "s|^OLLAMA_MODEL=.*|OLLAMA_MODEL=${MODEL}|" .env
-  else
-    echo "OLLAMA_MODEL=${MODEL}" >> .env
-  fi
+  grep -v '^OLLAMA_MODEL=' .env > .env.tmp.$$ || true
+  cat .env.tmp.$$ > .env; rm -f .env.tmp.$$
+  echo "OLLAMA_MODEL=${MODEL}" >> .env
   info "OLLAMA_MODEL set to ${MODEL}"
 fi
 
@@ -165,29 +193,26 @@ fi
 step "Building images (first build takes several minutes)"
 BUILD_ARGS=()
 $NO_CACHE && BUILD_ARGS+=(--no-cache)
-docker compose build "${BUILD_ARGS[@]}" init app || fail "Image build failed (see output above)."
+# ${arr[@]+...} form: an empty array under `set -u` is an error on bash < 4.4 (macOS /bin/bash 3.2)
+docker compose build ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"} init app || fail "Image build failed (see output above)."
 success "Images built"
 
 # ---------------------------------------------------------------------------
 # 5. Start
 # ---------------------------------------------------------------------------
-step "Starting containers"
-SERVICES=(db ollama init app)
-$NO_CADDY || SERVICES+=(caddy)
+step "Starting database and initialisation"
+# Services are started in stages so failures surface with their own logs:
+# `docker compose up` blocks on depends_on conditions and only reports
+# "dependency failed to start", which hides why init or ollama failed.
+docker compose up -d --remove-orphans db init || {
+  docker logs --tail 40 idr-init 2>&1 | sed 's/^/        /'
+  fail "Could not start db/init."
+}
 
-# Run without --wait: the app waits on ollama, whose first start downloads the
-# model, so we report progress ourselves below.
-docker compose up -d --remove-orphans "${SERVICES[@]}" || fail "docker compose up failed."
-success "Containers started: ${SERVICES[*]}"
-
-# ---------------------------------------------------------------------------
-# 6. Wait for init (schema + seed) and the app
-# ---------------------------------------------------------------------------
-step "Waiting for database initialisation"
-for _ in $(seq 1 180); do
-  state="$(docker inspect -f '{{.State.Status}}' idr-init 2>/dev/null || echo missing)"
-  if [[ "$state" == "exited" ]]; then
-    code="$(docker inspect -f '{{.State.ExitCode}}' idr-init)"
+for _ in $(seq 1 300); do
+  state="$(docker inspect -f '{{.State.Status}}|{{.State.ExitCode}}' idr-init 2>/dev/null || echo missing)"
+  if [[ "$state" == exited* ]]; then
+    code="${state#*|}"
     if [[ "$code" == "0" ]]; then
       success "Schema pushed and data seeded"
       break
@@ -199,26 +224,48 @@ for _ in $(seq 1 180); do
 done
 [[ "$(docker inspect -f '{{.State.Status}}' idr-init 2>/dev/null)" == "exited" ]] || fail "Init did not finish in time."
 
-step "Waiting for the app (first run downloads the AI model — can take a while)"
+step "Starting Ollama (first run downloads the AI model — can take a while)"
+docker compose up -d ollama || fail "Could not start ollama."
 deadline=$(( $(date +%s) + APP_TIMEOUT ))
 last_note=0
 while :; do
-  if curl -fsS -m 5 http://localhost:3000/api/health >/dev/null 2>&1; then
-    success "App is healthy"
-    break
-  fi
+  ollama_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}|{{.State.Status}}' idr-ollama 2>/dev/null || echo "|missing")"
+  case "$ollama_health" in
+    healthy\|*) success "Ollama is ready"; break ;;
+    unhealthy\|*|*\|exited|*\|dead)
+      docker logs --tail 40 idr-ollama 2>&1 | sed 's/^/        /'
+      fail "Ollama failed to become healthy." ;;
+  esac
   now=$(date +%s)
-  if (( now > deadline )); then
-    fail "App did not become healthy within ${APP_TIMEOUT}s."
-  fi
-  app_state="$(docker inspect -f '{{.State.Status}}' idr-app 2>/dev/null || echo created)"
-  ollama_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}' idr-ollama 2>/dev/null || echo unknown)"
-  if [[ "$app_state" == "exited" || "$app_state" == "dead" ]]; then
-    docker logs --tail 40 idr-app 2>&1 | sed 's/^/        /'
-    fail "App container stopped."
-  fi
+  (( now > deadline )) && fail "Ollama was not ready within ${APP_TIMEOUT}s (raise with --timeout)."
   if (( now - last_note >= 30 )); then
-    info "ollama: ${ollama_health:-starting}, app: ${app_state} ..."
+    info "ollama: ${ollama_health%%|*} — downloading/loading model ..."
+    last_note=$now
+  fi
+  sleep 5
+done
+
+step "Starting the app"
+SERVICES=(app)
+$NO_CADDY || SERVICES+=(caddy)
+docker compose up -d "${SERVICES[@]}" || fail "docker compose up failed."
+success "Containers started: db ollama init ${SERVICES[*]}"
+
+# Readiness via the image's HEALTHCHECK, so no host curl is required.
+deadline=$(( $(date +%s) + APP_TIMEOUT ))
+last_note=0
+while :; do
+  app_state="$(docker inspect -f '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}' idr-app 2>/dev/null || echo "missing|")"
+  case "$app_state" in
+    running\|healthy) success "App is healthy"; break ;;
+    exited\|*|dead\|*|running\|unhealthy)
+      docker logs --tail 40 idr-app 2>&1 | sed 's/^/        /'
+      fail "App container is ${app_state/|/ }." ;;
+  esac
+  now=$(date +%s)
+  (( now > deadline )) && fail "App did not become healthy within ${APP_TIMEOUT}s."
+  if (( now - last_note >= 30 )); then
+    info "app: ${app_state/|/ } ..."
     last_note=$now
   fi
   sleep 5
@@ -227,13 +274,14 @@ done
 # ---------------------------------------------------------------------------
 # 7. Summary
 # ---------------------------------------------------------------------------
-admin_pw="$(grep -E '^SEED_ADMIN_PASSWORD=' .env | cut -d= -f2- || true)"
+admin_pw="$(env_get SEED_ADMIN_PASSWORD)"
 echo
 docker compose ps
 echo
 echo -e "${GREEN}${BOLD}Identity Radar is running.${NC}"
 echo -e "  App:    ${BOLD}http://localhost:3000${NC}"
-$NO_CADDY || echo -e "  HTTPS:  ${BOLD}https://$(grep -E '^DOMAIN=' .env | cut -d= -f2- || echo localhost)${NC} (self-signed for localhost)"
+domain="$(env_get DOMAIN)"
+$NO_CADDY || echo -e "  HTTPS:  ${BOLD}https://${domain:-localhost}${NC} (self-signed for localhost)"
 echo -e "  Login:  ${BOLD}admin@acmefs.sa${NC} / ${BOLD}${admin_pw:-admin123}${NC}"
 echo -e "          (only applies to the first seed; existing data keeps its password)"
 echo

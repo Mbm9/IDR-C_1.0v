@@ -71,4 +71,25 @@ describe('Environment Validation', () => {
 
     warnSpy.mockRestore()
   })
+
+  it('treats empty strings from compose (${VAR:-}) as unset in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('DATABASE_URL', 'postgresql://localhost:5432/test')
+    vi.stubEnv('NEXTAUTH_SECRET', 'a-real-secret-that-is-long-enough')
+    vi.stubEnv('CREDENTIALS_KEY', '')
+    vi.stubEnv('CRON_SECRET', '')
+
+    vi.resetModules()
+    const { validateEnv } = await import('@/lib/env')
+    expect(() => validateEnv()).not.toThrow()
+  })
+
+  it('rejects .env template placeholders for NEXTAUTH_SECRET in production', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('DATABASE_URL', 'postgresql://localhost:5432/test')
+    vi.stubEnv('NEXTAUTH_SECRET', 'CHANGE_ME_run_openssl_rand_base64_32')
+
+    vi.resetModules()
+    await expect(import('@/lib/env')).rejects.toThrow('placeholder')
+  })
 })

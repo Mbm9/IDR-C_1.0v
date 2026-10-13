@@ -54,6 +54,10 @@ services:
       OLLAMA_URL: ${OLLAMA_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://localhost}
+      # Bearer token for the external scheduler calling /api/cron/*
+      CRON_SECRET: ${CRON_SECRET:-}
+      # 64 hex chars; connector credentials are refused without it in production
+      CREDENTIALS_KEY: ${CREDENTIALS_KEY:-}
       NODE_ENV: production
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]

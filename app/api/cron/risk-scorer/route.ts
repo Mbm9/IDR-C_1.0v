@@ -3,13 +3,7 @@ import { db } from '@/lib/db'
 import { identities, organizations, actionLog } from '@/lib/db/schema'
 import { eq, and, gte, desc, sql } from 'drizzle-orm'
 import { recalculateRiskForIdentity, calculateRiskVelocity } from '@/lib/risk/scorer'
-
-function verifyCronSecret(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET
-  if (!secret) return process.env.NODE_ENV !== 'production' // no secret: allow in dev, DENY in prod
-  const auth = request.headers.get('authorization')
-  return auth === `Bearer ${secret}`
-}
+import { verifyCronSecret } from '@/lib/auth/cron'
 
 export async function GET(request: NextRequest) {
   if (!verifyCronSecret(request)) {

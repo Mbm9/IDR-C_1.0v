@@ -17,7 +17,8 @@ services:
     container_name: idr-db
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      # Loopback only: the database must not be reachable from the network.
+      - "${DB_BIND_ADDRESS:-127.0.0.1}:5432:5432"
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-identity_radar}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
@@ -91,10 +92,13 @@ services:
       ollama:
         condition: service_healthy
     ports:
-      - "3000:3000"
+      # Loopback only by default: remote clients go through Caddy (80/443),
+      # which sets X-Real-IP for rate limiting. Set APP_BIND_ADDRESS=0.0.0.0
+      # to expose port 3000 on the network.
+      - "${APP_BIND_ADDRESS:-127.0.0.1}:3000:3000"
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-identity_radar}
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-identity-radar-secret-key-change-in-production}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required - run ./scripts/docker-up.sh or add it to .env}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       AUTH_TRUST_HOST: "true"
       OLLAMA_URL: http://ollama:11434
