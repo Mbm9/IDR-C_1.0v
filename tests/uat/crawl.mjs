@@ -47,7 +47,7 @@ const ROUTES = [
   // Not in the sidebar: direct URL only
   '/dashboard/ai', '/dashboard/ai-chat', '/dashboard/canaries', '/dashboard/certifications',
   '/dashboard/data-quality', '/dashboard/docs', '/dashboard/gpo', '/dashboard/nhi',
-  '/dashboard/peer-analysis', '/dashboard/remediation', '/dashboard/reports', '/dashboard/results',
+  '/dashboard/peer-analysis', '/dashboard/remediation', '/dashboard/reports', '/dashboard/reports/gpo-validation', '/dashboard/results',
   '/dashboard/shadow-admins', '/dashboard/supply-chain', '/dashboard/threats',
   ids.identity && `/dashboard/identities/${ids.identity}`,
   ids.attackPath && `/dashboard/attack-paths/${ids.attackPath}`,

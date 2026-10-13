@@ -2,11 +2,14 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
-import { FileText, Printer, Loader2, Calendar } from 'lucide-react'
+import Link from 'next/link'
+import { useLocale, useTranslations } from 'next-intl'
+import { FileText, Printer, Loader2, Calendar, ShieldCheck, ArrowRight } from 'lucide-react'
 
 export default function ReportsPage() {
   const t = useTranslations('reports')
+  const tGpo = useTranslations('gpoReport')
+  const locale = useLocale()
   const [days, setDays] = useState(30)
   const [generating, setGenerating] = useState(false)
 
@@ -46,6 +49,23 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between">
         <h2 className="text-title text-[var(--text-primary)]">{t('title')}</h2>
       </div>
+
+      {/* GPO & policy validation report */}
+      <Link
+        href="/dashboard/reports/gpo-validation"
+        className="flex items-start gap-3 p-4 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] hover:border-[var(--border-hover)] transition-colors"
+        style={{ boxShadow: 'var(--shadow-card)' }}
+      >
+        <ShieldCheck size={20} className="mt-0.5 shrink-0 text-[var(--color-info-text)]" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-body font-medium text-[var(--text-primary)]">{tGpo('title')}</span>
+          <span className="block text-caption text-[var(--text-secondary)] mt-0.5">{tGpo('cardDescription')}</span>
+        </span>
+        <span className="flex items-center gap-1 text-caption font-medium text-[var(--color-info-text)] whitespace-nowrap">
+          {tGpo('openReport')}
+          <ArrowRight size={14} className="rtl:rotate-180" aria-hidden="true" />
+        </span>
+      </Link>
 
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-4 p-4 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]" style={{ boxShadow: 'var(--shadow-card)' }}>
@@ -87,8 +107,8 @@ export default function ReportsPage() {
       {/* Report Preview */}
       {data?.html ? (
         <div
-          dir="ltr"
-          lang="en"
+          dir={locale === 'ar' ? 'rtl' : 'ltr'}
+          lang={locale}
           className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-white text-slate-900 overflow-hidden"
           style={{ boxShadow: 'var(--shadow-card)' }}
         >

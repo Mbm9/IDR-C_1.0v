@@ -20,10 +20,10 @@ export default function DashboardLayout({
     <div className="min-h-screen bg-[var(--bg-secondary)]">
       <Sidebar />
       <CommandPalette />
-      <div className="lg:ps-60 flex flex-col min-h-screen transition-all duration-200">
+      <div className="lg:ps-60 print:ps-0 flex flex-col min-h-screen transition-all duration-200">
         <Header />
         {isDemoMode && (
-          <div className="px-4 lg:px-6 pt-3">
+          <div className="px-4 lg:px-6 pt-3 print:hidden">
             <div className={`flex items-center justify-between gap-3 px-4 py-2.5 rounded-[var(--radius-card)] text-caption font-medium bg-[var(--color-medium-bg)] ${TONE_TEXT.medium}`} role="status">
               <span>{t('demoBanner')}</span>
               <Link
@@ -35,7 +35,7 @@ export default function DashboardLayout({
             </div>
           </div>
         )}
-        <QuickStartChecklist />
+        <div className="print:hidden"><QuickStartChecklist /></div>
         <main className="flex-1 p-4 lg:p-6 max-w-[1400px]">
           {children}
         </main>

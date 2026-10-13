@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import {
   LayoutDashboard, Users, Shield, Key, AlertTriangle, Plug, ScrollText, Settings,
   ChevronLeft, ChevronRight, Menu, X, Network, Route, Radar,
-  Upload, Scale, ShieldAlert, Compass, ListChecks, Radio,
+  Upload, Scale, ShieldAlert, Compass, ListChecks, Radio, FileText,
 } from 'lucide-react'
 
 // MVP nav — trimmed to the essence. Deferred pages remain in the repo and load by direct URL;
@@ -39,6 +39,7 @@ const NAV_SECTIONS = [
       { href: '/dashboard/issues', labelKey: 'issues' as const, icon: ListChecks },
       { href: '/dashboard/violations', labelKey: 'violations' as const, icon: AlertTriangle },
       { href: '/dashboard/compliance', labelKey: 'compliance' as const, icon: Scale },
+      { href: '/dashboard/reports', labelKey: 'reports' as const, icon: FileText },
     ],
   },
   {
@@ -163,12 +164,12 @@ export function Sidebar() {
       )}
 
       {/* Mobile sidebar */}
-      <aside className={`lg:hidden fixed inset-y-0 start-0 z-40 w-60 bg-slate-900 flex flex-col transform transition-transform ${mobileOpen ? 'translate-x-0 rtl:-translate-x-0 visible' : 'ltr:-translate-x-full rtl:translate-x-full invisible'}`}>
+      <aside className={`print:hidden lg:hidden fixed inset-y-0 start-0 z-40 w-60 bg-slate-900 flex flex-col transform transition-transform ${mobileOpen ? 'translate-x-0 rtl:-translate-x-0 visible' : 'ltr:-translate-x-full rtl:translate-x-full invisible'}`}>
         {navContent(true)}
       </aside>
 
       {/* Desktop sidebar */}
-      <aside className={`hidden lg:flex ${sidebarWidth} flex-col fixed inset-y-0 start-0 bg-slate-900 transition-all duration-200`}>
+      <aside className={`print:hidden hidden lg:flex ${sidebarWidth} flex-col fixed inset-y-0 start-0 bg-slate-900 transition-all duration-200`}>
         {navContent(!collapsed)}
       </aside>
     </>

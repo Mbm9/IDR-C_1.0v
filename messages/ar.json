@@ -3022,5 +3022,118 @@
       "batch": "دفعي",
       "unlock": "إلغاء القفل"
     }
+  },
+  "gpoReport": {
+    "title": "التحقق من GPO والسياسات",
+    "subtitle": "من يستطيع تعديل كل كائن من كائنات نهج المجموعة مقارنةً بمستواه وحالة حسابه، وأين يُطبَّق كل GPO، ومدى امتثال الهويات للسياسات الداخلية.",
+    "generatedAt": "تاريخ الإنشاء {date}",
+    "print": "طباعة / حفظ PDF",
+    "exportFindings": "تصدير النتائج (CSV)",
+    "exportTrustees": "تصدير صلاحيات التعديل (CSV)",
+    "loading": "جاري إعداد التقرير…",
+    "failed": "تعذّر إعداد التقرير.",
+    "retry": "إعادة المحاولة",
+    "openReport": "فتح التقرير",
+    "cardDescription": "يتحقق من صلاحيات تعديل GPO مقابل مستويات الحسابات وحالتها، ومن روابط GPO مقابل مستويات الوحدات التنظيمية، ومن امتثال الهويات للسياسات الداخلية.",
+    "kpi": {
+      "gpoCompliance": "كائنات GPO بلا نتيجة حرجة أو عالية",
+      "editGrants": "صلاحيات تعديل GPO الناجحة في التحقق",
+      "critical": "النتائج الحرجة",
+      "policyCompliance": "الهويات الممتثلة لكل السياسات",
+      "unrecorded": "إخفاقات سياسات لم تسجّلها أنظمة الكشف",
+      "ofTotal": "{count} من {total}"
+    },
+    "sections": {
+      "findings": "النتائج",
+      "findingsHint": "كل إخفاق في التحقق، مرتبة من الأشد خطورة. وترتبط كل نتيجة بضوابط الأطر التي تؤثر فيها.",
+      "trustees": "صلاحيات التعديل حسب الحساب",
+      "trusteesHint": "صف لكل حساب أو مجموعة تستطيع تعديل GPO، مع نتيجة كل فحص.",
+      "gpos": "حالة كائنات GPO",
+      "gposHint": "ينجح الـ GPO إذا لم تكن لديه أي نتيجة حرجة أو عالية.",
+      "policies": "الامتثال للسياسات الداخلية",
+      "policiesHint": "المسجّلة = مخالفات مفتوحة أنشأتها مهام الكشف. المقاسة = فُحصت مباشرةً من بيانات الهويات. ويحتسب الامتثال كلتيهما."
+    },
+    "col": {
+      "severity": "الخطورة",
+      "check": "الفحص",
+      "gpo": "GPO",
+      "subject": "الحساب أو المجموعة أو الوحدة التنظيمية",
+      "detail": "التفاصيل",
+      "controls": "الضوابط",
+      "account": "الحساب أو المجموعة",
+      "permission": "الصلاحية",
+      "state": "الحالة",
+      "lastSignIn": "آخر تسجيل دخول",
+      "mfa": "المصادقة متعددة العوامل",
+      "result": "النتيجة",
+      "editors": "المعدِّلون",
+      "findings": "النتائج",
+      "status": "الحالة",
+      "policy": "السياسة",
+      "scope": "النطاق",
+      "inScope": "ضمن النطاق",
+      "recorded": "المسجّلة",
+      "measured": "المقاسة",
+      "unrecorded": "غير مسجّلة",
+      "exceptions": "الاستثناءات",
+      "compliance": "الامتثال"
+    },
+    "checks": {
+      "edit_right_below_tier": "صلاحية تعديل أدنى من مستوى GPO",
+      "tier0_admin_on_lower_tier": "حساب من المستوى 0 على مستوى أدنى",
+      "inactive_trustee": "حساب غير نشط يملك صلاحية تعديل",
+      "trustee_without_mfa": "معدِّل بلا مصادقة متعددة العوامل",
+      "link_tier_inversion": "GPO يُطبَّق على وحدة تنظيمية أعلى مستوى",
+      "link_scope_mismatch": "GPO مرتبط بوحدة تنظيمية أدنى مستوى",
+      "gpp_password": "كلمة مرور GPP مخزّنة",
+      "insecure_setting": "إعداد غير آمن",
+      "baseline_drift": "أضعف من خط الأساس",
+      "gpo_without_owner": "GPO بلا مالك"
+    },
+    "detail": {
+      "edit_right_below_tier": "حساب من {trusteeTier} يستطيع تعديل GPO من {gpoTier}",
+      "edit_right_below_tier_group": "مجموعة من {trusteeTier} تضم {members, plural, zero {# أعضاء} one {عضوًا واحدًا} two {عضوين} few {# أعضاء} many {# عضوًا} other {# عضو}} تستطيع تعديل GPO من {gpoTier}",
+      "tier0_admin_on_lower_tier": "حساب من المستوى 0 يدير GPO من {gpoTier} مما يعرّض بيانات اعتماد المستوى 0",
+      "inactive_trustee": "{status}، آخر تسجيل دخول قبل {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}",
+      "inactive_trustee_never": "{status}، لم يسجّل الدخول قط",
+      "trustee_without_mfa": "لا يوجد حساب مفعّل عليه المصادقة متعددة العوامل",
+      "link_tier_inversion": "GPO من {gpoTier} يُطبَّق على وحدة تنظيمية من {ouTier}",
+      "link_scope_mismatch": "GPO من {gpoTier} مرتبط بوحدة تنظيمية من {ouTier}",
+      "gpp_password": "كلمة مرور تفضيلات نهج المجموعة مخزّنة في SYSVOL (MS14-025)؛ القيمة محجوبة",
+      "insecure_setting": "{setting} = {actual}",
+      "baseline_drift": "{setting} = {actual}؛ يتطلب {baseline} القيمة {expected}",
+      "gpo_without_owner": "لم يُسجَّل مالك مسؤول"
+    },
+    "scope": {
+      "all": "جميع الهويات",
+      "human": "الأشخاص",
+      "non_human": "الهويات غير البشرية",
+      "tier_0": "هويات المستوى 0"
+    },
+    "permission": {
+      "edit_settings": "تعديل الإعدادات",
+      "modify_security": "تعديل الأمان",
+      "full_control": "تحكم كامل",
+      "link_gpo": "ربط GPO"
+    },
+    "state": {
+      "active": "نشط",
+      "dormant": "خامل",
+      "disabled": "معطّل",
+      "inactive": "غير نشط",
+      "orphaned": "يتيم",
+      "suspended": "موقوف"
+    },
+    "valid": "صالح",
+    "invalid": "يخفق",
+    "pass": "ناجح",
+    "fail": "يخفق",
+    "yes": "نعم",
+    "no": "لا",
+    "notMeasurable": "—",
+    "group": "مجموعة",
+    "never": "أبدًا",
+    "daysAgo": "قبل {days, plural, zero {# يوم} one {يوم واحد} two {يومين} few {# أيام} many {# يومًا} other {# يوم}}",
+    "none": "لا توجد نتائج."
   }
 }

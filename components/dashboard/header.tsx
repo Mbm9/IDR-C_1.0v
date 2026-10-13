@@ -46,7 +46,7 @@ export function Header() {
 
   return (
     <>
-    <header className="sticky top-0 z-30 bg-[var(--bg-primary)] border-b border-[var(--border-default)] px-4 lg:px-6 h-14 flex items-center justify-between">
+    <header className="print:hidden sticky top-0 z-30 bg-[var(--bg-primary)] border-b border-[var(--border-default)] px-4 lg:px-6 h-14 flex items-center justify-between">
       <div className="lg:hidden w-10" />
 
       {/* Search trigger */}

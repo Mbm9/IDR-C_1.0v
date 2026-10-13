@@ -3022,5 +3022,118 @@
       "batch": "Batch",
       "unlock": "Unlock"
     }
+  },
+  "gpoReport": {
+    "title": "GPO & Policy Validation",
+    "subtitle": "Who can change each Group Policy object compared with their tier and account state, where each GPO applies, and how identities comply with internal policies.",
+    "generatedAt": "Generated {date}",
+    "print": "Print / Save as PDF",
+    "exportFindings": "Export findings (CSV)",
+    "exportTrustees": "Export edit grants (CSV)",
+    "loading": "Building the report…",
+    "failed": "The report could not be built.",
+    "retry": "Try again",
+    "openReport": "Open report",
+    "cardDescription": "Validates GPO edit rights against account tiers and state, GPO links against OU tiers, and identities against internal policies.",
+    "kpi": {
+      "gpoCompliance": "GPOs with no critical or high finding",
+      "editGrants": "GPO edit grants that pass validation",
+      "critical": "Critical findings",
+      "policyCompliance": "Identities compliant with every policy",
+      "unrecorded": "Policy failures not recorded by detection",
+      "ofTotal": "{count} of {total}"
+    },
+    "sections": {
+      "findings": "Findings",
+      "findingsHint": "Every validation failure, most severe first. Each maps to the framework controls it affects.",
+      "trustees": "Edit grants by account",
+      "trusteesHint": "One row per account or group that can change a GPO, with the result of every check.",
+      "gpos": "GPO status",
+      "gposHint": "A GPO passes when it has no critical or high finding.",
+      "policies": "Internal policy compliance",
+      "policiesHint": "Recorded = open violations raised by detection jobs. Measured = checked directly against identity data. Compliance counts both."
+    },
+    "col": {
+      "severity": "Severity",
+      "check": "Check",
+      "gpo": "GPO",
+      "subject": "Account, group or OU",
+      "detail": "Detail",
+      "controls": "Controls",
+      "account": "Account or group",
+      "permission": "Permission",
+      "state": "State",
+      "lastSignIn": "Last sign-in",
+      "mfa": "MFA",
+      "result": "Result",
+      "editors": "Editors",
+      "findings": "Findings",
+      "status": "Status",
+      "policy": "Policy",
+      "scope": "Scope",
+      "inScope": "In scope",
+      "recorded": "Recorded",
+      "measured": "Measured",
+      "unrecorded": "Not recorded",
+      "exceptions": "Exceptions",
+      "compliance": "Compliance"
+    },
+    "checks": {
+      "edit_right_below_tier": "Edit right below GPO tier",
+      "tier0_admin_on_lower_tier": "Tier 0 account on lower tier",
+      "inactive_trustee": "Inactive account holds edit right",
+      "trustee_without_mfa": "Editor without MFA",
+      "link_tier_inversion": "GPO applies to a higher-tier OU",
+      "link_scope_mismatch": "GPO linked to a lower-tier OU",
+      "gpp_password": "Stored GPP password",
+      "insecure_setting": "Insecure setting",
+      "baseline_drift": "Weaker than baseline",
+      "gpo_without_owner": "GPO without owner"
+    },
+    "detail": {
+      "edit_right_below_tier": "{trusteeTier} account can change a {gpoTier} GPO",
+      "edit_right_below_tier_group": "{trusteeTier} group of {members, plural, one {# member} other {# members}} can change a {gpoTier} GPO",
+      "tier0_admin_on_lower_tier": "Tier 0 account administers a {gpoTier} GPO, exposing Tier 0 credentials",
+      "inactive_trustee": "{status}, last sign-in {days, plural, one {# day} other {# days}} ago",
+      "inactive_trustee_never": "{status}, never signed in",
+      "trustee_without_mfa": "No account with MFA enabled",
+      "link_tier_inversion": "{gpoTier} GPO applies to a {ouTier} OU",
+      "link_scope_mismatch": "{gpoTier} GPO linked to a {ouTier} OU",
+      "gpp_password": "Group Policy Preferences password stored in SYSVOL (MS14-025); value withheld",
+      "insecure_setting": "{setting} = {actual}",
+      "baseline_drift": "{setting} = {actual}; {baseline} requires {expected}",
+      "gpo_without_owner": "No accountable owner recorded"
+    },
+    "scope": {
+      "all": "All identities",
+      "human": "People",
+      "non_human": "Non-human identities",
+      "tier_0": "Tier 0 identities"
+    },
+    "permission": {
+      "edit_settings": "Edit settings",
+      "modify_security": "Modify security",
+      "full_control": "Full control",
+      "link_gpo": "Link GPO"
+    },
+    "state": {
+      "active": "Active",
+      "dormant": "Dormant",
+      "disabled": "Disabled",
+      "inactive": "Inactive",
+      "orphaned": "Orphaned",
+      "suspended": "Suspended"
+    },
+    "valid": "Valid",
+    "invalid": "Fails",
+    "pass": "Passes",
+    "fail": "Fails",
+    "yes": "Yes",
+    "no": "No",
+    "notMeasurable": "—",
+    "group": "Group",
+    "never": "Never",
+    "daysAgo": "{days, plural, one {# day} other {# days}} ago",
+    "none": "No findings."
   }
 }
