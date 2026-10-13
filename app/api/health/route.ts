@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
+import { probeAI, resolveAIConfig, type AIProbeResult } from '@/lib/ai/client'
 
 // Never prerender: a health check must query the database on every request.
 // Without this, a build that can reach the database caches "healthy" forever.
@@ -15,6 +16,11 @@ interface HealthCheck {
   status: CheckStatus
   latencyMs?: number
   provider?: string
+  model?: string
+  detail?: string
+  /** AI_PROVIDER as configured ('auto' when unset). */
+  setting?: string
+  providers?: AIProbeResult['providers']
 }
 
 interface HealthResponse {
@@ -38,35 +44,32 @@ async function checkDatabase(): Promise<HealthCheck> {
   }
 }
 
-function checkAI(): HealthCheck {
-  const aiProvider = process.env.AI_PROVIDER || ''
-  const ollamaUrl = process.env.OLLAMA_URL || ''
-  const anthropicKey = process.env.ANTHROPIC_API_KEY || ''
-  const modelEndpoint = process.env.AI_MODEL_ENDPOINT || ''
-
-  if (aiProvider === 'docker_model_runner' && modelEndpoint) {
-    return { status: 'up', provider: 'docker_model_runner' }
+/**
+ * Probe the configured AI provider chain (Ollama GET /api/tags, Anthropic
+ * GET /v1/models, OpenAI-compatible GET /models) with a short timeout. The
+ * result is cached for ~30s in lib/ai/client so health polling stays cheap.
+ * Merely having OLLAMA_URL set no longer counts as "up".
+ */
+async function checkAI(): Promise<HealthCheck> {
+  const config = resolveAIConfig()
+  try {
+    const probe = await probeAI(config)
+    return { ...probe, setting: config.setting }
+  } catch {
+    return { status: 'down', setting: config.setting, detail: 'probe failed' }
   }
-
-  if (ollamaUrl) {
-    return { status: 'up', provider: 'ollama' }
-  }
-
-  if (anthropicKey) {
-    return { status: 'up', provider: 'anthropic' }
-  }
-
-  return { status: 'unconfigured' }
 }
 
 export async function GET() {
   const [dbCheck, aiCheck] = await Promise.all([
     checkDatabase(),
-    Promise.resolve(checkAI()),
+    checkAI(),
   ])
 
+  // The database decides healthy/unhealthy (503). AI is optional: a configured
+  // provider that is unreachable only degrades; AI_PROVIDER=none is healthy.
   const isHealthy = dbCheck.status === 'up'
-  const isDegraded = dbCheck.status === 'up' && aiCheck.status !== 'up'
+  const isDegraded = dbCheck.status === 'up' && aiCheck.status === 'down'
 
   let overallStatus: HealthResponse['status'] = 'healthy'
   if (!isHealthy) {

@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { identities, groupMemberships, groups } from '@/lib/db/schema'
 import { eq, and, isNull, lt, sql } from 'drizzle-orm'
 import { IDENTITY_CLASSIFIER } from '@/lib/ai/prompts'
+import { generateJSON } from '@/lib/ai/client'
 
 // ── Types ──
 
@@ -205,9 +206,6 @@ export async function classifyIdentities(orgId: string): Promise<ClassificationR
 
 // ── AI classification helper ──
 
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
-
 async function classifyWithAI(
   unclassified: (typeof identities.$inferSelect)[],
   identityGroups: Map<string, string[]>
@@ -283,53 +281,16 @@ async function classifyWithAI(
 }
 
 async function callAIClassifier(prompt: string): Promise<any | null> {
-  // Try Ollama first
-  try {
-    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: 'system', content: IDENTITY_CLASSIFIER },
-          { role: 'user', content: prompt },
-        ],
-        stream: false,
-        format: 'json',
-        options: { temperature: 0.2, num_predict: 1024 },
-      }),
-      signal: AbortSignal.timeout(60000),
-    })
-    if (response.ok) {
-      const result = await response.json()
-      return JSON.parse(result.message?.content || '{}')
-    }
-  } catch { /* fallthrough */ }
-
-  // Try Anthropic
-  if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY!,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
-          max_tokens: 2048,
-          system: IDENTITY_CLASSIFIER,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      })
-      if (response.ok) {
-        const result = await response.json()
-        const text = result.content?.[0]?.text || '{}'
-        return JSON.parse(text)
-      }
-    } catch { /* fallthrough */ }
-  }
-
-  return null
+  const result = await generateJSON(
+    {
+      label: 'identity-classifier',
+      system: IDENTITY_CLASSIFIER,
+      prompt,
+      temperature: 0.2,
+      maxTokens: 1024,
+      timeoutMs: 60_000,
+    },
+    (parsed) => (parsed && typeof parsed === 'object' ? parsed : null),
+  )
+  return result.ok ? result.data : null
 }

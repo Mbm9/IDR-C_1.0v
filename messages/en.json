@@ -948,6 +948,24 @@
     "todaysBriefing": "Today's Briefing",
     "collapse": "Collapse",
     "viewFull": "View full briefing",
-    "generatesAt7am": "A new briefing is generated every day at 7:00 AM"
+    "generatesAt7am": "A new briefing is generated every day at 7:00 AM",
+    "auto": {
+      "headlineNewViolations": "{count, plural, one {# new open violation detected overnight} other {# new open violations detected overnight}}",
+      "headlineStable": "No significant changes overnight — posture is stable",
+      "newOpenViolations": "{count, plural, one {# new open violation} other {# new open violations}}",
+      "newTierViolations": "{count, plural, one {# new tier violation} other {# new tier violations}}",
+      "riskIncreased": "Average risk score increased by {delta}",
+      "violationsResolved": "{count, plural, one {# violation resolved} other {# violations resolved}}",
+      "riskImproved": "Average risk score improved by {delta}",
+      "tierViolationsResolved": "{count, plural, one {# tier violation resolved} other {# tier violations resolved}}",
+      "postureMaintained": "Maintaining current security posture",
+      "noUrgentItems": "No urgent items",
+      "insight": "Current posture: {identities} identities, {violations} open violations, avg risk {risk}.",
+      "priorityNewOpenViolations": "{count, plural, one {Address the # new open violation} other {Address the # new open violations}}",
+      "priorityNewTierViolations": "{count, plural, one {Address the # new tier violation} other {Address the # new tier violations}}",
+      "priorityRiskIncreased": "Investigate the {delta}-point increase in average risk score",
+      "priorityDefault": "Continue proactive review of expiring certifications",
+      "priorityLabel": "Priority: {text}"
+    }
   }
 }

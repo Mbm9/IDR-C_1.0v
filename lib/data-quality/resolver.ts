@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { identities, identityAliases } from '@/lib/db/schema'
 import { eq, and, ne } from 'drizzle-orm'
 import { CONFLICT_RESOLVER } from '@/lib/ai/prompts'
+import { generateJSON } from '@/lib/ai/client'
 
 // ── Types ──
 
@@ -269,9 +270,6 @@ export async function resolveIdentities(
 
 // ── AI conflict resolution helper ──
 
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
-
 async function callAIResolver(
   a: IdentityRow,
   b: IdentityRow
@@ -279,55 +277,18 @@ async function callAIResolver(
   const prompt = `Identity A: ${JSON.stringify({ displayName: a.displayName, email: a.email, upn: a.upn, samAccountName: a.samAccountName, department: a.department, type: a.type, source: a.sourceSystem })}
 Identity B: ${JSON.stringify({ displayName: b.displayName, email: b.email, upn: b.upn, samAccountName: b.samAccountName, department: b.department, type: b.type, source: b.sourceSystem })}`
 
-  // Try Ollama first
-  try {
-    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: 'system', content: CONFLICT_RESOLVER },
-          { role: 'user', content: prompt },
-        ],
-        stream: false,
-        format: 'json',
-        options: { temperature: 0.2, num_predict: 512 },
-      }),
-      signal: AbortSignal.timeout(30000),
-    })
-    if (response.ok) {
-      const result = await response.json()
-      const parsed = JSON.parse(result.message?.content || '{}')
-      if (typeof parsed.samePerson === 'boolean') return parsed
-    }
-  } catch { /* fallthrough */ }
-
-  // Try Anthropic
-  if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY!,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
-          max_tokens: 512,
-          system: CONFLICT_RESOLVER,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      })
-      if (response.ok) {
-        const result = await response.json()
-        const text = result.content?.[0]?.text || '{}'
-        const parsed = JSON.parse(text)
-        if (typeof parsed.samePerson === 'boolean') return parsed
-      }
-    } catch { /* fallthrough */ }
-  }
-
-  return null
+  const result = await generateJSON(
+    {
+      label: 'conflict-resolver',
+      system: CONFLICT_RESOLVER,
+      prompt,
+      temperature: 0.2,
+      maxTokens: 512,
+      timeoutMs: 30_000,
+    },
+    (parsed) => (parsed && typeof parsed.samePerson === 'boolean'
+      ? parsed as { samePerson: boolean; confidence: number; reasoning: string }
+      : null),
+  )
+  return result.ok ? result.data : null
 }

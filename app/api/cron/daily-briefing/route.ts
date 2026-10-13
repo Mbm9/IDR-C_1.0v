@@ -5,11 +5,14 @@ import {
   notifications, actionLog, webhookEndpoints, users,
 } from '@/lib/db/schema'
 import { eq, and, count, sql, desc, gte } from 'drizzle-orm'
-import { DAILY_BRIEFING_PROMPT } from '@/lib/ai/prompts'
+import { DAILY_BRIEFING_PROMPT, BRIEFING_TRANSLATION_PROMPT } from '@/lib/ai/prompts'
 import { verifyCronSecret } from '@/lib/auth/cron'
-
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
+import { generateJSON } from '@/lib/ai/client'
+import {
+  buildDeterministicBriefing, fromAIBriefing, parseAIBriefing, toStoredHighlights,
+  toEnglishNarrative, visibleHighlights, type AIBriefingJSON, type BriefingContent,
+  type BriefingMetrics,
+} from '@/lib/ai/briefing'
 
 async function getOrgMetrics(orgId: string) {
   const [identityCount] = await db.select({ count: count() })
@@ -54,58 +57,39 @@ async function getRecentEvents(orgId: string) {
   return events
 }
 
-async function callOllama(userPrompt: string): Promise<any | null> {
-  try {
-    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: 'system', content: DAILY_BRIEFING_PROMPT },
-          { role: 'user', content: userPrompt },
-        ],
-        stream: false,
-        format: 'json',
-      }),
-    })
-    if (!response.ok) return null
-    const data = await response.json()
-    const text = data.message?.content || ''
-    return JSON.parse(text)
-  } catch {
-    return null
-  }
-}
+/**
+ * AI briefing (English) plus, when the provider answers, an Arabic translation
+ * of the same JSON so the Arabic UI does not show English model output.
+ * Returns null when no provider is available; the caller then uses the
+ * deterministic, message-keyed briefing which is rendered per locale on read.
+ */
+async function generateAIBriefing(userPrompt: string): Promise<BriefingContent | null> {
+  const ai = await generateJSON(
+    {
+      label: 'daily-briefing',
+      system: DAILY_BRIEFING_PROMPT,
+      prompt: userPrompt,
+      temperature: 0.3,
+      maxTokens: 1024,
+      timeoutMs: 120_000,
+    },
+    parseAIBriefing,
+  )
+  if (!ai.ok) return null
 
-function generateFallbackBriefing(metrics: any, delta: any, events: any[]) {
-  const headline = delta.openViolations > 0
-    ? `${delta.openViolations} new open violations detected overnight`
-    : 'No significant changes overnight — posture is stable'
+  const translation = await generateJSON<AIBriefingJSON>(
+    {
+      label: 'daily-briefing-ar',
+      system: BRIEFING_TRANSLATION_PROMPT,
+      prompt: JSON.stringify(ai.data),
+      temperature: 0.1,
+      maxTokens: 1536,
+      timeoutMs: 120_000,
+    },
+    parseAIBriefing,
+  )
 
-  const needsAttention: string[] = []
-  const positives: string[] = []
-
-  if (delta.openViolations > 0) needsAttention.push(`${delta.openViolations} new open violations`)
-  if (delta.tierViolations > 0) needsAttention.push(`${delta.tierViolations} new tier violations`)
-  if (delta.avgRiskScore > 2) needsAttention.push(`Average risk score increased by ${delta.avgRiskScore}`)
-
-  if (delta.openViolations < 0) positives.push(`${Math.abs(delta.openViolations)} violations resolved`)
-  if (delta.avgRiskScore < -2) positives.push(`Average risk score improved by ${Math.abs(delta.avgRiskScore)}`)
-  if (delta.tierViolations < 0) positives.push(`${Math.abs(delta.tierViolations)} tier violations resolved`)
-
-  if (!positives.length) positives.push('Maintaining current security posture')
-  if (!needsAttention.length) needsAttention.push('No urgent items')
-
-  return {
-    headline,
-    needsAttention,
-    positives,
-    insight: `Current posture: ${metrics.totalIdentities} identities, ${metrics.openViolations} open violations, avg risk ${metrics.avgRiskScore}.`,
-    suggestedPriority: needsAttention[0] !== 'No urgent items'
-      ? `Address the ${needsAttention[0]}`
-      : 'Continue proactive review of expiring certifications',
-  }
+  return fromAIBriefing(ai.data, ai.model, translation.ok ? translation.data : null)
 }
 
 export async function GET(request: NextRequest) {
@@ -145,34 +129,14 @@ export async function GET(request: NextRequest) {
       const eventSummary = events.map(e => `${e.actionType}: ${e.count}`).join(', ')
       const userPrompt = `Metrics: ${JSON.stringify(metrics)}. 24h deltas: ${JSON.stringify(delta)}. Recent events: ${eventSummary || 'none'}. Generate the daily briefing.`
 
-      // Try AI, fallback to deterministic
-      let briefingData = await callOllama(userPrompt)
-      if (!briefingData) {
-        briefingData = generateFallbackBriefing(metrics, delta, events)
-      }
+      // Try AI, fallback to deterministic (message keys, localized on read)
+      const content: BriefingContent =
+        (await generateAIBriefing(userPrompt)) ?? buildDeterministicBriefing(metrics, delta as BriefingMetrics)
 
-      const highlights: Array<{ type: string; text: string }> = []
-      if (briefingData.needsAttention) {
-        for (const item of briefingData.needsAttention) {
-          highlights.push({ type: 'negative', text: item })
-        }
-      }
-      if (briefingData.positives) {
-        for (const item of briefingData.positives) {
-          highlights.push({ type: 'positive', text: item })
-        }
-      }
-      if (briefingData.suggestedPriority) {
-        highlights.push({ type: 'action', text: briefingData.suggestedPriority })
-      }
-
-      const narrative = [
-        briefingData.headline,
-        '',
-        briefingData.insight,
-        '',
-        `Priority: ${briefingData.suggestedPriority}`,
-      ].join('\n')
+      const storedHighlights = toStoredHighlights(content)
+      const highlights = visibleHighlights(storedHighlights)
+      const narrative = toEnglishNarrative(content)
+      const headline = content.headline.text
 
       const deliveredVia: string[] = ['in_app']
 
@@ -182,7 +146,7 @@ export async function GET(request: NextRequest) {
         metrics,
         delta,
         narrative,
-        highlights,
+        highlights: storedHighlights,
         deliveredVia,
       })
 
@@ -200,7 +164,7 @@ export async function GET(request: NextRequest) {
           userId: user.id,
           type: 'system',
           title: 'Daily Intelligence Briefing',
-          message: briefingData.headline || 'Your daily briefing is ready',
+          message: headline || 'Your daily briefing is ready',
           severity: 'info',
           link: '/dashboard',
         })
@@ -225,7 +189,7 @@ export async function GET(request: NextRequest) {
               },
               body: JSON.stringify({
                 event: 'daily_briefing',
-                data: { metrics, delta, narrative, highlights },
+                data: { metrics, delta, narrative, highlights, generatedBy: content.generatedBy, model: content.model ?? null },
               }),
             })
           } catch (err) {

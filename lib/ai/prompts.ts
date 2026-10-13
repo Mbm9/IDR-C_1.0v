@@ -238,6 +238,17 @@ Rules:
 - suggestedPriority should be actionable and specific
 - If no significant changes, say so clearly`
 
+export const BRIEFING_TRANSLATION_PROMPT = `You translate an IAM security briefing from English to Modern Standard Arabic for a Saudi CISO audience.
+
+Input: a JSON object with keys headline, needsAttention (array), positives (array), insight, suggestedPriority.
+
+Respond ONLY with JSON using exactly the same keys and the same number of array items, in the same order, with every value translated to Arabic.
+
+Rules:
+- Keep numbers, identity names, product names, MITRE IDs and acronyms (AD, MFA, NHI, PAM) unchanged
+- Use standard Arabic security terminology (e.g. "مخالفة" for violation, "مستوى" for tier)
+- Do not add, drop or merge items`
+
 // ── Executive Report ──
 
 export const EXECUTIVE_REPORT_PROMPT = `You are a CISO report writer. Given the organization's identity security metrics, generate a board-ready executive summary.

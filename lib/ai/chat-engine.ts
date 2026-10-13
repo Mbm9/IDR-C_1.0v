@@ -7,15 +7,17 @@ import {
 import { eq, and, desc, count, sql, ilike, gte, lte, or } from 'drizzle-orm'
 import { CHAT_SYSTEM_PROMPT } from '@/lib/ai/prompts'
 import { parseNaturalLanguageQuery } from '@/lib/graph/query-parser'
-
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
+import { generate, extractJSON } from '@/lib/ai/client'
 
 export interface ChatResponse {
   answer: string
   data?: any
   suggestedActions?: string[]
   followUpQuestions: string[]
+  /** 'ai' when a model wrote the answer (show it as a recommendation), else 'deterministic'. */
+  generatedBy?: 'ai' | 'deterministic'
+  /** Model that produced the answer, when generatedBy is 'ai'. */
+  model?: string
 }
 
 type Intent = 'query' | 'analysis' | 'action' | 'comparison' | 'simulation' | 'general'
@@ -334,97 +336,38 @@ async function buildAnalysisContext(message: string, orgId: string): Promise<str
 }
 
 /**
- * Call AI with Ollama -> Anthropic -> fallback chain.
+ * Call AI through the shared provider chain (Ollama -> Anthropic). Returns null
+ * when no provider produced a usable answer; the caller then falls back.
  */
 async function callAI(systemPrompt: string, userPrompt: string): Promise<ChatResponse | null> {
-  // 1. Try Ollama
-  const ollamaResult = await callOllama(systemPrompt, userPrompt)
-  if (ollamaResult) return ollamaResult
-
-  // 2. Try Anthropic
-  if (process.env.ANTHROPIC_API_KEY) {
-    const anthropicResult = await callAnthropic(systemPrompt, userPrompt)
-    if (anthropicResult) return anthropicResult
-  }
-
-  return null
-}
-
-async function callOllama(systemPrompt: string, userPrompt: string): Promise<ChatResponse | null> {
-  try {
-    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-        stream: false,
-        format: 'json',
-        options: { temperature: 0.3, num_predict: 1024 },
-      }),
-      signal: AbortSignal.timeout(60000),
-    })
-
-    if (!response.ok) return null
-    const result = await response.json()
-    const text = result.message?.content || ''
-    return parseChatResponse(text)
-  } catch {
-    return null
-  }
-}
-
-async function callAnthropic(systemPrompt: string, userPrompt: string): Promise<ChatResponse | null> {
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
-        max_tokens: 2048,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-      }),
-    })
-
-    if (!response.ok) return null
-    const result = await response.json()
-    const text = result.content?.[0]?.text || ''
-    return parseChatResponse(text)
-  } catch {
-    return null
-  }
+  const result = await generate(
+    {
+      label: 'chat',
+      system: systemPrompt,
+      prompt: userPrompt,
+      json: true,
+      temperature: 0.3,
+      maxTokens: 1024,
+      timeoutMs: 60_000,
+    },
+    parseChatResponse,
+  )
+  if (!result.ok) return null
+  return { ...result.data, generatedBy: 'ai', model: result.model }
 }
 
 function parseChatResponse(text: string): ChatResponse | null {
-  try {
-    const parsed = JSON.parse(text)
-    if (parsed.answer) return parsed
-    return null
-  } catch {
-    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (match) {
-      try {
-        const parsed = JSON.parse(match[1])
-        if (parsed.answer) return parsed
-      } catch { /* ignore */ }
+  const parsed = extractJSON(text)
+  if (parsed && typeof parsed === 'object' && parsed.answer) return parsed
+  if (parsed) return null
+  // If text is non-empty but not JSON, wrap it
+  if (text.trim()) {
+    return {
+      answer: text.trim(),
+      followUpQuestions: [],
     }
-    // If text is non-empty but not JSON, wrap it
-    if (text.trim()) {
-      return {
-        answer: text.trim(),
-        followUpQuestions: [],
-      }
-    }
-    return null
   }
+  return null
 }
 
 /**
@@ -460,6 +403,15 @@ function generateFallbackResponse(intent: Intent, queryResult?: { data: any; sum
  * Main chat processing function.
  */
 export async function processChat(
+  message: string,
+  orgId: string,
+  userId: string,
+): Promise<ChatResponse> {
+  const response = await answerChat(message, orgId, userId)
+  return { ...response, generatedBy: response.generatedBy ?? 'deterministic' }
+}
+
+async function answerChat(
   message: string,
   orgId: string,
   _userId: string,

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { SMART_CSV_PARSER_PROMPT } from '@/lib/ai/prompts'
-
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
+import { generateJSON, aiMeta } from '@/lib/ai/client'
 
 // Target fields for Identity Radar ontology
 const TARGET_FIELDS = [
@@ -118,114 +116,41 @@ export async function POST(req: NextRequest) {
 
     const userPrompt = `Headers: ${headers.join(', ')}\n\nSample data:\n${sampleStr}`
 
-    // Try providers: Ollama -> Anthropic -> fuzzy fallback
-    let result: DetectionResult | null = null
+    // Provider chain via the shared client, then deterministic fuzzy matching
+    const ai = await generateJSON(
+      {
+        label: 'csv-detect',
+        system: SMART_CSV_PARSER_PROMPT,
+        prompt: userPrompt,
+        temperature: 0.1,
+        maxTokens: 1024,
+        timeoutMs: 30_000,
+      },
+      toDetectionResult,
+    )
 
-    // 1. Try Ollama
-    result = await callOllamaDetect(userPrompt)
-
-    // 2. Try Anthropic
-    if (!result && process.env.ANTHROPIC_API_KEY) {
-      result = await callAnthropicDetect(userPrompt)
-    }
-
-    // 3. Deterministic fallback
-    if (!result) {
-      result = fuzzyMatch(headers, sampleRows)
+    let result: DetectionResult
+    if (ai.ok) {
+      result = ai.data
+      result.unmapped = headers.filter(h => !result.mapping[h])
     } else {
-      // Add unmapped list from AI result
-      result.unmapped = headers.filter(h => !result!.mapping[h])
+      result = fuzzyMatch(headers, sampleRows)
     }
 
-    return NextResponse.json(result)
+    // `mappings` is an alias of `mapping` for the dashboard import page, which reads that name.
+    return NextResponse.json({ ...result, mappings: result.mapping, ...aiMeta(ai) })
   } catch (err: any) {
     console.error('[CSV-Detect] Error:', err)
     return NextResponse.json({ error: 'Detection failed', details: err.message }, { status: 500 })
   }
 }
 
-async function callOllamaDetect(prompt: string): Promise<DetectionResult | null> {
-  try {
-    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: 'system', content: SMART_CSV_PARSER_PROMPT },
-          { role: 'user', content: prompt },
-        ],
-        stream: false,
-        format: 'json',
-        options: { temperature: 0.1, num_predict: 1024 },
-      }),
-      signal: AbortSignal.timeout(30000),
-    })
-
-    if (!response.ok) return null
-
-    const result = await response.json()
-    const text = result.message?.content || ''
-    return parseDetectionResponse(text)
-  } catch {
-    return null
-  }
-}
-
-async function callAnthropicDetect(prompt: string): Promise<DetectionResult | null> {
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
-        system: SMART_CSV_PARSER_PROMPT,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
-
-    if (!response.ok) return null
-
-    const result = await response.json()
-    const text = result.content?.[0]?.text || ''
-    return parseDetectionResponse(text)
-  } catch {
-    return null
-  }
-}
-
-function parseDetectionResponse(text: string): DetectionResult | null {
-  try {
-    const parsed = JSON.parse(text)
-    if (parsed.mapping && typeof parsed.mapping === 'object') {
-      return {
-        mapping: parsed.mapping,
-        formatDetection: parsed.formatDetection || { dateFormat: 'iso8601', csvType: 'generic' },
-        confidence: parsed.confidence || {},
-        unmapped: [],
-      }
-    }
-    return null
-  } catch {
-    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (match) {
-      try {
-        const parsed = JSON.parse(match[1])
-        if (parsed.mapping) {
-          return {
-            mapping: parsed.mapping,
-            formatDetection: parsed.formatDetection || { dateFormat: 'iso8601', csvType: 'generic' },
-            confidence: parsed.confidence || {},
-            unmapped: [],
-          }
-        }
-      } catch { /* ignore */ }
-    }
-    return null
+function toDetectionResult(parsed: any): DetectionResult | null {
+  if (!parsed?.mapping || typeof parsed.mapping !== 'object') return null
+  return {
+    mapping: parsed.mapping,
+    formatDetection: parsed.formatDetection || { dateFormat: 'iso8601', csvType: 'generic' },
+    confidence: parsed.confidence || {},
+    unmapped: [],
   }
 }

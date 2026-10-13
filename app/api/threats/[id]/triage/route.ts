@@ -7,9 +7,7 @@ import { hasRole } from '@/lib/utils/rbac'
 import { unauthorized, forbidden } from '@/lib/actions/helpers'
 import { THREAT_TRIAGE_PROMPT } from '@/lib/ai/prompts'
 import type { AppRole } from '@/lib/utils/rbac'
-
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
+import { generateJSON, aiMeta } from '@/lib/ai/client'
 
 export async function POST(
   req: NextRequest,
@@ -53,27 +51,20 @@ Evidence: ${JSON.stringify(threat.evidence)}
 First Seen: ${threat.firstSeenAt}
 Last Seen: ${threat.lastSeenAt}`
 
-    // Try providers: Ollama -> Anthropic -> Fallback
-    let triage: any = null
-    let provider = 'fallback'
-
-    // 1. Ollama
-    triage = await callOllama(context)
-    if (triage) {
-      provider = 'ollama'
-    }
-
-    // 2. Anthropic
-    if (!triage && process.env.ANTHROPIC_API_KEY) {
-      triage = await callAnthropic(context)
-      if (triage) provider = 'anthropic'
-    }
-
-    // 3. Fallback
-    if (!triage) {
-      triage = generateFallbackTriage(threat, identity)
-      provider = 'fallback'
-    }
+    // Provider chain via the shared client, then deterministic triage
+    const ai = await generateJSON(
+      {
+        label: 'threat-triage',
+        system: THREAT_TRIAGE_PROMPT,
+        prompt: context,
+        temperature: 0.3,
+        maxTokens: 1024,
+        timeoutMs: 120_000,
+      },
+      (parsed) => (parsed && (parsed.assessment || parsed.narrative) ? parsed : null),
+    )
+    const meta = aiMeta(ai)
+    const triage: any = ai.ok ? ai.data : generateFallbackTriage(threat, identity)
 
     // Save narrative to threat
     await db
@@ -81,76 +72,10 @@ Last Seen: ${threat.lastSeenAt}`
       .set({ aiNarrative: triage.narrative || triage.assessment })
       .where(eq(identityThreats.id, id))
 
-    return NextResponse.json({ ...triage, provider })
+    return NextResponse.json({ ...triage, ...meta })
   } catch (err: any) {
     console.error('[Threat Triage] Error:', err)
     return NextResponse.json({ error: 'Triage failed', details: err.message }, { status: 500 })
-  }
-}
-
-async function callOllama(context: string): Promise<any | null> {
-  try {
-    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: 'system', content: THREAT_TRIAGE_PROMPT },
-          { role: 'user', content: context },
-        ],
-        stream: false,
-        format: 'json',
-        options: { temperature: 0.3, num_predict: 1024 },
-      }),
-      signal: AbortSignal.timeout(120000),
-    })
-    if (!response.ok) return null
-    const result = await response.json()
-    return parseTriageResponse(result.message?.content || '')
-  } catch {
-    return null
-  }
-}
-
-async function callAnthropic(context: string): Promise<any | null> {
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
-        max_tokens: 2048,
-        system: THREAT_TRIAGE_PROMPT,
-        messages: [{ role: 'user', content: context }],
-      }),
-    })
-    if (!response.ok) return null
-    const result = await response.json()
-    return parseTriageResponse(result.content?.[0]?.text || '')
-  } catch {
-    return null
-  }
-}
-
-function parseTriageResponse(text: string): any | null {
-  try {
-    const parsed = JSON.parse(text)
-    if (parsed.assessment || parsed.narrative) return parsed
-    return null
-  } catch {
-    const match = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-    if (match) {
-      try {
-        const parsed = JSON.parse(match[1])
-        if (parsed.assessment || parsed.narrative) return parsed
-      } catch { /* ignore */ }
-    }
-    return null
   }
 }
 

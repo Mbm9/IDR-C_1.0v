@@ -7,9 +7,7 @@ import { hasRole } from '@/lib/utils/rbac'
 import { ATTACK_PATH_NARRATION_PROMPT } from '@/lib/ai/prompts'
 import { unauthorized, forbidden } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
-
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
+import { generateJSON, aiMeta } from '@/lib/ai/client'
 
 export async function POST(
   req: NextRequest,
@@ -41,61 +39,16 @@ export async function POST(
       mitreId: path.mitreId,
     }, null, 2)}`
 
-    let narrative: any = null
-    let provider = 'fallback'
-
-    // Try Ollama
-    try {
-      const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: OLLAMA_MODEL,
-          messages: [
-            { role: 'system', content: ATTACK_PATH_NARRATION_PROMPT },
-            { role: 'user', content: prompt },
-          ],
-          stream: false,
-          format: 'json',
-          options: { temperature: 0.3, num_predict: 2048 },
-        }),
-        signal: AbortSignal.timeout(120000),
-      })
-      if (response.ok) {
-        const result = await response.json()
-        const text = result.message?.content || ''
-        try { narrative = JSON.parse(text); provider = 'ollama' } catch { /* */ }
-      }
-    } catch { /* fallthrough */ }
-
-    // Try Anthropic
-    if (!narrative && process.env.ANTHROPIC_API_KEY) {
-      try {
-        const response = await fetch('https://api.anthropic.com/v1/messages', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-api-key': process.env.ANTHROPIC_API_KEY!,
-            'anthropic-version': '2023-06-01',
-          },
-          body: JSON.stringify({
-            model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
-            max_tokens: 2048,
-            system: ATTACK_PATH_NARRATION_PROMPT,
-            messages: [{ role: 'user', content: prompt }],
-          }),
-        })
-        if (response.ok) {
-          const result = await response.json()
-          const text = result.content?.[0]?.text || ''
-          try { narrative = JSON.parse(text); provider = 'anthropic' } catch {
-            // Try extracting JSON from code block
-            const match = text.match(/```(?:json)?\s*([\s\S]*?)```/)
-            if (match) try { narrative = JSON.parse(match[1]); provider = 'anthropic' } catch { /* */ }
-          }
-        }
-      } catch { /* fallthrough */ }
-    }
+    const ai = await generateJSON({
+      label: 'attack-path-narrate',
+      system: ATTACK_PATH_NARRATION_PROMPT,
+      prompt,
+      temperature: 0.3,
+      maxTokens: 2048,
+      timeoutMs: 120_000,
+    })
+    const meta = aiMeta(ai)
+    let narrative: any = ai.ok ? ai.data : null
 
     // Fallback
     if (!narrative) {
@@ -106,7 +59,6 @@ export async function POST(
         remediationOptions: [{ action: 'Review and revoke the most dangerous permission in this chain', breaksPathAtHop: 1, effort: 'medium', sideEffects: 'May impact dependent services' }],
         exploitability: path.pathLength <= 2 ? 'trivial' : path.pathLength <= 4 ? 'moderate' : 'advanced',
       }
-      provider = 'fallback'
     }
 
     // Save narrative to DB
@@ -115,7 +67,7 @@ export async function POST(
       .set({ aiNarrative: typeof narrative.narrative === 'string' ? narrative.narrative : JSON.stringify(narrative) })
       .where(eq(attackPaths.id, id))
 
-    return NextResponse.json({ ...narrative, provider })
+    return NextResponse.json({ ...narrative, ...meta })
   } catch (error) {
     console.error('[AttackPaths] Narrate error:', error)
     return NextResponse.json({ error: 'Narration failed' }, { status: 500 })

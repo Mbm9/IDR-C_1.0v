@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { identities, identityAliases, groupMemberships, groups, integrationSources } from '@/lib/db/schema'
 import { eq, and, isNull, sql, lt } from 'drizzle-orm'
 import { DATA_STEWARD } from '@/lib/ai/prompts'
+import { generateJSON } from '@/lib/ai/client'
 
 // ── Types ──
 
@@ -53,59 +54,19 @@ const DEPT_LOOKUP = buildNormalizationLookup()
 
 // ── AI helper ──
 
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
-
 async function callDataSteward(prompt: string): Promise<any | null> {
-  // Try Ollama first
-  try {
-    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: 'system', content: DATA_STEWARD },
-          { role: 'user', content: prompt },
-        ],
-        stream: false,
-        format: 'json',
-        options: { temperature: 0.2, num_predict: 2048 },
-      }),
-      signal: AbortSignal.timeout(60000),
-    })
-    if (response.ok) {
-      const result = await response.json()
-      return JSON.parse(result.message?.content || '{}')
-    }
-  } catch { /* fallthrough */ }
-
-  // Try Anthropic
-  if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY!,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
-          max_tokens: 2048,
-          system: DATA_STEWARD,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      })
-      if (response.ok) {
-        const result = await response.json()
-        const text = result.content?.[0]?.text || '{}'
-        return JSON.parse(text)
-      }
-    } catch { /* fallthrough */ }
-  }
-
-  return null
+  const result = await generateJSON(
+    {
+      label: 'data-steward',
+      system: DATA_STEWARD,
+      prompt,
+      temperature: 0.2,
+      maxTokens: 2048,
+      timeoutMs: 60_000,
+    },
+    (parsed) => (parsed && typeof parsed === 'object' ? parsed : null),
+  )
+  return result.ok ? result.data : null
 }
 
 // ── Main enrichment pipeline ──

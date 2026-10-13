@@ -4,7 +4,8 @@ import { organizations, identities, attackPaths } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { buildAdjacencyList, findAllPaths, invalidateCache } from '@/lib/graph/traversal'
 import { determineTechnique, edgeToTechnique } from '@/lib/graph/techniques'
-import { ATTACK_PATH_NARRATION_PROMPT } from '@/lib/ai/prompts'
+import { narrateAttackPathText } from '@/lib/ai/attack-path-narration'
+import { isAIEnabled } from '@/lib/ai/client'
 import { verifyCronSecret } from '@/lib/auth/cron'
 
 export async function GET(request: NextRequest) {
@@ -136,63 +137,12 @@ export async function GET(request: NextRequest) {
 
 // ── AI narration ──
 
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
-
 async function narrateTopPaths(orgId: string, paths: any[]) {
+  if (!isAIEnabled()) return
   for (const path of paths) {
     try {
-      const prompt = `Analyze this attack path:\n${JSON.stringify(path, null, 2)}`
-      let narrative: string | null = null
-
-      // Try Ollama
-      try {
-        const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            model: OLLAMA_MODEL,
-            messages: [
-              { role: 'system', content: ATTACK_PATH_NARRATION_PROMPT },
-              { role: 'user', content: prompt },
-            ],
-            stream: false, format: 'json',
-            options: { temperature: 0.3, num_predict: 1024 },
-          }),
-          signal: AbortSignal.timeout(60000),
-        })
-        if (response.ok) {
-          const result = await response.json()
-          const text = result.message?.content || ''
-          try { const parsed = JSON.parse(text); narrative = parsed.narrative || text } catch { narrative = text }
-        }
-      } catch { /* fallthrough */ }
-
-      // Try Anthropic
-      if (!narrative && process.env.ANTHROPIC_API_KEY) {
-        try {
-          const response = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-api-key': process.env.ANTHROPIC_API_KEY!,
-              'anthropic-version': '2023-06-01',
-            },
-            body: JSON.stringify({
-              model: ANTHROPIC_MODEL,
-              max_tokens: 2048,
-              system: ATTACK_PATH_NARRATION_PROMPT,
-              messages: [{ role: 'user', content: prompt }],
-            }),
-          })
-          if (response.ok) {
-            const result = await response.json()
-            const text = result.content?.[0]?.text || ''
-            try { const parsed = JSON.parse(text); narrative = parsed.narrative || text } catch { narrative = text }
-          }
-        } catch { /* fallthrough */ }
-      }
+      const ai = await narrateAttackPathText(path)
+      const narrative = ai.ok ? ai.data : null
 
       if (narrative) {
         const matching = await db

@@ -6,7 +6,8 @@ import { eq, and, gte, desc, sql } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
 import { buildAdjacencyList, findAllPaths } from '@/lib/graph/traversal'
 import { determineTechnique, edgeToTechnique } from '@/lib/graph/techniques'
-import { ATTACK_PATH_NARRATION_PROMPT } from '@/lib/ai/prompts'
+import { narrateAttackPathText } from '@/lib/ai/attack-path-narration'
+import { isAIEnabled } from '@/lib/ai/client'
 import { logAction, unauthorized, forbidden } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
 
@@ -201,13 +202,12 @@ export async function POST(req: NextRequest) {
 // ── Helpers ──
 
 // AI narration for top paths (non-blocking)
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
-
 async function narrateTopPaths(orgId: string, paths: any[]) {
+  if (!isAIEnabled()) return
   for (const path of paths) {
     try {
-      const narrative = await callAIForNarration(path)
+      const ai = await narrateAttackPathText(path)
+      const narrative = ai.ok ? ai.data : null
       if (narrative) {
         // Find and update the matching attack path
         const matching = await db
@@ -233,69 +233,4 @@ async function narrateTopPaths(orgId: string, paths: any[]) {
       // Non-critical, continue
     }
   }
-}
-
-async function callAIForNarration(pathData: any): Promise<string | null> {
-  const prompt = `Analyze this attack path:\n${JSON.stringify(pathData, null, 2)}`
-
-  // Try Ollama first
-  try {
-    const response = await fetch(`${OLLAMA_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        messages: [
-          { role: 'system', content: ATTACK_PATH_NARRATION_PROMPT },
-          { role: 'user', content: prompt },
-        ],
-        stream: false,
-        format: 'json',
-        options: { temperature: 0.3, num_predict: 1024 },
-      }),
-      signal: AbortSignal.timeout(60000),
-    })
-    if (response.ok) {
-      const result = await response.json()
-      const text = result.message?.content || ''
-      try {
-        const parsed = JSON.parse(text)
-        return parsed.narrative || text
-      } catch {
-        return text
-      }
-    }
-  } catch { /* fallthrough */ }
-
-  // Try Anthropic
-  if (process.env.ANTHROPIC_API_KEY) {
-    try {
-      const response = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY!,
-          'anthropic-version': '2023-06-01',
-        },
-        body: JSON.stringify({
-          model: process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514',
-          max_tokens: 2048,
-          system: ATTACK_PATH_NARRATION_PROMPT,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      })
-      if (response.ok) {
-        const result = await response.json()
-        const text = result.content?.[0]?.text || ''
-        try {
-          const parsed = JSON.parse(text)
-          return parsed.narrative || text
-        } catch {
-          return text
-        }
-      }
-    } catch { /* fallthrough */ }
-  }
-
-  return null
 }

@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { BLAST_RADIUS_PROMPT } from '@/lib/ai/prompts'
-
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://localhost:11434'
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:7b'
+import { generateJSON, aiMeta } from '@/lib/ai/client'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -19,33 +17,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Missing blast radius data' }, { status: 400 })
     }
 
-    const prompt = `${BLAST_RADIUS_PROMPT}
-
-Blast radius data:
-${JSON.stringify({ center, rings, stats }, null, 2)}`
-
-    // Try Ollama first, then fall back to a simple deterministic narrative
-    try {
-      const ollamaRes = await fetch(`${OLLAMA_URL}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: OLLAMA_MODEL,
-          prompt,
-          stream: false,
-          format: 'json',
-        }),
-        signal: AbortSignal.timeout(30000),
-      })
-
-      if (ollamaRes.ok) {
-        const ollamaData = await ollamaRes.json()
-        const parsed = JSON.parse(ollamaData.response)
-        return NextResponse.json({ ...parsed, generatedBy: 'ai', model: OLLAMA_MODEL })
-      }
-      console.warn(`[blast-radius] Ollama returned ${ollamaRes.status}; using deterministic narrative`)
-    } catch (err) {
-      console.warn('[blast-radius] Ollama unavailable; using deterministic narrative:', (err as Error).message)
+    // Provider chain via the shared client; deterministic narrative below if unavailable
+    const ai = await generateJSON({
+      label: 'blast-radius',
+      system: BLAST_RADIUS_PROMPT,
+      prompt: `Blast radius data:\n${JSON.stringify({ center, rings, stats }, null, 2)}`,
+      temperature: 0.3,
+      maxTokens: 1024,
+      timeoutMs: 30_000,
+    })
+    if (ai.ok) {
+      return NextResponse.json({ ...ai.data, ...aiMeta(ai) })
     }
 
     // Deterministic fallback
@@ -74,7 +56,7 @@ ${JSON.stringify({ center, rings, stats }, null, 2)}`
         'Rotate credentials for all reachable service accounts',
         'Notify the SOC team and begin investigation',
       ].filter(Boolean),
-      generatedBy: 'deterministic',
+      ...aiMeta(ai),
     }
 
     return NextResponse.json(narrative)
