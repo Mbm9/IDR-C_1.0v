@@ -1,0 +1,94 @@
+[
+ {
+  "route": "/dashboard/identities",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/tiering",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/entitlements",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/exposures",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/attack-paths",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/violations",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/issues",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/import",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/integrations",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/settings",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/ai",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/canaries",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/certifications",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/data-quality",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/gpo",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/nhi",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/peer-analysis",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/remediation",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/shadow-admins",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/threats",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/identities/:id",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/attack-paths/:id",
+  "controls": []
+ },
+ {
+  "route": "/dashboard/threats/:id",
+  "controls": []
+ }
+]

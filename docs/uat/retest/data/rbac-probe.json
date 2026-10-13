@@ -1,0 +1,2182 @@
+[
+ {
+  "role": "viewer",
+  "key": "POST /api/actions/acknowledge",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/actions/approve-exception",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "ciso"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/actions/certify",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/actions/escalate",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/actions/revoke",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/actions/trigger-review",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/actions/update-tier",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/ai/analyze",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/ai/chat",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "DELETE /api/ai/chat/sessions/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "PUT /api/ai/plans",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "ciso"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/attack-paths/[id]/narrate",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/attack-paths",
+  "skipped": "empty body re-runs the scan"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/auth/signup",
+  "skipped": "public by design"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/automation-rules/[id]/dry-run",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "PUT /api/automation-rules/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "DELETE /api/automation-rules/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/automation-rules",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/automation-rules/templates",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/blast-radius/narrate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/blast-radius",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "PUT /api/canaries/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "DELETE /api/canaries/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/canaries",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/certifications/smart-review",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/data-quality/classify",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/data-quality/enrich",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "PATCH /api/data-quality/resolve",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/data-quality/resolve",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/data-quality/suggestions",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "PUT /api/detection-rules/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "DELETE /api/detection-rules/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/detection-rules",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/events/ingest",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/gpo",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/gpo/scan",
+  "skipped": "empty body re-runs the scan"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/graph/simulate",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/import/csv",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/import/csv-detect",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/import/demo",
+  "skipped": "loads demo data"
+ },
+ {
+  "role": "viewer",
+  "key": "PATCH /api/integrations/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/integrations",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/integrations/test",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "viewer",
+  "key": "PATCH /api/issues/[fsid]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "PATCH /api/notifications/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/notifications/mark-all-read",
+  "skipped": "per-user action, any role by design"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/notifications",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "viewer",
+  "key": "PATCH /api/peer-anomalies/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/peer-groups",
+  "skipped": "empty body deletes all peer groups and anomalies (no role check, confirmed in code)"
+ },
+ {
+  "role": "viewer",
+  "key": "PUT /api/remediation/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/remediation",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/reports/generate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/settings/api-keys",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "viewer",
+  "key": "DELETE /api/settings/api-keys",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "viewer",
+  "key": "PUT /api/settings/preferences",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "DELETE /api/settings/sessions/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/settings/team",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "viewer",
+  "key": "DELETE /api/settings/team",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "PUT /api/settings/team",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "viewer",
+  "key": "PATCH /api/shadow-admins/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/shadow-admins",
+  "skipped": "empty body re-runs the scan and replaces open findings (no role check, confirmed in code)"
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/supply-chain",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/supply-chain/simulate-departure",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/sync/[source]",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "viewer",
+  "key": "PATCH /api/threats/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/threats/[id]/triage",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/threats",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "PUT /api/webhooks/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "DELETE /api/webhooks/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/webhooks/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "viewer",
+  "key": "POST /api/webhooks",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/actions/acknowledge",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/actions/approve-exception",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "ciso"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/actions/certify",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/actions/escalate",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/actions/revoke",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/actions/trigger-review",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/actions/update-tier",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/ai/analyze",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/ai/chat",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "DELETE /api/ai/chat/sessions/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "PUT /api/ai/plans",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "ciso"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/attack-paths/[id]/narrate",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/attack-paths",
+  "skipped": "empty body re-runs the scan"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/auth/signup",
+  "skipped": "public by design"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/automation-rules/[id]/dry-run",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "PUT /api/automation-rules/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "DELETE /api/automation-rules/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/automation-rules",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/automation-rules/templates",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/blast-radius/narrate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/blast-radius",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "PUT /api/canaries/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "DELETE /api/canaries/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/canaries",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/certifications/smart-review",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/data-quality/classify",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/data-quality/enrich",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "PATCH /api/data-quality/resolve",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/data-quality/resolve",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/data-quality/suggestions",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "PUT /api/detection-rules/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "DELETE /api/detection-rules/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/detection-rules",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/events/ingest",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/gpo",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/gpo/scan",
+  "skipped": "empty body re-runs the scan"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/graph/simulate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/import/csv",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/import/csv-detect",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/import/demo",
+  "skipped": "loads demo data"
+ },
+ {
+  "role": "analyst",
+  "key": "PATCH /api/integrations/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/integrations",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/integrations/test",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "analyst",
+  "key": "PATCH /api/issues/[fsid]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "PATCH /api/notifications/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/notifications/mark-all-read",
+  "skipped": "per-user action, any role by design"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/notifications",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "analyst",
+  "key": "PATCH /api/peer-anomalies/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/peer-groups",
+  "skipped": "empty body deletes all peer groups and anomalies (no role check, confirmed in code)"
+ },
+ {
+  "role": "analyst",
+  "key": "PUT /api/remediation/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/remediation",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/reports/generate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/settings/api-keys",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "analyst",
+  "key": "DELETE /api/settings/api-keys",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "analyst",
+  "key": "PUT /api/settings/preferences",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "DELETE /api/settings/sessions/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/settings/team",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "analyst",
+  "key": "DELETE /api/settings/team",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "PUT /api/settings/team",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "analyst",
+  "key": "PATCH /api/shadow-admins/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/shadow-admins",
+  "skipped": "empty body re-runs the scan and replaces open findings (no role check, confirmed in code)"
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/supply-chain",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/supply-chain/simulate-departure",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/sync/[source]",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "analyst",
+  "key": "PATCH /api/threats/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/threats/[id]/triage",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/threats",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "analyst",
+  "key": "PUT /api/webhooks/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "DELETE /api/webhooks/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/webhooks/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "analyst",
+  "key": "POST /api/webhooks",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/actions/acknowledge",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/actions/approve-exception",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "ciso"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/actions/certify",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/actions/escalate",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/actions/revoke",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/actions/trigger-review",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/actions/update-tier",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/ai/analyze",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/ai/chat",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "DELETE /api/ai/chat/sessions/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "PUT /api/ai/plans",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "ciso"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/attack-paths/[id]/narrate",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/attack-paths",
+  "skipped": "empty body re-runs the scan"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/auth/signup",
+  "skipped": "public by design"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/automation-rules/[id]/dry-run",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "PUT /api/automation-rules/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "DELETE /api/automation-rules/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/automation-rules",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/automation-rules/templates",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/blast-radius/narrate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/blast-radius",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "PUT /api/canaries/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "DELETE /api/canaries/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/canaries",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/certifications/smart-review",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/data-quality/classify",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/data-quality/enrich",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "PATCH /api/data-quality/resolve",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/data-quality/resolve",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/data-quality/suggestions",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "PUT /api/detection-rules/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "DELETE /api/detection-rules/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/detection-rules",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/events/ingest",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/gpo",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/gpo/scan",
+  "skipped": "empty body re-runs the scan"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/graph/simulate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/import/csv",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/import/csv-detect",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/import/demo",
+  "skipped": "loads demo data"
+ },
+ {
+  "role": "iam_admin",
+  "key": "PATCH /api/integrations/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/integrations",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/integrations/test",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "PATCH /api/issues/[fsid]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "PATCH /api/notifications/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/notifications/mark-all-read",
+  "skipped": "per-user action, any role by design"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/notifications",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "PATCH /api/peer-anomalies/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/peer-groups",
+  "skipped": "empty body deletes all peer groups and anomalies (no role check, confirmed in code)"
+ },
+ {
+  "role": "iam_admin",
+  "key": "PUT /api/remediation/[id]",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/remediation",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/reports/generate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/settings/api-keys",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "DELETE /api/settings/api-keys",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "PUT /api/settings/preferences",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "DELETE /api/settings/sessions/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/settings/team",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "DELETE /api/settings/team",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "iam_admin",
+  "key": "PUT /api/settings/team",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "PATCH /api/shadow-admins/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/shadow-admins",
+  "skipped": "empty body re-runs the scan and replaces open findings (no role check, confirmed in code)"
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/supply-chain",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/supply-chain/simulate-departure",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/sync/[source]",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "iam_admin",
+  "key": "PATCH /api/threats/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/threats/[id]/triage",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/threats",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "PUT /api/webhooks/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "DELETE /api/webhooks/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/webhooks/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "iam_admin",
+  "key": "POST /api/webhooks",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/actions/acknowledge",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/actions/approve-exception",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "ciso"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/actions/certify",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/actions/escalate",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/actions/revoke",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/actions/trigger-review",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/actions/update-tier",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/ai/analyze",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/ai/chat",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "DELETE /api/ai/chat/sessions/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "PUT /api/ai/plans",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "ciso"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/attack-paths/[id]/narrate",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/attack-paths",
+  "skipped": "empty body re-runs the scan"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/auth/signup",
+  "skipped": "public by design"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/automation-rules/[id]/dry-run",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "PUT /api/automation-rules/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "DELETE /api/automation-rules/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/automation-rules",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/automation-rules/templates",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/blast-radius/narrate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/blast-radius",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "PUT /api/canaries/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "DELETE /api/canaries/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/canaries",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/certifications/smart-review",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/data-quality/classify",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/data-quality/enrich",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "PATCH /api/data-quality/resolve",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/data-quality/resolve",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/data-quality/suggestions",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "PUT /api/detection-rules/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "DELETE /api/detection-rules/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/detection-rules",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/events/ingest",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/gpo",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/gpo/scan",
+  "skipped": "empty body re-runs the scan"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/graph/simulate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/import/csv",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/import/csv-detect",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/import/demo",
+  "skipped": "loads demo data"
+ },
+ {
+  "role": "ciso",
+  "key": "PATCH /api/integrations/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/integrations",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/integrations/test",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "ciso",
+  "key": "PATCH /api/issues/[fsid]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "PATCH /api/notifications/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/notifications/mark-all-read",
+  "skipped": "per-user action, any role by design"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/notifications",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "ciso",
+  "key": "PATCH /api/peer-anomalies/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/peer-groups",
+  "skipped": "empty body deletes all peer groups and anomalies (no role check, confirmed in code)"
+ },
+ {
+  "role": "ciso",
+  "key": "PUT /api/remediation/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/remediation",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/reports/generate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/settings/api-keys",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "ciso",
+  "key": "DELETE /api/settings/api-keys",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "ciso",
+  "key": "PUT /api/settings/preferences",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "DELETE /api/settings/sessions/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/settings/team",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "ciso",
+  "key": "DELETE /api/settings/team",
+  "status": 403,
+  "gated": true
+ },
+ {
+  "role": "ciso",
+  "key": "PUT /api/settings/team",
+  "status": 403,
+  "gated": true,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "ciso",
+  "key": "PATCH /api/shadow-admins/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/shadow-admins",
+  "skipped": "empty body re-runs the scan and replaces open findings (no role check, confirmed in code)"
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/supply-chain",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/supply-chain/simulate-departure",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/sync/[source]",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "ciso",
+  "key": "PATCH /api/threats/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/threats/[id]/triage",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/threats",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "PUT /api/webhooks/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "DELETE /api/webhooks/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/webhooks/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "ciso",
+  "key": "POST /api/webhooks",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/actions/acknowledge",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/actions/approve-exception",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "ciso"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/actions/certify",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/actions/escalate",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/actions/revoke",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/actions/trigger-review",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "analyst"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/actions/update-tier",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/ai/analyze",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/ai/chat",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "DELETE /api/ai/chat/sessions/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "PUT /api/ai/plans",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "ciso"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/attack-paths/[id]/narrate",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/attack-paths",
+  "skipped": "empty body re-runs the scan"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/auth/signup",
+  "skipped": "public by design"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/automation-rules/[id]/dry-run",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "PUT /api/automation-rules/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "DELETE /api/automation-rules/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/automation-rules",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/automation-rules/templates",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/blast-radius/narrate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/blast-radius",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "PUT /api/canaries/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "DELETE /api/canaries/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/canaries",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/certifications/smart-review",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/data-quality/classify",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/data-quality/enrich",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "PATCH /api/data-quality/resolve",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/data-quality/resolve",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/data-quality/suggestions",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "PUT /api/detection-rules/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "DELETE /api/detection-rules/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/detection-rules",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/events/ingest",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/gpo",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/gpo/scan",
+  "skipped": "empty body re-runs the scan"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/graph/simulate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/import/csv",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/import/csv-detect",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/import/demo",
+  "skipped": "loads demo data"
+ },
+ {
+  "role": "admin",
+  "key": "PATCH /api/integrations/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/integrations",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/integrations/test",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "admin",
+  "key": "PATCH /api/issues/[fsid]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "PATCH /api/notifications/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/notifications/mark-all-read",
+  "skipped": "per-user action, any role by design"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/notifications",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "admin",
+  "key": "PATCH /api/peer-anomalies/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/peer-groups",
+  "skipped": "empty body deletes all peer groups and anomalies (no role check, confirmed in code)"
+ },
+ {
+  "role": "admin",
+  "key": "PUT /api/remediation/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/remediation",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/reports/generate",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/settings/api-keys",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "admin",
+  "key": "DELETE /api/settings/api-keys",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "admin",
+  "key": "PUT /api/settings/preferences",
+  "status": 200,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "DELETE /api/settings/sessions/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/settings/team",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "admin",
+  "key": "DELETE /api/settings/team",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "PUT /api/settings/team",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "admin"
+ },
+ {
+  "role": "admin",
+  "key": "PATCH /api/shadow-admins/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/shadow-admins",
+  "skipped": "empty body re-runs the scan and replaces open findings (no role check, confirmed in code)"
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/supply-chain",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/supply-chain/simulate-departure",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/sync/[source]",
+  "status": 400,
+  "gated": false,
+  "expectedMinRole": "iam_admin"
+ },
+ {
+  "role": "admin",
+  "key": "PATCH /api/threats/[id]",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/threats/[id]/triage",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/threats",
+  "status": 400,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "PUT /api/webhooks/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "DELETE /api/webhooks/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/webhooks/[id]",
+  "status": 404,
+  "gated": false
+ },
+ {
+  "role": "admin",
+  "key": "POST /api/webhooks",
+  "status": 400,
+  "gated": false
+ }
+]

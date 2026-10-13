@@ -1,43 +1,48 @@
 # Identity Radar v1.0 — UAT Executive Summary
 
-**Date:** 13 October 2026 · **Audience:** CISO and product owner
+**Date:** 13 October 2026 (updated after the retest) · **Audience:** CISO and product owner
 
 ## Verdict
 
-Identity Radar is not ready for customer acceptance yet, but the remaining work is bounded.
-Every blocking defect found has been fixed and re-tested.
-What remains is Arabic completeness, accessibility and permission-aware screens, plus two product decisions.
+Identity Radar is ready for customer acceptance, subject to two human checks.
+Every defect found in review and testing is fixed and re-tested.
+What remains is a native Arabic reader's sign-off on terminology, and hands-on checks against real directory and AI systems.
 
-## What changed during this cycle
+## What changed
 
-The code review and the first UAT run found and fixed issues that would have undermined trust in the product:
+The first review and UAT run found problems that would have undermined trust. All are fixed:
 
-- **Scheduled analysis never ran.** Risk scoring, tier scans, threat detection and attack-path discovery were blocked before reaching their code. They now run on schedule, and the attack-path scanner, which also crashed, stores its results.
-- **A headline dashboard number was invented.** The 30-day average-risk tile and chart showed random values on every load. They now show recorded history.
-- **Access changes did not take effect.** Demoting a user or revoking a session only applied after the user logged in again, up to 30 days later. Both now apply on the next request.
-- **Normal use was throttled.** Browsing about 25 pages a minute, or several staff behind one office IP, triggered "too many requests". Limits now apply per user, and login attempts are still capped.
-- **Security gaps closed.** Onboarding could bypass role checks and store connector passwords unencrypted. Viewers could wipe analyst triage work and send organisation-wide notifications. Production could start with a publicly known signing key.
-- **Audit evidence was incomplete.** The audit trail did not name who acted, and role changes, invitations, integrations and API keys were not logged. These are now recorded, which matters for NCA ECC and SAMA CSF evidence.
+- **Scheduled analysis now runs.** Risk scoring, tier scans, threat detection and attack-path discovery run on schedule and store their results.
+- **Dashboard numbers are real.** The 30-day risk trend shows recorded history instead of random values.
+- **Access changes apply immediately.** Demoting a user or revoking a session takes effect on the next request.
+- **Screens respect roles.** Viewers no longer see buttons they cannot use, and the server refuses every action above a user's role.
+- **Arabic is complete.** Every screen, the in-app documentation, the issue catalogue and the compliance controls are in Arabic. Only names and acronyms remain in Latin script.
+- **Accessibility meets WCAG 2.1 AA.** Automated checks find no serious issues on any screen, in either language or theme.
+- **Security gaps closed.** Joining an organisation requires a single-use invitation link. Connector passwords are always encrypted. Machine integrations can authenticate with revocable API keys.
+- **Audit evidence is complete.** Every change, including role changes, invitations, integrations and API keys, appears in the audit trail with who made it. This matters for NCA ECC and SAMA CSF evidence.
+- **AI output is labelled.** Every AI result states whether a model or the rule-based fallback produced it, and the health check shows whether the AI service is reachable.
 
 ## Where it stands
 
 | Area | Status |
 |---|---|
-| All 36 screens load in English and Arabic, light and dark | Yes, median 0.9 s |
-| Permissions enforced by the server for all five roles | Yes, 69 actions × 5 roles verified |
-| Screens hide actions a role cannot perform | No: viewers see 16 buttons that then fail |
-| Arabic interface complete | No: English remains on about 30 screens |
-| Accessibility (WCAG 2.1 AA) | No: contrast and labelling issues on every screen |
-| Automated regression tests | 42 end-to-end and 217 unit tests passing |
+| All 36 screens load in English and Arabic, light and dark, desktop to phone | Yes, median 0.95 s |
+| Server enforces permissions for all five roles | Yes, 71 actions × 5 roles verified |
+| Screens hide actions a role cannot perform | Yes |
+| Arabic interface complete | Yes; terminology sign-off pending |
+| Accessibility (WCAG 2.1 AA, automated) | Yes |
+| Automated regression tests | 45 end-to-end and 377 unit tests passing |
 
-## Decisions needed
+## Decisions taken
 
-1. How invited colleagues join an organisation. Invitations are recorded but not yet used.
-2. Which integrations may authenticate with API keys, for example SIEM event feeds.
-3. Whether to back-fill risk history or show "collecting history" on new installations.
+1. **Invitations:** invited colleagues join through a single-use link that expires after seven days. The link is emailed when email is configured, otherwise shown once to the administrator.
+2. **API keys:** keys authenticate SIEM event feeds only, with organisation-scoped, revocable keys.
+3. **Risk history:** history builds from daily snapshots. A new installation shows trends after its second day rather than back-filled data.
 
 ## Recommended next step
 
-Plan one sprint covering permission-aware screens, Arabic completion with a native reviewer, and the accessibility fixes.
-Then repeat this UAT with the same scripts.
-The detailed findings are in `uat-run-2026-10-13.md`, `defect-register.csv` and `ux-recommendations.md`.
+1. A native Arabic reviewer checks terminology.
+2. Run the integration wizard against a sandbox directory and the AI features with Ollama enabled.
+3. Then sign off acceptance.
+
+The details are in `uat-retest-2026-10-13.md` and `defect-register.csv`.

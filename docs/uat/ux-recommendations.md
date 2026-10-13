@@ -3,6 +3,16 @@
 Ranked by impact on the target users (CISO, IAM engineer, analyst; Arabic and English) against effort.
 Each item names the component to change and the defect it closes.
 
+> **Status (retest, 13 October 2026): every recommendation below is implemented.**
+> The design decisions were taken as follows:
+> - Invitations join by single-use link token.
+> - API keys authenticate SIEM event ingest only.
+> - Risk history builds forward from daily snapshots with no back-fill.
+> - All AI calls go through `lib/ai/client.ts`.
+> - Every mutation is audited with 11 new action types.
+>
+> Results are in `uat-retest-2026-10-13.md`.
+
 ## Quick wins (under an hour each)
 
 1. **Raise sidebar section-label contrast.** `text-slate-500` on the `#0f172b` sidebar is 3.74:1 on every page. Use `text-slate-400` or a `--text-sidebar-muted` token. File: `components/dashboard/sidebar.tsx`. Closes part of UAT-104.
