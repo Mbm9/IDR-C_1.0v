@@ -12,7 +12,7 @@ export interface MetricCardProps {
   trend?: 'up' | 'down' | 'flat'
   trendIsPositive?: boolean // true = up is good (compliance), false = up is bad (violations)
   severity?: 'critical' | 'high' | 'medium' | 'low'
-  color?: 'red' | 'orange' | 'green' | 'blue' // backward-compat alias for border color
+  color?: 'red' | 'rose' | 'orange' | 'green' | 'blue' // backward-compat alias for border color; rose = Top Tier
   href?: string
   loading?: boolean
   confidence?: number // 0-100: >= 80 green, 50-79 amber, < 50 red
@@ -29,6 +29,7 @@ const SEVERITY_STYLES: Record<string, string> = {
 
 const COLOR_STYLES: Record<string, string> = {
   red: 'border-s-[var(--color-critical)]',
+  rose: 'border-s-[var(--color-tier-top)]',
   orange: 'border-s-[var(--color-high)]',
   green: 'border-s-[var(--color-low)]',
   blue: 'border-s-[var(--color-info)]',

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 // Shared enum schemas
-export const adTierSchema = z.enum(['tier_0', 'tier_1', 'tier_2', 'unclassified'])
+export const adTierSchema = z.enum(['tier_0', 'tier_top', 'tier_1', 'tier_2', 'unclassified'])
 export const severitySchema = z.enum(['critical', 'high', 'medium', 'low'])
 export const identityTypeSchema = z.enum(['human', 'non_human'])
 export const identitySubTypeSchema = z.enum([

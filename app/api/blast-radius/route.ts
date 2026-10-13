@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { identities, entitlements, resources, groups, groupMemberships } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 const inputSchema = z.object({
   identityId: z.string().uuid(),
@@ -202,10 +203,10 @@ export async function POST(req: NextRequest) {
     const allNodes = rings.flatMap(r => r.nodes)
     const totalReachable = allNodes.length
     const tierBreaches = allNodes.filter(
-      n => n.tier === 'tier_0' && center.adTier === 'tier_2'
+      n => isControlPlaneTier(n.tier) && center.adTier === 'tier_2'
     ).length
     const criticalAssets = allNodes.filter(
-      n => n.criticality === 'critical' || n.tier === 'tier_0'
+      n => n.criticality === 'critical' || isControlPlaneTier(n.tier)
     ).length
 
     return NextResponse.json({

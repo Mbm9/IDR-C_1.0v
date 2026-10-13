@@ -346,7 +346,7 @@ async function privilegeEscalationDetector(ctx: DetectionContext): Promise<Detec
     const targetResource = getParsedField(event, 'targetResource') || ''
     const privilegedPatterns = [
       'domain admin', 'enterprise admin', 'schema admin',
-      'global admin', 'privileged', 'tier 0', 'tier_0',
+      'global admin', 'privileged', 'tier 0', 'tier_0', 'top tier', 'tier_top',
       'account operator', 'backup operator',
     ]
     const isPrivilegedGroup = privilegedPatterns.some(p =>

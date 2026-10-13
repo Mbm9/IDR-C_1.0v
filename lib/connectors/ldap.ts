@@ -8,7 +8,8 @@
 // with columns: samAccountName, displayName, email, department, lastLogon, memberOf, userAccountControl
 
 import type { Connector, RawIdentity, RawGroup, RawEntitlement, SyncProgressCallback } from './base'
-import { windowsFileTimeToDate, uacToStatus, classifyTier, TIER_0_GROUPS } from './transformer'
+import { windowsFileTimeToDate, uacToStatus, classifyTier, classifyGroupTier, isPrivilegedGroupName } from './transformer'
+import { parseTier } from './tier-patterns'
 
 interface LDAPConfig {
   host: string
@@ -279,9 +280,7 @@ export class LDAPConnector implements Connector {
               managerSourceId: managerMatch?.[1],
               memberOf,
               mfaEnabled: false, // AD doesn't have native MFA
-              privileged: memberOf.some((g: string) =>
-                TIER_0_GROUPS.some(t => g.toLowerCase().includes(t.toLowerCase())),
-              ),
+              privileged: memberOf.some((g: string) => isPrivilegedGroupName(g)),
               adSecurity: { uac, spn, adminCount, allowedToDelegateTo, rbcd, supportedEncTypes },
             })
 
@@ -356,9 +355,7 @@ export class LDAPConnector implements Connector {
             }
 
             const name = get('cn')
-            const isPrv = TIER_0_GROUPS.some(t =>
-              name.toLowerCase().includes(t.toLowerCase()),
-            )
+            const isPrv = isPrivilegedGroupName(name)
 
             extractedGroups.push({
               sourceId: get('objectGUID') || name,
@@ -366,7 +363,7 @@ export class LDAPConnector implements Connector {
               type: 'security',
               scope: 'global',
               members: getAll('member'),
-              adTier: isPrv ? 'tier_0' : 'tier_2',
+              adTier: isPrv ? classifyGroupTier(name) : 'tier_2',
               isPrivileged: isPrv,
             })
           })
@@ -501,13 +498,11 @@ export class LDAPConnector implements Connector {
         email,
         department,
         status,
-        adTier: row.adtier || row.ad_tier || classifyTier(memberOf),
+        adTier: parseTier(row.adtier || row.ad_tier) ?? classifyTier(memberOf),
         lastLogonAt,
         passwordLastSetAt,
         memberOf,
-        privileged: memberOf.some((g: string) =>
-          TIER_0_GROUPS.some(t => g.toLowerCase().includes(t.toLowerCase())),
-        ),
+        privileged: memberOf.some((g: string) => isPrivilegedGroupName(g)),
         adSecurity: { uac, spn, adminCount, allowedToDelegateTo, rbcd, supportedEncTypes },
       })
     }
@@ -548,14 +543,14 @@ export class LDAPConnector implements Connector {
 
     const extractedGroups: RawGroup[] = []
     for (const [name, memberSet] of groupMap) {
-      const isPrv = TIER_0_GROUPS.some(t => name.toLowerCase().includes(t.toLowerCase()))
+      const isPrv = isPrivilegedGroupName(name)
       extractedGroups.push({
         sourceId: `csv-group-${name}`,
         name,
         type: 'security',
         scope: 'global',
         members: Array.from(memberSet),
-        adTier: isPrv ? 'tier_0' : 'tier_2',
+        adTier: isPrv ? classifyGroupTier(name) : 'tier_2',
         isPrivileged: isPrv,
       })
     }

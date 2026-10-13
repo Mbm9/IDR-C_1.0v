@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { TONE_TEXT, tierTone, type Tone } from '@/components/ui/tone'
+import { AD_TIERS } from '@/lib/utils/tiers'
 
 // Localized, RTL-aware tier distribution bars for the tiering page.
 
@@ -24,7 +25,7 @@ export function TierPyramid({ tierCounts, total }: TierPyramidProps) {
   const t = useTranslations('tiering')
   const tTiers = useTranslations('tiers')
 
-  const rows = (['tier_0', 'tier_1', 'tier_2', 'unclassified'] as const)
+  const rows = AD_TIERS
     .map((key) => ({ key, count: tierCounts[key] || 0 }))
     .filter((row) => row.key !== 'unclassified' || row.count > 0)
   const maxCount = Math.max(...rows.map((r) => r.count), 1)
@@ -33,7 +34,8 @@ export function TierPyramid({ tierCounts, total }: TierPyramidProps) {
     <ul className="space-y-3" aria-label={t('tierDistribution')}>
       {rows.map((row) => {
         const tone = tierTone(row.key)
-        const accent = TONE_VAR[tone]
+        // Top Tier shares Tier 0's critical tone but keeps its own accent so the two levels stay distinct.
+        const accent = row.key === 'tier_top' ? 'var(--color-tier-top)' : TONE_VAR[tone]
         const widthPercent = Math.max(20, (row.count / maxCount) * 100)
         const pct = total > 0 ? ((row.count / total) * 100).toFixed(1) : '0'
 

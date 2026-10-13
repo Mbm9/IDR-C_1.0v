@@ -399,12 +399,19 @@ export class AzureADConnector implements Connector {
 
     const name = roleName.toLowerCase()
 
+    // Top Tier: Tier 0 adjacent — Entra Connect / federation and identity
+    // secrets. Can take over the identity plane without being part of it.
+    const topTierPatterns = [
+      'directory sync', 'hybrid identity', 'key vault admin',
+    ]
+    if (topTierPatterns.some(p => name.includes(p))) return 'tier_top'
+
     // Tier 0: Identity plane control
     const tier0Patterns = [
       'global admin', 'privileged role', 'security admin',
       'exchange admin', 'sharepoint admin', 'user admin',
-      'authentication admin', 'conditional access', 'directory sync',
-      'hybrid identity', 'identity governance', 'password admin',
+      'authentication admin', 'conditional access',
+      'identity governance', 'password admin',
       'privileged authentication',
     ]
     if (tier0Patterns.some(p => name.includes(p))) return 'tier_0'

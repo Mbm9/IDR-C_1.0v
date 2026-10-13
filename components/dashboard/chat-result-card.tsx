@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useFormatter, useTranslations } from 'next-intl'
 import { TierBadge } from '@/components/ui/tier-badge'
+import { AD_TIERS } from '@/lib/utils/tiers'
 import { Shield, AlertTriangle, User, Bot, ExternalLink } from 'lucide-react'
 
 interface IdentityResult {
@@ -122,7 +123,7 @@ function ViolationCard({ violation }: { violation: ViolationResult }) {
       {violation.identityName && (
         <p className="text-micro text-[var(--text-secondary)]">
           {t('identityLabel')} <bdi>{violation.identityName}</bdi>
-          {violation.identityTier && ['tier_0', 'tier_1', 'tier_2', 'unclassified'].includes(violation.identityTier) && ` (${tTiers(violation.identityTier as 'tier_0')})`}
+          {violation.identityTier && (AD_TIERS as readonly string[]).includes(violation.identityTier) && ` (${tTiers(violation.identityTier as 'tier_0')})`}
         </p>
       )}
     </div>

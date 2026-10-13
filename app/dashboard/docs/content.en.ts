@@ -79,7 +79,9 @@ const guide: GuideSection[] = [
     description:
       'Visualize and enforce Active Directory tiering compliance. The tier pyramid shows identity counts per tier, while the violation heatmap reveals cross-tier access patterns that represent your highest-risk exposures.',
     features: [
-      'Tier pyramid visualization: Tier 0 (top), Tier 1 (middle), Tier 2 (bottom) with identity counts',
+      'Tier model, most privileged first: Tier 0 (domain controllers, AD DS, Domain/Enterprise/Schema Admins), Top Tier (Tier 0 adjacent: ADFS, Entra Connect, PKI/CA, PAM vaults, DC backup and Backup Operators, identity key vaults), Tier 1 (member servers and applications), Tier 2 (workstations and end users)',
+      'Top Tier sits between Tier 0 and Tier 1: these systems are not part of Tier 0, but compromising any of them compromises Tier 0, so they are protected and monitored like Tier 0',
+      'Tier pyramid visualization: Tier 0 (top), Top Tier, Tier 1, Tier 2 (bottom) with identity counts',
       'Tier violation heatmap: matrix of source tier vs accessed tier with violation counts',
       'Cross-tier access paths sorted by severity',
       'Tier 0 inventory: every Tier 0 identity and resource (crown jewels view)',
@@ -138,7 +140,7 @@ const guide: GuideSection[] = [
     description:
       'Visualize escalation paths that an attacker could exploit to move from low-tier identities to Tier 0 assets. Each path is annotated with AI-generated narration and mapped to MITRE ATT&CK techniques.',
     features: [
-      'Graph visualization of escalation paths from Tier 2 through Tier 1 to Tier 0',
+      'Graph visualization of escalation paths from Tier 2 through Tier 1 and Top Tier to Tier 0',
       'AI-generated narration explaining each step in the attack chain',
       'MITRE ATT&CK technique mapping for each escalation step',
       'Path severity scoring based on the number of hops and privilege levels involved',
@@ -196,7 +198,7 @@ const guide: GuideSection[] = [
     description:
       'Monitor Group Policy Objects linked to sensitive organizational units. Track modifications, detect policy drift, and ensure GPOs enforcing security controls remain intact.',
     features: [
-      'Inventory of all GPOs linked to sensitive OUs (Tier 0, Tier 1)',
+      'Inventory of all GPOs linked to sensitive OUs (Tier 0, Top Tier, Tier 1)',
       'Modification history with who-changed-what tracking',
       'Policy drift detection: alerts when GPO settings deviate from baseline',
       'Link status monitoring: detect unlinked or orphaned GPOs',

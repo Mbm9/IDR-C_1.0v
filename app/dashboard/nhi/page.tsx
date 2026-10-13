@@ -8,7 +8,12 @@ import Link from 'next/link'
 // Badge tones built from theme tokens so they keep AA contrast in light and dark themes.
 const tone = (c: string) => `bg-[var(--color-${c}-bg)] text-[color:color-mix(in_srgb,var(--color-${c})_60%,var(--text-primary))]`
 const NEUTRAL = 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
-const TIER_TONE: Record<string, string> = { tier_0: tone('critical'), tier_1: tone('high'), tier_2: tone('info') }
+const TIER_TONE: Record<string, string> = {
+  tier_0: tone('critical'),
+  tier_top: 'bg-[color-mix(in_srgb,var(--color-tier-top)_12%,var(--bg-primary))] text-[color:color-mix(in_srgb,var(--color-tier-top)_60%,var(--text-primary))]',
+  tier_1: tone('high'),
+  tier_2: tone('info'),
+}
 const STATUS_TONE: Record<string, string> = {
   active: tone('low'), disabled: tone('critical'), dormant: tone('medium'), orphaned: tone('high'), suspended: tone('high'),
 }

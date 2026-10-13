@@ -180,6 +180,22 @@ describe('parseNaturalLanguageQuery', () => {
     expect(result.filters.type).toBe('human')
   })
 
+  it('parses "top tier" as tier_top', () => {
+    expect(parseNaturalLanguageQuery('top tier service accounts').filters.adTier).toBe('tier_top')
+    expect(parseNaturalLanguageQuery('Top-Tier identities').filters.adTier).toBe('tier_top')
+    expect(parseNaturalLanguageQuery('tier top admins').filters.adTier).toBe('tier_top')
+    expect(parseNaturalLanguageQuery('tier_top identities').filters.adTier).toBe('tier_top')
+    expect(parseNaturalLanguageQuery('tier 0 adjacent identities').filters.adTier).toBe('tier_top')
+  })
+
+  it('parses Arabic "المستوى العلوي" as tier_top', () => {
+    expect(parseNaturalLanguageQuery('هويات المستوى العلوي').filters.adTier).toBe('tier_top')
+  })
+
+  it('does not read "top" alone as a tier', () => {
+    expect(parseNaturalLanguageQuery('top risky identities').filters.adTier).toBeUndefined()
+  })
+
   it('parses "managed identities"', () => {
     const result = parseNaturalLanguageQuery('managed identities')
     expect(result.filters.subType).toBe('managed_identity')

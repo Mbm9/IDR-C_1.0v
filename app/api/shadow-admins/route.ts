@@ -5,9 +5,10 @@ import {
   shadowAdmins, identities, entitlements, groups, groupMemberships,
   policyViolations, policies,
 } from '@/lib/db/schema'
-import { eq, and, sql, desc } from 'drizzle-orm'
+import { eq, and, sql, desc, inArray } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
+import { isControlPlaneTier, TIER_SHORT } from '@/lib/utils/tiers'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -110,7 +111,7 @@ export async function POST(req: NextRequest) {
       .innerJoin(groups, eq(groupMemberships.groupId, groups.id))
       .where(eq(groupMemberships.orgId, orgId))
 
-    // Load all entitlements to T0 resources
+    // Load all entitlements to control-plane resources (T0, and Top Tier which can take over T0)
     const t0Entitlements = await db
       .select({
         identityId: entitlements.identityId,
@@ -120,7 +121,7 @@ export async function POST(req: NextRequest) {
       .from(entitlements)
       .where(and(
         eq(entitlements.orgId, orgId),
-        eq(entitlements.adTierOfPermission, 'tier_0'),
+        inArray(entitlements.adTierOfPermission, ['tier_0', 'tier_top']),
       ))
 
     // Identities in privileged groups
@@ -142,14 +143,17 @@ export async function POST(req: NextRequest) {
 
     // Method 1: Direct T0 entitlements without privileged group membership
     const t0ByIdentity = new Map<string, string[]>()
+    const hasT0 = new Set<string>()
     for (const ent of t0Entitlements) {
       if (!t0ByIdentity.has(ent.identityId)) {
         t0ByIdentity.set(ent.identityId, [])
       }
       t0ByIdentity.get(ent.identityId)!.push(ent.permissionName)
+      if (ent.adTierOfPermission === 'tier_0') hasT0.add(ent.identityId)
     }
 
     for (const [identityId, permissions] of t0ByIdentity) {
+      const tierName = hasT0.has(identityId) ? 'Tier 0' : 'Top Tier'
       if (!privilegedMembers.has(identityId)) {
         const identity = orgIdentities.find(i => i.id === identityId)
         if (!identity) continue
@@ -159,29 +163,29 @@ export async function POST(req: NextRequest) {
         const matchedPerms = permissions.filter(p => adminPerms.some(ap => p.includes(ap) || ap.includes(p)))
         const equivalentGroups = matchedPerms.length > 0
           ? matchedPerms.map(p => `${p} (equivalent)`)
-          : ['Tier 0 access holders']
+          : [`${tierName} access holders`]
 
         shadowAdminCandidates.push({
           identityId,
           method: 'acl_analysis',
           reasons: [
-            `Has ${permissions.length} Tier 0 entitlement(s) but is not in any privileged group`,
-            ...permissions.slice(0, 3).map(p => `Direct Tier 0 access: ${p}`),
+            `Has ${permissions.length} ${tierName} entitlement(s) but is not in any privileged group`,
+            ...permissions.slice(0, 3).map(p => `Direct ${tierName} access: ${p}`),
           ],
           rights: permissions,
           equivalentGroups,
-          riskScore: Math.min(100, 60 + permissions.length * 10),
+          riskScore: Math.min(100, (hasT0.has(identityId) ? 60 : 50) + permissions.length * 10),
         })
       }
     }
 
     // Method 2: Nested group path to privileged groups (T0 group membership via non-privileged intermediary)
-    const t0GroupMembers = allMemberships.filter(m => m.groupTier === 'tier_0' && !m.isPrivileged)
+    const t0GroupMembers = allMemberships.filter(m => isControlPlaneTier(m.groupTier) && !m.isPrivileged)
     for (const mem of t0GroupMembers) {
       if (!privilegedMembers.has(mem.identityId)) {
         const existing = shadowAdminCandidates.find(c => c.identityId === mem.identityId)
         if (existing) {
-          existing.reasons.push(`Member of T0 group "${mem.groupName}" which is not marked as privileged`)
+          existing.reasons.push(`Member of ${TIER_SHORT[mem.groupTier]} group "${mem.groupName}" which is not marked as privileged`)
           if (!existing.equivalentGroups.includes(mem.groupName)) {
             existing.equivalentGroups.push(mem.groupName)
           }
@@ -189,7 +193,7 @@ export async function POST(req: NextRequest) {
           shadowAdminCandidates.push({
             identityId: mem.identityId,
             method: 'nested_group',
-            reasons: [`Member of T0 group "${mem.groupName}" which is not marked as privileged`],
+            reasons: [`Member of ${TIER_SHORT[mem.groupTier]} group "${mem.groupName}" which is not marked as privileged`],
             rights: [`Group membership: ${mem.groupName}`],
             equivalentGroups: [mem.groupName],
             riskScore: 70,

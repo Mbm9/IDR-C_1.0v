@@ -8,7 +8,8 @@ import {
   ATTACK_PATH_LEGEND_EDGES,
   TIER_COLORS,
 } from './graph-legend'
-import { ForceGraph, type FgNode, type FgLink } from './force-graph'
+import { ForceGraph, riskForTier, type FgNode, type FgLink } from './force-graph'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 // ── Types (unchanged public API) ──
 
@@ -97,8 +98,8 @@ export function AttackPathGraph({ paths, height = 560, onNodeClick, className = 
             label: node.name,
             group: groupOf(node),
             tier: node.tier,
-            riskScore: node.riskScore ?? (node.tier === 'tier_0' ? 90 : node.tier === 'tier_1' ? 60 : 30),
-            severity: node.tier === 'tier_0' ? 'critical' : undefined,
+            riskScore: node.riskScore ?? riskForTier(node.tier),
+            severity: isControlPlaneTier(node.tier) ? 'critical' : undefined,
             meta: { type: node.type, ...(node.subType ? { subType: node.subType } : {}) },
           })
           originalById.set(node.id, node)

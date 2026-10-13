@@ -2,6 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 interface NhiDetail {
   nhi: { id: string; name: string; subType: string; status: string; tier: string; expiryAt?: string }
@@ -151,7 +152,7 @@ export function SupplyChainTree({ owner, ownedNhis }: Props) {
 
       resPerNhi.forEach((res, rIdx) => {
         const resY = resStartY + rIdx * resSpacing
-        const resIsCrit = res.tier === 'tier_0' || res.criticality === 'critical'
+        const resIsCrit = isControlPlaneTier(res.tier) || res.criticality === 'critical'
 
         // Line from NHI to resource
         ctx.beginPath()

@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { attackPaths, identities, resources } from '@/lib/db/schema'
 import { eq, and, gte, desc, sql } from 'drizzle-orm'
 import { hasRole } from '@/lib/utils/rbac'
-import { buildAdjacencyList, findAllPaths } from '@/lib/graph/traversal'
+import { buildAdjacencyList, findAllPaths, controlPlaneNodeIds, controlPlaneTargetFor } from '@/lib/graph/traversal'
 import { determineTechnique, edgeToTechnique } from '@/lib/graph/techniques'
 import { narrateAttackPathText } from '@/lib/ai/attack-path-narration'
 import { isAIEnabled } from '@/lib/ai/client'
@@ -66,25 +66,20 @@ export async function POST(req: NextRequest) {
     // Build adjacency list
     const graph = await buildAdjacencyList(orgId)
 
-    // Find T0 targets (identities and resources)
-    const t0NodeIds = new Set<string>()
-    for (const [nodeId, meta] of graph.nodeMetadata) {
-      if (meta.tier === 'tier_0') t0NodeIds.add(nodeId)
-    }
-
-    if (t0NodeIds.size === 0) {
-      return NextResponse.json({ message: 'No Tier 0 targets found', pathsFound: 0 })
+    // Control-plane targets: Tier 0 and Top Tier (which can take over Tier 0)
+    if (controlPlaneNodeIds(graph).size === 0) {
+      return NextResponse.json({ message: 'No Tier 0 or Top Tier targets found', pathsFound: 0 })
     }
 
     // Find non-T0 identity starting points
-    const startingIdentities: string[] = []
+    const startingIdentities: Array<{ id: string; adTier: string }> = []
     const orgIdents = await db
       .select({ id: identities.id, adTier: identities.adTier })
       .from(identities)
       .where(eq(identities.orgId, orgId))
 
     for (const ident of orgIdents) {
-      if (ident.adTier !== 'tier_0') startingIdentities.push(ident.id)
+      if (ident.adTier !== 'tier_0') startingIdentities.push(ident)
     }
 
     // Discover paths
@@ -102,11 +97,11 @@ export async function POST(req: NextRequest) {
       mitreId: string | null
     }> = []
 
-    for (const startId of startingIdentities) {
+    for (const { id: startId, adTier: startTier } of startingIdentities) {
       const paths = findAllPaths(
         graph,
         startId,
-        (nodeId) => t0NodeIds.has(nodeId),
+        controlPlaneTargetFor(graph, startTier),
         6 // max depth
       )
 

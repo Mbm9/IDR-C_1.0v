@@ -5,6 +5,7 @@
 // access policies, session recordings metadata, checkout/checkin events
 
 import type { Connector, RawIdentity, RawGroup, RawEntitlement, SyncProgressCallback } from './base'
+import { isTopTierName } from './tier-patterns'
 
 interface BroadcomPAMConfig {
   baseUrl: string          // e.g., https://pam.example.com:18443
@@ -194,7 +195,8 @@ export class BroadcomPAMConnector implements Connector {
           email: user.email,
           department: user.department,
           status: user.enabled === false ? 'disabled' : user.locked ? 'suspended' : 'active',
-          adTier: user.isAdmin || user.role === 'admin' ? 'tier_0' : 'tier_1',
+          // PAM admins control the credential vault: Tier 0 adjacent
+          adTier: user.isAdmin || user.role === 'admin' ? 'tier_top' : 'tier_1',
           lastLogonAt: user.lastLoginTime ? new Date(user.lastLoginTime) : undefined,
           privileged: user.isAdmin === true || user.role === 'admin',
         })
@@ -240,7 +242,7 @@ export class BroadcomPAMConnector implements Connector {
           name: `PAM Vault: ${vault.name || vault.displayName}`,
           type: 'privileged_access',
           members,
-          adTier: 'tier_0', // All PAM vaults are Tier 0 by default
+          adTier: 'tier_top', // PAM vaults are Top Tier (Tier 0 adjacent) by default
           isPrivileged: true,
         })
       }
@@ -407,10 +409,19 @@ export class BroadcomPAMConnector implements Connector {
     const name = (credential.name || credential.accountName || '').toLowerCase()
     const target = (credential.target?.hostname || credential.targetHost || '').toLowerCase()
 
-    // Domain controller credentials = Tier 0
-    if (target.includes('dc') || target.includes('domain controller') ||
-        name.includes('domain admin') || name.includes('enterprise admin') ||
+    // Domain admin credentials = Tier 0
+    if (name.includes('domain admin') || name.includes('enterprise admin') ||
         name.includes('schema admin') || name.includes('krbtgt')) {
+      return 'tier_0'
+    }
+    // Tier 0 adjacent targets (ADFS, Entra Connect, PKI/CA, DC backup) = Top Tier.
+    // Checked before the 'dc' match so e.g. "adconnect01" is not read as a DC.
+    if (isTopTierName(target) || isTopTierName(name) ||
+        target.includes('pki') || target.includes('adfs') || target.includes('adconnect')) {
+      return 'tier_top'
+    }
+    // Domain controller credentials = Tier 0
+    if (target.includes('dc') || target.includes('domain controller')) {
       return 'tier_0'
     }
     // Server/application credentials = Tier 1

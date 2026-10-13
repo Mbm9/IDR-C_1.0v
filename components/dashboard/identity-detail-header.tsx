@@ -10,6 +10,7 @@ import { useAppRole } from '@/lib/hooks/use-app-role'
 import { useEnumLabel } from '@/components/ui/enum-label'
 import { TONE_TEXT, toneBadge, statusTone, tierTone } from '@/components/ui/tone'
 import type { IdentityDetail } from '@/lib/hooks/use-identities'
+import { AD_TIERS } from '@/lib/utils/tiers'
 
 interface Props {
   data: IdentityDetail
@@ -17,7 +18,7 @@ interface Props {
 
 type DialogType = 'update-tier' | 'trigger-review' | 'certify' | 'disable' | null
 
-const TIER_KEYS = ['tier_0', 'tier_1', 'tier_2', 'unclassified'] as const
+const TIER_KEYS = AD_TIERS
 
 const inputClass =
   'w-full border border-[var(--border-default)] rounded-lg px-3 py-2 text-sm bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-info)] resize-none'

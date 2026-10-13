@@ -3,6 +3,8 @@ import { identities, groupMemberships, groups } from '@/lib/db/schema'
 import { eq, and, isNull, lt, sql } from 'drizzle-orm'
 import { IDENTITY_CLASSIFIER } from '@/lib/ai/prompts'
 import { generateJSON } from '@/lib/ai/client'
+import { isStricterTier } from '@/lib/utils/tiers'
+import { isTopTierName } from '@/lib/connectors/tier-patterns'
 
 // ── Types ──
 
@@ -20,8 +22,15 @@ export interface ClassificationResult {
 
 const TIER_0_GROUPS_EXACT = [
   'domain admins', 'enterprise admins', 'schema admins', 'administrators',
-  'account operators', 'backup operators',
+  'account operators',
 ]
+
+// ── Top Tier (Tier 0 adjacent) ──
+// Group names are matched with isTopTierName (ADFS, Entra/Azure AD Connect, PKI / CA,
+// Backup Operators, PAM vault and Key Vault admins) — same rules as the connectors.
+
+// Service accounts Entra / Azure AD Connect creates for directory sync
+const TOP_TIER_NHI_PREFIXES = ['msol_', 'aad_', 'sync_']
 
 const TIER_1_PATTERNS = ['server operators', 'server-admin']
 
@@ -108,7 +117,7 @@ export async function classifyIdentities(orgId: string): Promise<ClassificationR
 
     // ── Rule: Tier 0 — member of Domain Admins, Enterprise Admins, etc. ──
     const isTier0Exact = groupNames.some(g => TIER_0_GROUPS_EXACT.includes(g))
-    if (isTier0Exact && identity.adTier !== 'tier_0') {
+    if (isTier0Exact && isStricterTier('tier_0', identity.adTier)) {
       const matchedGroup = groupNames.find(g => TIER_0_GROUPS_EXACT.includes(g))
       const isTopAdmin = ['domain admins', 'enterprise admins', 'schema admins', 'administrators'].includes(matchedGroup || '')
       results.push({
@@ -123,11 +132,30 @@ export async function classifyIdentities(orgId: string): Promise<ClassificationR
       classified = true
     }
 
+    // ── Rule: Top Tier — Tier 0 adjacent admin groups or Entra Connect sync accounts ──
+    const topTierGroup = groupNames.find(g => isTopTierName(g))
+    const isSyncAccount = TOP_TIER_NHI_PREFIXES.some(p => sam.startsWith(p))
+    const isTopTier = !isTier0Exact && (!!topTierGroup || isSyncAccount)
+    if (isTopTier && isStricterTier('tier_top', identity.adTier)) {
+      results.push({
+        identityId: identity.id,
+        field: 'adTier',
+        currentValue: identity.adTier,
+        suggestedValue: 'tier_top',
+        confidence: topTierGroup ? 90 : 80,
+        method: 'rule',
+        reasoning: topTierGroup
+          ? `Member of "${topTierGroup}" group — Top Tier (Tier 0 adjacent) administration`
+          : `samAccountName "${identity.samAccountName}" matches the Entra Connect sync account convention — Top Tier`,
+      })
+      classified = true
+    }
+
     // ── Rule: Tier 1 — Server Operators or Server-Admin pattern ──
-    const isTier1 = groupNames.some(g =>
+    const isTier1 = !isTier0Exact && !isTopTier && groupNames.some(g =>
       TIER_1_PATTERNS.some(p => g.includes(p))
     )
-    if (isTier1 && identity.adTier !== 'tier_1' && identity.adTier !== 'tier_0') {
+    if (isTier1 && isStricterTier('tier_1', identity.adTier)) {
       const matchedGroup = groupNames.find(g => TIER_1_PATTERNS.some(p => g.includes(p)))
       results.push({
         identityId: identity.id,

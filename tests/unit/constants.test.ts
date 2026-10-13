@@ -63,8 +63,9 @@ describe('getRiskLevel', () => {
 })
 
 describe('AD_TIER_CONFIG', () => {
-  it('has all four tiers', () => {
+  it('has all five tiers', () => {
     expect(AD_TIER_CONFIG).toHaveProperty('tier_0')
+    expect(AD_TIER_CONFIG).toHaveProperty('tier_top')
     expect(AD_TIER_CONFIG).toHaveProperty('tier_1')
     expect(AD_TIER_CONFIG).toHaveProperty('tier_2')
     expect(AD_TIER_CONFIG).toHaveProperty('unclassified')

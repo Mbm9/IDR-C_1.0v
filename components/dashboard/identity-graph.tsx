@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as d3 from 'd3'
 import { useTranslations } from 'next-intl'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 // ── Types ──
 
@@ -46,7 +47,7 @@ interface IdentityGraphProps {
   visibleEdgeTypes?: string[]
 }
 
-// Above this many nodes only key labels are drawn (Tier 0, tier violations, the
+// Above this many nodes only key labels are drawn (Tier 0/Top Tier, tier violations, the
 // hovered node and its neighbours) so names don't pile on top of each other.
 const DENSE_LABEL_THRESHOLD = 30
 
@@ -64,6 +65,7 @@ const NODE_COLORS: Record<string, string> = {
 
 const TIER_RING: Record<string, string> = {
   tier_0: '#DC2626',
+  tier_top: '#BE123C',
   tier_1: '#EA580C',
   tier_2: '#5F6B7A',
 }
@@ -93,7 +95,8 @@ function tierToY(tier: string | undefined, height: number): number {
   const usable = height - padding * 2
   switch (tier) {
     case 'tier_0': return padding
-    case 'tier_1': return padding + usable * 0.35
+    case 'tier_top': return padding + usable * 0.2
+    case 'tier_1': return padding + usable * 0.4
     case 'tier_2': return padding + usable * 0.65
     default: return padding + usable * 0.9
   }
@@ -495,7 +498,7 @@ export function IdentityGraph({
       }
 
       // Label (halo keeps it legible over edges); dense graphs only label key nodes
-      const keyNode = d.tier === 'tier_0' || !!d.tierViolation
+      const keyNode = isControlPlaneTier(d.tier) || !!d.tierViolation
       el.append('text')
         .attr('class', 'ig-label')
         .text(d.label.length > 16 ? d.label.slice(0, 16) + '…' : d.label)

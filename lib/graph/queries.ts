@@ -11,6 +11,7 @@ import {
   buildAdjacencyList, bfs, findAllPaths,
   type AdjacencyList, type GraphEdge,
 } from './traversal'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 // Result shape mirrors the client FgNode/FgLink model (kept local to avoid importing client code).
 export interface GNode {
@@ -39,7 +40,8 @@ export const GRAPH_QUERIES: GraphQueryDef[] = [
   { id: 'unconstrained_delegation', label: 'Unconstrained delegation', category: 'exposure', description: 'Principals trusted for unconstrained delegation.' },
 ]
 
-const TIER_RISK: Record<string, number> = { tier_0: 95, tier_1: 65, tier_2: 30, unclassified: 20 }
+/** Node risk weight by tier; Top Tier sits between Tier 0 and Tier 1. */
+export const TIER_RISK: Record<string, number> = { tier_0: 95, tier_top: 85, tier_1: 65, tier_2: 30, unclassified: 20 }
 const UAC_TRUSTED_FOR_DELEGATION = 0x80000
 
 function nodeFrom(list: AdjacencyList, id: string, extra?: Partial<GNode>): GNode {
@@ -48,7 +50,7 @@ function nodeFrom(list: AdjacencyList, id: string, extra?: Partial<GNode>): GNod
   return {
     id, label: meta?.name || id, group: meta?.type || 'unknown', tier,
     riskScore: TIER_RISK[tier || 'unclassified'] ?? 20,
-    severity: tier === 'tier_0' ? 'critical' : undefined,
+    severity: isControlPlaneTier(tier) ? 'critical' : undefined,
     meta: { type: meta?.type }, ...extra,
   }
 }

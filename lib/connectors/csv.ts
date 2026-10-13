@@ -2,8 +2,10 @@
 // Imports identities from a CSV file/string.
 // Accepts columns: displayName, type, subType, upn, samAccountName, email,
 //                  department, status, adTier, sourceId
+// adTier accepts tier_0 / Tier 0 / T0, tier_top / Top Tier / TOP, T1, T2 (any case).
 
 import type { Connector, RawIdentity, RawGroup, SyncProgressCallback } from './base'
+import { parseTier } from './tier-patterns'
 
 interface CSVConfig {
   fileContent: string
@@ -117,7 +119,7 @@ export class CSVConnector implements Connector {
         email: row.email,
         department: row.department,
         status: row.status || 'active',
-        adTier: row.adtier || 'unclassified',
+        adTier: parseTier(row.adtier) ?? 'unclassified',
       })
 
       if (onProgress && i % 100 === 0) {

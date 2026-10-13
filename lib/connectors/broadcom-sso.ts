@@ -5,6 +5,7 @@
 // Pulls: SSO policies, user directories, authentication events, session data, protected resources
 
 import type { Connector, RawIdentity, RawGroup, RawEntitlement, SyncProgressCallback } from './base'
+import { isTopTierName } from './tier-patterns'
 
 interface BroadcomSSOConfig {
   baseUrl: string          // e.g., https://siteminder.example.com:8443
@@ -378,7 +379,10 @@ export class BroadcomSSOConnector implements Connector {
 
   private classifyPolicyTier(policyName: string): string {
     const name = policyName.toLowerCase()
-    const tier0 = ['admin', 'tier 0', 'domain controller', 'pki', 'identity', 'privileged']
+    // Tier 0 adjacent (ADFS, PKI, Entra Connect, PAM vault) — before the broad 'admin' match
+    if (isTopTierName(name) || name.includes('top tier')) return 'tier_top'
+
+    const tier0 = ['admin', 'tier 0', 'domain controller', 'identity', 'privileged']
     if (tier0.some(p => name.includes(p))) return 'tier_0'
 
     const tier1 = ['server', 'tier 1', 'application', 'database']

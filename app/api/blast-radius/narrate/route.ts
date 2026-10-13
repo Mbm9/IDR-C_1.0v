@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { BLAST_RADIUS_PROMPT } from '@/lib/ai/prompts'
 import { generateJSON, aiMeta } from '@/lib/ai/client'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -32,14 +33,14 @@ export async function POST(req: NextRequest) {
 
     // Deterministic fallback
     const tierBreachWarning = stats.tierBreaches > 0
-      ? `CRITICAL: ${stats.tierBreaches} Tier 0 assets are reachable from this ${center.tier} identity, representing potential full domain compromise.`
+      ? `CRITICAL: ${stats.tierBreaches} Tier 0 / Top Tier assets are reachable from this ${center.tier} identity, representing potential full domain compromise.`
       : ''
 
     const narrative = {
       narrative: `Compromising ${center.name} (${center.type}, ${center.tier}) would expose ${stats.totalReachable} entities across ${rings.length} depth levels. ${tierBreachWarning} Direct access reaches ${rings[0]?.nodes?.length || 0} entities, with transitive paths expanding the blast radius significantly. ${stats.criticalAssets} critical assets are within the reachable set.`,
       criticalAssetsAtRisk: rings
         .flatMap((r: { nodes: Array<{ tier?: string; criticality?: string; name: string; type: string }> }) => r.nodes)
-        .filter((n: { tier?: string; criticality?: string }) => n.tier === 'tier_0' || n.criticality === 'critical')
+        .filter((n: { tier?: string; criticality?: string }) => isControlPlaneTier(n.tier) || n.criticality === 'critical')
         .slice(0, 5)
         .map((n: { name: string; type: string; tier?: string }) => ({
           name: n.name,

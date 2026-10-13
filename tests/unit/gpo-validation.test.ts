@@ -80,6 +80,80 @@ describe('GPO-to-account validation', () => {
     expect(f.filter((x) => x.check === 'link_scope_mismatch')).toHaveLength(1)
   })
 
+  describe('Top Tier (Tier 0 adjacent)', () => {
+    const withTop = (over: Partial<ValidationInput> = {}) => base({
+      gpos: [
+        ...base().gpos,
+        { id: 'gt', name: 'PKI Policy', adTier: 'tier_top', status: 'enabled', ownerIdentityId: null, settings: null },
+      ],
+      ...over,
+    })
+
+    it('treats a Tier 1 editor of a Top Tier GPO as critical, like Tier 0', () => {
+      const f = evaluateGpoFindings(withTop({
+        identities: [ident('admin0', { adTier: 'tier_0' }), ident('u1', { adTier: 'tier_1' })],
+        permissions: [{ gpoId: 'gt', trusteeIdentityId: 'u1', trusteeGroupId: null, trusteeName: 'u1', permissionType: 'edit_settings' }],
+      }))
+      expect(f.filter((x) => x.check === 'edit_right_below_tier').map((x) => [x.gpoName, x.severity])).toEqual([['PKI Policy', 'critical']])
+    })
+
+    it('treats a Top Tier editor of a Tier 0 GPO as below tier, and a Top Tier GPO admin by Tier 0 as fine', () => {
+      const f = evaluateGpoFindings(withTop({
+        identities: [ident('admin0', { adTier: 'tier_0' }), ident('top', { adTier: 'tier_top' })],
+        permissions: [
+          { gpoId: 'g0', trusteeIdentityId: 'top', trusteeGroupId: null, trusteeName: 'top', permissionType: 'edit_settings' },
+          { gpoId: 'gt', trusteeIdentityId: 'admin0', trusteeGroupId: null, trusteeName: 'admin0', permissionType: 'edit_settings' },
+          { gpoId: 'gt', trusteeIdentityId: 'top', trusteeGroupId: null, trusteeName: 'top', permissionType: 'edit_settings' },
+        ],
+      }))
+      const checks = f.filter((x) => x.trustee).map((x) => `${x.check}:${x.gpoName}:${x.trustee!.name}:${x.severity}`)
+      expect(checks).toEqual(['edit_right_below_tier:DC Policy:top:critical'])
+    })
+
+    it('flags a Top Tier GPO linked to a Tier 0 OU as an inversion (critical)', () => {
+      const f = evaluateGpoFindings(withTop({
+        links: [{ gpoId: 'gt', linkedOu: 'OU=Domain Controllers', linkOrder: 1, enforced: false, linkEnabled: true, adTierOfOu: 'tier_0' }],
+      }))
+      expect(f.filter((x) => x.check === 'link_tier_inversion').map((x) => [x.gpoName, x.severity])).toEqual([['PKI Policy', 'critical']])
+    })
+
+    it('flags a Tier 1 GPO linked to a Top Tier OU as a critical inversion', () => {
+      const f = evaluateGpoFindings(withTop({
+        links: [{ gpoId: 'g1', linkedOu: 'OU=PKI', linkOrder: 1, enforced: false, linkEnabled: true, adTierOfOu: 'tier_top' }],
+      }))
+      expect(f.filter((x) => x.check === 'link_tier_inversion').map((x) => [x.gpoName, x.severity])).toEqual([['Server Policy', 'critical']])
+    })
+
+    it('treats a Tier 0 GPO linked to a Top Tier OU as a low scope mismatch, not an inversion', () => {
+      const f = evaluateGpoFindings(withTop({
+        links: [{ gpoId: 'g0', linkedOu: 'OU=PKI', linkOrder: 1, enforced: false, linkEnabled: true, adTierOfOu: 'tier_top' }],
+      }))
+      expect(f.filter((x) => x.check === 'link_tier_inversion')).toHaveLength(0)
+      expect(f.filter((x) => x.check === 'link_scope_mismatch').map((x) => [x.gpoName, x.severity])).toEqual([['DC Policy', 'low']])
+    })
+
+    it('raises ownerless and drift findings on Top Tier like Tier 0, falling back to the Domain baseline', () => {
+      const gpos = withTop().gpos.map((g) => g.id === 'gt' ? { ...g, settings: { MinimumPasswordLength: '8' } } : g)
+      const f = evaluateGpoFindings(withTop({
+        gpos,
+        links: [{ gpoId: 'gt', linkedOu: 'OU=PKI', linkOrder: 1, enforced: false, linkEnabled: true, adTierOfOu: 'tier_top' }],
+        baselines: [
+          { name: 'Domain Baseline', scope: 'Domain', adTier: 'unclassified', settings: { MinimumPasswordLength: '14' } },
+          { name: 'Server Baseline', scope: 'Servers', adTier: 'tier_1', settings: { MinimumPasswordLength: '12' } },
+        ],
+      }))
+      expect(f.find((x) => x.check === 'gpo_without_owner' && x.gpoId === 'gt')!.severity).toBe('medium')
+      const drift = f.find((x) => x.check === 'baseline_drift')!
+      expect(drift.severity).toBe('high')
+      expect(drift.evidence).toMatchObject({ baseline: 'Domain Baseline', expected: '14' })
+    })
+
+    it('sorts Top Tier GPOs between Tier 0 and Tier 1', () => {
+      const r = buildGpoValidationReport(withTop())
+      expect(r.gpos.map((g) => g.tier)).toEqual(['tier_0', 'tier_top', 'tier_1', 'tier_2'])
+    })
+  })
+
   it('flags GPP passwords without exposing the value, dangerous values and baseline drift', () => {
     const gpos = base().gpos.map((g) => g.id === 'g2'
       ? { ...g, settings: { cpassword: 'SECRETVALUE', EnableGuestAccount: 'Enabled', MinimumPasswordLength: '6' } }

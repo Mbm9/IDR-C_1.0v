@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { organizations, identities, attackPaths } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
-import { buildAdjacencyList, findAllPaths, invalidateCache } from '@/lib/graph/traversal'
+import { buildAdjacencyList, findAllPaths, invalidateCache, controlPlaneNodeIds, controlPlaneTargetFor } from '@/lib/graph/traversal'
 import { determineTechnique, edgeToTechnique } from '@/lib/graph/techniques'
 import { narrateAttackPathText } from '@/lib/ai/attack-path-narration'
 import { isAIEnabled } from '@/lib/ai/client'
@@ -26,13 +26,8 @@ export async function GET(request: NextRequest) {
       // Build adjacency list
       const graph = await buildAdjacencyList(orgId)
 
-      // Find T0 targets
-      const t0NodeIds = new Set<string>()
-      for (const [nodeId, meta] of graph.nodeMetadata) {
-        if (meta.tier === 'tier_0') t0NodeIds.add(nodeId)
-      }
-
-      if (t0NodeIds.size === 0) continue
+      // Control-plane targets: Tier 0 and Top Tier (which can take over Tier 0)
+      if (controlPlaneNodeIds(graph).size === 0) continue
 
       // Find non-T0 identity starting points
       const orgIdents = await db
@@ -40,9 +35,7 @@ export async function GET(request: NextRequest) {
         .from(identities)
         .where(eq(identities.orgId, orgId))
 
-      const startingIdentities = orgIdents
-        .filter(i => i.adTier !== 'tier_0')
-        .map(i => i.id)
+      const startingIdentities = orgIdents.filter(i => i.adTier !== 'tier_0')
 
       // Discover paths
       const discoveredPaths: Array<{
@@ -59,8 +52,8 @@ export async function GET(request: NextRequest) {
         mitreId: string | null
       }> = []
 
-      for (const startId of startingIdentities) {
-        const paths = findAllPaths(graph, startId, (nodeId) => t0NodeIds.has(nodeId), 6)
+      for (const { id: startId, adTier: startTier } of startingIdentities) {
+        const paths = findAllPaths(graph, startId, controlPlaneTargetFor(graph, startTier), 6)
 
         for (const p of paths) {
           const lastNodeId = p.path[p.path.length - 1]

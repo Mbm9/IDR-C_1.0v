@@ -8,6 +8,7 @@ import { formatRelativeTime } from '@/lib/utils/formatters'
 import { useEnumLabel } from '@/components/ui/enum-label'
 import { TONE_TEXT, toneBadge, riskTone, statusTone, tierTone } from '@/components/ui/tone'
 import type { IdentityListItem } from '@/lib/hooks/use-identities'
+import { AD_TIERS } from '@/lib/utils/tiers'
 
 interface IdentityTableProps {
   data: IdentityListItem[]
@@ -92,7 +93,7 @@ export function IdentityTable({ data, sortBy, sortOrder, onSort }: IdentityTable
         <tbody className="divide-y divide-[var(--border-default)]">
           {data.map((identity) => {
             const href = `/dashboard/identities/${identity.id}`
-            const tierKey = ['tier_0', 'tier_1', 'tier_2'].includes(identity.adTier) ? identity.adTier : 'unclassified'
+            const tierKey = (AD_TIERS as readonly string[]).includes(identity.adTier) ? identity.adTier : 'unclassified'
             const rf = (identity as IdentityListItem & { riskFactors?: { riskVelocity?: number } | null }).riskFactors
             const velocity = rf?.riskVelocity ?? 0
             const quality = identity.dataQuality?.score

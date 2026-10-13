@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { gpoObjects, gpoLinks, gpoPermissions, identities, policyViolations, policies } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, inArray } from 'drizzle-orm'
 import { unauthorized, forbidden, logAction } from '@/lib/actions/helpers'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
+import { isStricterTier, stricterTier } from '@/lib/utils/tiers'
 
 // POST: Trigger GPO risk scan
 export async function POST(req: NextRequest) {
@@ -28,23 +29,31 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No tiering_rule policy found. Create one first.' }, { status: 400 })
     }
 
-    // 1. Find GPOs linked to T0 OUs
-    const t0LinkedGpos = await db
+    // 1. Find GPOs linked to control-plane OUs (Tier 0, or Top Tier which can take over Tier 0)
+    const controlPlaneLinks = await db
       .select({
         gpoId: gpoLinks.gpoId,
         linkedOu: gpoLinks.linkedOu,
+        ouTier: gpoLinks.adTierOfOu,
       })
       .from(gpoLinks)
       .where(and(
         eq(gpoLinks.orgId, orgId),
-        eq(gpoLinks.adTierOfOu, 'tier_0')
+        inArray(gpoLinks.adTierOfOu, ['tier_0', 'tier_top'])
       ))
 
-    const t0GpoIds = new Set(t0LinkedGpos.map(g => g.gpoId))
+    // Strictest OU tier each GPO is linked to
+    const gpoOuTier = new Map<string, string>()
+    for (const l of controlPlaneLinks) {
+      const prev = gpoOuTier.get(l.gpoId)
+      gpoOuTier.set(l.gpoId, prev ? stricterTier(prev, l.ouTier) : l.ouTier)
+    }
+    const t0GpoIds = new Set([...gpoOuTier].filter(([, t]) => t === 'tier_0').map(([id]) => id))
+    const controlPlaneGpoIds = new Set(gpoOuTier.keys())
 
-    // 2. Check permissions on T0-linked GPOs held by non-T0 identities
-    if (t0GpoIds.size > 0) {
-      const dangerousPerms = await db
+    // 2. Check permissions on control-plane-linked GPOs held by identities below the OU's tier
+    if (controlPlaneGpoIds.size > 0) {
+      const candidatePerms = await db
         .select({
           gpoId: gpoPermissions.gpoId,
           trusteeIdentityId: gpoPermissions.trusteeIdentityId,
@@ -59,8 +68,9 @@ export async function POST(req: NextRequest) {
           eq(gpoPermissions.orgId, orgId),
           sql`${gpoPermissions.permissionType} IN ('edit_settings', 'modify_security', 'full_control', 'link_gpo')`,
           sql`${identities.adTier} != 'tier_0'`,
-          sql`${gpoPermissions.gpoId} IN (${sql.join(Array.from(t0GpoIds).map(id => sql`${id}`), sql`,`)})`
+          sql`${gpoPermissions.gpoId} IN (${sql.join(Array.from(controlPlaneGpoIds).map(id => sql`${id}`), sql`,`)})`
         ))
+      const dangerousPerms = candidatePerms.filter(p => isStricterTier(gpoOuTier.get(p.gpoId), p.identityTier))
 
       // Create policy violations for each finding
       for (const perm of dangerousPerms) {
@@ -90,7 +100,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Mark dangerous permissions
-      for (const gpoId of t0GpoIds) {
+      for (const gpoId of controlPlaneGpoIds) {
         await db
           .update(gpoPermissions)
           .set({ dangerous: true })
@@ -127,13 +137,14 @@ export async function POST(req: NextRequest) {
       actorIdentityId: session.user.id,
       orgId,
       rationale: `GPO risk scan completed: ${violationsCreated} new violations created`,
-      payload: { scan: 'gpo_risk', violationsCreated, t0GpoCount: t0GpoIds.size, t2EditPermissionsFlagged: t2EditPerms.length },
+      payload: { scan: 'gpo_risk', violationsCreated, t0GpoCount: t0GpoIds.size, topTierGpoCount: controlPlaneGpoIds.size - t0GpoIds.size, t2EditPermissionsFlagged: t2EditPerms.length },
     })
 
     return NextResponse.json({
       message: 'GPO scan complete',
       violationsCreated,
       t0GposScanned: t0GpoIds.size,
+      topTierGposScanned: controlPlaneGpoIds.size - t0GpoIds.size,
     })
   } catch (error) {
     console.error('[GPO Scan] POST error:', error)

@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import Link from 'next/link'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 interface GraphDetailPanelProps {
   node: any | null
@@ -118,7 +119,7 @@ function RiskScoreBar({ score }: { score?: number | null }) {
 function TierBadge({ tier }: { tier?: string | null }) {
   const tTiers = useTranslations('tiers')
   if (!tier) return <span className="text-[var(--text-secondary)]">-</span>
-  const tone = tier === 'tier_0' ? TONE.critical : tier === 'tier_1' ? TONE.high : TONE.neutral
+  const tone = isControlPlaneTier(tier) ? TONE.critical : tier === 'tier_1' ? TONE.high : TONE.neutral
   return (
     <span className={`px-2 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${tone}`}>
       {tTiers.has(tier) ? tTiers(tier) : tier.replace('_', ' ').toUpperCase()}

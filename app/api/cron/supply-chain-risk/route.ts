@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { identities, entitlements, resources, policyViolations, policies, organizations } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { verifyCronSecret } from '@/lib/auth/cron'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 export async function GET(request: NextRequest) {
   if (!verifyCronSecret(request)) {
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
           sql`${identities.ownerIdentityId} IS NOT NULL`,
         ))
 
-      // Check which NHIs access T0 resources
+      // Check which NHIs access control-plane (T0 / Top Tier) or critical resources
       for (const nhi of singleOwnerNhis) {
         const t0Access = await db
           .select({ count: sql<number>`count(*)::int` })
@@ -40,7 +41,7 @@ export async function GET(request: NextRequest) {
           .innerJoin(resources, eq(entitlements.resourceId, resources.id))
           .where(and(
             eq(entitlements.identityId, nhi.nhiId),
-            sql`(${resources.adTier} = 'tier_0' OR ${resources.criticality} = 'critical')`,
+            sql`(${resources.adTier} IN ('tier_0', 'tier_top') OR ${resources.criticality} = 'critical')`,
           ))
 
         if ((t0Access[0]?.count || 0) > 0) {
@@ -72,7 +73,7 @@ export async function GET(request: NextRequest) {
                 policyId: policy.id,
                 identityId: nhi.nhiId,
                 violationType: 'orphaned_identity', // closest existing type for supply chain risk
-                severity: nhi.nhiTier === 'tier_0' ? 'critical' : 'high',
+                severity: isControlPlaneTier(nhi.nhiTier) ? 'critical' : 'high',
                 status: 'open',
                 orgId,
               })
@@ -100,7 +101,7 @@ export async function GET(request: NextRequest) {
           .innerJoin(resources, eq(entitlements.resourceId, resources.id))
           .where(and(
             eq(entitlements.identityId, nhi.id),
-            sql`(${resources.adTier} = 'tier_0' OR ${resources.criticality} = 'critical')`,
+            sql`(${resources.adTier} IN ('tier_0', 'tier_top') OR ${resources.criticality} = 'critical')`,
           ))
 
         if ((t0Access[0]?.count || 0) > 0) {

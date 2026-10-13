@@ -7,6 +7,7 @@ import { MetricCard } from '@/components/ui/metric-card'
 import { GpoLinksTree } from '@/components/dashboard/gpo-links-tree'
 import { Shield, AlertTriangle, Search, Loader2, ArrowRight } from 'lucide-react'
 import { useAppRole } from '@/lib/hooks/use-app-role'
+import { isControlPlaneTier, isStricterTier } from '@/lib/utils/tiers'
 
 interface GpoItem {
   id: string
@@ -70,6 +71,7 @@ const NEUTRAL = 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
 
 const TIER_BADGE: Record<string, string> = {
   tier_0: `${tone('critical')} border-[var(--color-critical)]/30`,
+  tier_top: 'bg-[color-mix(in_srgb,var(--color-tier-top)_12%,var(--bg-primary))] text-[color:color-mix(in_srgb,var(--color-tier-top)_60%,var(--text-primary))] border-[var(--color-tier-top)]/30',
   tier_1: `${tone('high')} border-[var(--color-high)]/30`,
   tier_2: `${NEUTRAL} border-[var(--border-default)]`,
   unclassified: `${NEUTRAL} border-[var(--border-default)]`,
@@ -259,9 +261,10 @@ export default function GpoPage() {
 
       {/* Stats Row */}
       {stats && (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-9 gap-3">
           <MetricCard label={t('stats.total')} value={stats.total} />
           <MetricCard label={t('stats.tier0')} value={stats.byTier.tier_0 || 0} color="red" />
+          <MetricCard label={t('stats.tierTop')} value={stats.byTier.tier_top ?? 0} color="rose" />
           <MetricCard label={t('stats.tier1')} value={stats.byTier.tier_1 || 0} color="orange" />
           <MetricCard label={t('stats.tier2')} value={stats.byTier.tier_2 || 0} />
           <MetricCard label={t('stats.risky')} value={stats.dangerousCount} color="red" />
@@ -316,6 +319,7 @@ export default function GpoPage() {
             >
               <option value="">{tTiers('allTiers')}</option>
               <option value="tier_0">{tTiers('tier_0')}</option>
+              <option value="tier_top">{tTiers('tier_top')}</option>
               <option value="tier_1">{tTiers('tier_1')}</option>
               <option value="tier_2">{tTiers('tier_2')}</option>
             </select>
@@ -461,7 +465,7 @@ export default function GpoPage() {
                 {permissions.map((perm) => {
                   const trusteeTier = perm.identityTier || perm.groupTier || 'unknown'
                   const gpoTier = perm.adTierOfGpo
-                  const hasTierGap = gpoTier === 'tier_0' && trusteeTier !== 'tier_0' && trusteeTier !== 'unknown'
+                  const hasTierGap = isControlPlaneTier(gpoTier) && trusteeTier !== 'unknown' && isStricterTier(gpoTier, trusteeTier)
                   return (
                     <tr key={perm.id} className="hover:bg-[var(--bg-secondary)] transition-colors">
                       <td className="px-4 py-3">

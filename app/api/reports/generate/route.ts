@@ -6,6 +6,7 @@ import { eq, and, desc, count, gte, lte, sql, SQL } from 'drizzle-orm'
 import ReactPDF from '@react-pdf/renderer'
 import { z } from 'zod'
 import { parseJsonBody } from '@/lib/actions/helpers'
+import { tierRank } from '@/lib/utils/tiers'
 import {
   AuditTrailDocument,
   RiskSummaryDocument,
@@ -134,7 +135,7 @@ export async function POST(req: NextRequest) {
           orgName,
           generatedAt: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
           overallRiskScore: avgRisk,
-          identityByTier: Object.fromEntries(identityByTier.map(t => [t.tier, Number(t.count)])),
+          identityByTier: Object.fromEntries([...identityByTier].sort((a, b) => tierRank(a.tier) - tierRank(b.tier)).map(t => [t.tier, Number(t.count)])),
           topRiskyIdentities: topRisky.map(i => ({
             name: i.displayName,
             type: i.type,

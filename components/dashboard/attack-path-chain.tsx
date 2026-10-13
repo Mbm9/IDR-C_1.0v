@@ -17,6 +17,7 @@ const NODE_COLORS: Record<string, string> = {
 
 const TIER_RING: Record<string, string> = {
   tier_0: '#DC2626',
+  tier_top: '#BE123C',
   tier_1: '#EA580C',
   tier_2: '#5F6B7A',
 }
@@ -222,7 +223,7 @@ export function AttackPathChain({
       // Tier badge (above)
       if (node.tier) {
         el.append('text')
-          .text(node.tier.replace('_', ' ').toUpperCase())
+          .text(node.tier === 'tier_top' ? 'TOP TIER' : node.tier.replace('_', ' ').toUpperCase())
           .attr('y', -(nodeRadius + 8))
           .attr('text-anchor', 'middle')
           .attr('fill', tierColor || 'var(--text-tertiary)')

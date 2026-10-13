@@ -8,6 +8,7 @@ import { TierHeatmap } from '@/components/charts/tier-heatmap'
 import { MetricCard } from '@/components/ui/metric-card'
 import { useEnumLabel } from '@/components/ui/enum-label'
 import { TONE_TEXT, toneBadge, riskTone, tierTone } from '@/components/ui/tone'
+import { AD_TIERS } from '@/lib/utils/tiers'
 
 export default function TieringPage() {
   const { data, isLoading, error } = useTieringData()
@@ -15,7 +16,7 @@ export default function TieringPage() {
   const tIdentity = useTranslations('identity')
   const tTiers = useTranslations('tiers')
   const label = useEnumLabel()
-  const tierLabel = (tier: string | null | undefined) => tTiers(tier && ['tier_0', 'tier_1', 'tier_2'].includes(tier) ? tier : 'unclassified')
+  const tierLabel = (tier: string | null | undefined) => tTiers(tier && (AD_TIERS as readonly string[]).includes(tier) ? tier : 'unclassified')
 
   if (isLoading) {
     return (
@@ -48,8 +49,9 @@ export default function TieringPage() {
       <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <MetricCard label={t('tier0Identities')} value={data.tierCounts.tier_0 || 0} color="red" />
+        <MetricCard label={t('tierTopIdentities')} value={data.tierCounts.tier_top ?? 0} color="rose" />
         <MetricCard label={t('tier1Identities')} value={data.tierCounts.tier_1 || 0} color="orange" />
         <MetricCard label={t('tier2Identities')} value={data.tierCounts.tier_2 || 0} color="blue" />
         <MetricCard label={t('tierViolations')} value={violationCount} color={violationCount > 0 ? 'red' : 'green'} />

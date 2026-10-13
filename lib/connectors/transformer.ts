@@ -3,6 +3,8 @@ import { identities } from '@/lib/db/schema/identities'
 import { groups } from '@/lib/db/schema/groups'
 import { eq, and } from 'drizzle-orm'
 import type { RawIdentity, RawGroup, SyncResult } from './base'
+import { isTopTierName } from './tier-patterns'
+import { isControlPlaneTier, stricterTier, type AdTier } from '@/lib/utils/tiers'
 
 // AD userAccountControl flag for disabled
 const UAC_DISABLED = 0x0002
@@ -45,24 +47,28 @@ export const TIER_0_GROUPS = [
   'Account Operators',
   'Server Operators',
   'Print Operators',
-  'Backup Operators',
   'DnsAdmins',
   'Group Policy Creator Owners',
 ]
 
-export function classifyTier(groupNames: string[]): string {
-  const t0 = groupNames.some(g =>
-    TIER_0_GROUPS.some(t => g.toLowerCase().includes(t.toLowerCase()))
-  )
-  if (t0) return 'tier_0'
-
-  const serverPatterns = ['server', 'admin', 'operator']
-  const t1 = groupNames.some(g =>
-    serverPatterns.some(p => g.toLowerCase().includes(p))
-  )
-  if (t1) return 'tier_1'
-
+/** Tier implied by a single AD group (name or DN). Top Tier is checked first so
+ *  "ADFS Administrators" is not caught by the Tier 0 'Administrators' entry. */
+export function classifyGroupTier(group: string): AdTier {
+  const cn = (/^CN=([^,]+)/i.exec(group.trim())?.[1] ?? group).toLowerCase()
+  if (isTopTierName(cn)) return 'tier_top'
+  if (TIER_0_GROUPS.some(t => cn.includes(t.toLowerCase()))) return 'tier_0'
+  if (['server', 'admin', 'operator'].some(p => cn.includes(p))) return 'tier_1'
   return 'tier_2'
+}
+
+/** Tier 0 and Top Tier groups (Backup Operators, Cert Publishers, ...) are privileged. */
+export function isPrivilegedGroupName(group: string): boolean {
+  return isControlPlaneTier(classifyGroupTier(group))
+}
+
+/** Most privileged tier across an identity's groups. */
+export function classifyTier(groupNames: string[]): string {
+  return groupNames.reduce<AdTier>((tier, g) => stricterTier(tier, classifyGroupTier(g)), 'tier_2')
 }
 
 export async function syncToDatabase(

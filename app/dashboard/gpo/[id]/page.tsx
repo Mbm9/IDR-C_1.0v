@@ -12,6 +12,7 @@ const NEUTRAL = 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
 
 const TIER_BADGE: Record<string, string> = {
   tier_0: `${tone('critical')} border-[var(--color-critical)]/30`,
+  tier_top: 'bg-[color-mix(in_srgb,var(--color-tier-top)_12%,var(--bg-primary))] text-[color:color-mix(in_srgb,var(--color-tier-top)_60%,var(--text-primary))] border-[var(--color-tier-top)]/30',
   tier_1: `${tone('high')} border-[var(--color-high)]/30`,
   tier_2: `${NEUTRAL} border-[var(--border-default)]`,
   unclassified: `${NEUTRAL} border-[var(--border-default)]`,

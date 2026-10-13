@@ -59,6 +59,7 @@ export function IdentityFilters({ filters, onChange, onReset }: IdentityFiltersP
   const TIER_OPTIONS = [
     { value: '', label: tTiers('allTiers') },
     { value: 'tier_0', label: tTiers('tier_0') },
+    { value: 'tier_top', label: tTiers('tier_top') },
     { value: 'tier_1', label: tTiers('tier_1') },
     { value: 'tier_2', label: tTiers('tier_2') },
     { value: 'unclassified', label: tTiers('unclassified') },

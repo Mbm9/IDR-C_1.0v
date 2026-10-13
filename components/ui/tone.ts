@@ -57,6 +57,7 @@ export function riskTone(score: number | null | undefined): Tone {
 export function tierTone(tier: string | null | undefined): Tone {
   switch (tier) {
     case 'tier_0': return 'critical'
+    case 'tier_top': return 'critical'
     case 'tier_1': return 'high'
     case 'tier_2': return 'info'
     default: return 'neutral'

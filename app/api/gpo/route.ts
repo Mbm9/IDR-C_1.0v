@@ -7,6 +7,7 @@ import { unauthorized, forbidden, logAction, parseJsonBody } from '@/lib/actions
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
 import { z } from 'zod'
+import { adTierSchema } from '@/lib/schemas/common'
 
 const isoDate = z.string().refine((v) => !Number.isNaN(Date.parse(v)), 'Invalid date')
 
@@ -15,7 +16,7 @@ const createGpoSchema = z.object({
   displayName: z.string().trim().max(256).optional(),
   gpoGuid: z.string().trim().max(64).optional(),
   status: z.enum(['enabled', 'disabled', 'enforced']).optional(),
-  adTier: z.enum(['tier_0', 'tier_1', 'tier_2', 'unclassified']).optional(),
+  adTier: adTierSchema.optional(),
   version: z.number().int().min(0).optional(),
   description: z.string().max(2000).optional(),
   ownerIdentityId: z.string().uuid().optional(),
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest) {
       .from(gpoObjects)
       .where(and(...conditions))
       .orderBy(
-        sql`CASE ${gpoObjects.adTier} WHEN 'tier_0' THEN 0 WHEN 'tier_1' THEN 1 WHEN 'tier_2' THEN 2 ELSE 3 END`,
+        sql`CASE ${gpoObjects.adTier} WHEN 'tier_0' THEN 0 WHEN 'tier_top' THEN 1 WHEN 'tier_1' THEN 2 WHEN 'tier_2' THEN 3 ELSE 4 END`,
         gpoObjects.name
       )
       .limit(limit)

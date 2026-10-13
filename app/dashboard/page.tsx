@@ -191,7 +191,7 @@ export default function DashboardOverview() {
                   <div className="flex-1 min-w-0">
                     <p className="text-caption font-medium text-[var(--text-primary)] truncate"><bdi>{identity.displayName}</bdi></p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <TierBadge tier={identity.adTier} effectiveTier={identity.tierViolation ? 'tier_0' : null} size="xs" />
+                      <TierBadge tier={identity.adTier} effectiveTier={identity.tierViolation ? (identity.effectiveTier ?? 'tier_0') : null} size="xs" />
                     </div>
                   </div>
                   <RiskGauge score={identity.riskScore} size="sm" />

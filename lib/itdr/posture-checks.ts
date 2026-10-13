@@ -9,6 +9,7 @@
 // `policy_violations` by the ad-exposure-scanner cron.
 
 import type { AdSecurity } from '@/lib/connectors/base'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 // ── userAccountControl bit flags ──
 export const UAC = {
@@ -67,7 +68,7 @@ export interface PostureFinding {
 // ── Helpers ──
 
 function isPrivileged(identity: PostureIdentity): boolean {
-  return identity.adTier === 'tier_0' || (identity.adSecurity?.adminCount ?? 0) >= 1
+  return isControlPlaneTier(identity.adTier) || (identity.adSecurity?.adminCount ?? 0) >= 1
 }
 
 const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000

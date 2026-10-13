@@ -1,5 +1,9 @@
 import React from 'react'
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { AD_TIER_CONFIG } from '@/lib/utils/constants'
+
+const tierLabel = (tier: string) =>
+  AD_TIER_CONFIG[tier as keyof typeof AD_TIER_CONFIG]?.label ?? tier.replace(/_/g, ' ')
 
 const styles = StyleSheet.create({
   page: {
@@ -242,7 +246,7 @@ export function RiskSummaryDocument(props: RiskSummaryProps) {
         </View>
         {Object.entries(props.identityByTier).map(([tier, cnt], i) => (
           <View key={tier} style={i % 2 === 0 ? styles.tableRow : styles.tableRowAlt}>
-            <Text style={[styles.cell, { width: '50%' }]}>{tier.replace(/_/g, ' ')}</Text>
+            <Text style={[styles.cell, { width: '50%' }]}>{tierLabel(tier)}</Text>
             <Text style={[styles.cell, { width: '50%' }]}>{cnt}</Text>
           </View>
         ))}
@@ -258,7 +262,7 @@ export function RiskSummaryDocument(props: RiskSummaryProps) {
           <View key={i} style={i % 2 === 0 ? styles.tableRow : styles.tableRowAlt}>
             <Text style={[styles.cell, { width: '35%' }]}>{identity.name}</Text>
             <Text style={[styles.cell, { width: '20%' }]}>{identity.type}</Text>
-            <Text style={[styles.cell, { width: '20%' }]}>{identity.tier.replace(/_/g, ' ')}</Text>
+            <Text style={[styles.cell, { width: '20%' }]}>{tierLabel(identity.tier)}</Text>
             <Text style={[styles.cell, { width: '25%' }]}>{identity.riskScore}/100</Text>
           </View>
         ))}

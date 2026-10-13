@@ -204,6 +204,7 @@ export const BLAST_RADIUS_LEGEND_EDGES: LegendEdgeItem[] = [
 
 export const TIER_COLORS: LegendTierItem[] = [
   { color: '#DC2626', label: 'tier0Critical' },
+  { color: '#BE123C', label: 'tierTopCritical' },
   { color: '#EA580C', label: 'tier1High' },
   { color: '#5F6B7A', label: 'tier2Standard' },
 ]

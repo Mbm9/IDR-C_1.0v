@@ -9,7 +9,7 @@ The risk score is a deterministic number from 0 to 100, computed from 11 weighte
 ```
 risk_score = (
   tier_violation      * 22 +   // Boolean: 0 or 1
-  privilege_level     * 15 +   // Scale: 0 (Tier 2), 0.5 (Tier 1), 1 (Tier 0)
+  privilege_level     * 15 +   // Scale: 0 (Tier 2), 0.5 (Tier 1), 0.75 (Top Tier), 1 (Tier 0)
   shadow_admin        * 12 +   // Boolean: 0 or 1
   dormancy_days       * 10 +   // Scale: min(1, days / 180)
   violation_count     * 10 +   // Scale: min(1, count / 5)
@@ -29,7 +29,7 @@ The total is clamped to a maximum of 100.
 | Factor | Weight | Type | Description |
 |--------|--------|------|-------------|
 | Tier Violation | 22 | Boolean | Identity has cross-tier access (effective tier > classified tier) |
-| Privilege Level | 15 | Scale | 1.0 for Tier 0, 0.5 for Tier 1, 0 for Tier 2 |
+| Privilege Level | 15 | Scale | 1.0 for Tier 0, 0.75 for Top Tier, 0.5 for Tier 1, 0 for Tier 2 |
 | Shadow Admin | 12 | Boolean | Identity has admin-equivalent access without being in an admin group |
 | Dormancy | 10 | Scale | Days since last logon, normalized to 180 days (6 months = max) |
 | Violation Count | 10 | Scale | Open violation count, normalized to 5 (5+ violations = max) |

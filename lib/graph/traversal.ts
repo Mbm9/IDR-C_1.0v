@@ -12,6 +12,7 @@ import {
   gpoLinks,
   gpoPermissions,
 } from '@/lib/db/schema'
+import { isControlPlaneTier, isStricterTier } from '@/lib/utils/tiers'
 
 // ── Types ──
 
@@ -201,14 +202,13 @@ export async function buildAdjacencyList(orgId: string): Promise<AdjacencyList> 
 
   // Entitlement edges: identity → resource
   for (const e of orgEntitlements) {
-    const tierNum = e.adTierOfPermission === 'tier_0' ? 0 : e.adTierOfPermission === 'tier_1' ? 1 : 2
     addEdge({
       source: e.identityId,
       target: e.resourceId,
       type: 'entitlement',
       label: e.permissionName,
       properties: { entitlementId: e.id, tier: e.adTierOfPermission },
-      weight: tierNum === 0 ? 2 : tierNum === 1 ? 4 : 8,
+      weight: isControlPlaneTier(e.adTierOfPermission) ? 2 : e.adTierOfPermission === 'tier_1' ? 4 : 8,
     })
   }
 
@@ -319,7 +319,7 @@ export async function buildAdjacencyList(orgId: string): Promise<AdjacencyList> 
       type: 'gpo_link',
       label: 'linked to',
       properties: { adTierOfOu: gl.adTierOfOu },
-      weight: gl.adTierOfOu === 'tier_0' ? 2 : 6,
+      weight: isControlPlaneTier(gl.adTierOfOu) ? 2 : 6,
     })
   }
 
@@ -443,6 +443,31 @@ export function findAllPaths(
   dfs(source, visited, [source], [], 0)
 
   return results
+}
+
+// ── Control-plane targets ──
+
+/** Tier 0 and Top Tier nodes: what attack-path discovery aims at. */
+export function controlPlaneNodeIds(list: AdjacencyList): Set<string> {
+  const s = new Set<string>()
+  for (const [id, meta] of list.nodeMetadata) if (isControlPlaneTier(meta.tier)) s.add(id)
+  return s
+}
+
+/**
+ * Target predicate for an attacker starting at `startTier`: a Tier 0 or Top Tier
+ * node more privileged than the start. Top Tier counts because owning it (ADFS,
+ * Entra Connect, PKI, PAM, DC backup) is owning Tier 0; from a Top Tier start
+ * only Tier 0 is a target.
+ */
+export function controlPlaneTargetFor(
+  list: AdjacencyList,
+  startTier: string | null | undefined,
+): (nodeId: string) => boolean {
+  return (nodeId) => {
+    const tier = list.nodeMetadata.get(nodeId)?.tier
+    return isControlPlaneTier(tier) && isStricterTier(tier, startTier)
+  }
 }
 
 // ── Reachable Set ──

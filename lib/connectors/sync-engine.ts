@@ -30,6 +30,7 @@ import type {
 } from './base'
 import { createConnectorAsync } from './factory'
 import { summarizeSyncError, summarizeRecordErrors } from './sync-error'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 // ---------- Public types ----------
 
@@ -413,7 +414,7 @@ async function getOrCreateResource(
       name: resourceName,
       type: 'saas_app' as any,
       adTier: adTier as any,
-      criticality: adTier === 'tier_0' ? 'critical' as any : adTier === 'tier_1' ? 'high' as any : 'medium' as any,
+      criticality: isControlPlaneTier(adTier) ? 'critical' as any : adTier === 'tier_1' ? 'high' as any : 'medium' as any,
       environment: 'production' as any,
       orgId,
     })

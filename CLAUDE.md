@@ -65,10 +65,13 @@ ONE `identities` table for all identity types — human and non-human. Type disc
 | Tier | Scope | Risk |
 |------|-------|------|
 | Tier 0 | Domain Controllers, AD DS, Schema/Enterprise/Domain Admins | CRITICAL |
+| Top Tier | Tier 0 adjacent: ADFS, Entra Connect, PKI/CA, PAM vaults, DC backup, Backup Operators | CRITICAL |
 | Tier 1 | Member servers, app servers, Server Operators | HIGH |
 | Tier 2 | Workstations, standard users, helpdesk | STANDARD |
 
 Tier violation = identity's `effective_tier` (highest tier accessed) is stricter than its `ad_tier` (assigned tier).
+
+Order (most privileged first): `tier_0` > `tier_top` > `tier_1` > `tier_2` > `unclassified`. Compare tiers with the helpers in `lib/utils/tiers.ts` (`tierRank`, `isStricterTier`), never by string order.
 
 ## Database Schema (26 tables)
 

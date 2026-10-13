@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
           .innerJoin(resources, eq(entitlements.resourceId, resources.id))
           .where(and(
             inArray(entitlements.identityId, nhiIds),
-            sql`(${resources.adTier} = 'tier_0' OR ${resources.criticality} = 'critical')`,
+            sql`(${resources.adTier} IN ('tier_0', 'tier_top') OR ${resources.criticality} = 'critical')`,
           ))
 
         return {

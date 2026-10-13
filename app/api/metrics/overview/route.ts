@@ -58,6 +58,7 @@ export async function GET() {
         subType: identities.subType,
         riskScore: identities.riskScore,
         adTier: identities.adTier,
+        effectiveTier: identities.effectiveTier,
         tierViolation: identities.tierViolation,
         status: identities.status,
       })

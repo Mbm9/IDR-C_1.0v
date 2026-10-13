@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { identities, entitlements, resources } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { z } from 'zod'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 const inputSchema = z.object({
   identityId: z.string().uuid(),
@@ -90,7 +91,7 @@ export async function POST(req: NextRequest) {
           ? Math.floor((Date.now() - new Date(nhi.passwordLastSetAt).getTime()) / (1000 * 60 * 60 * 24))
           : null
 
-        const criticality = nhiEntitlements.some(e => e.resourceTier === 'tier_0' || e.resourceCriticality === 'critical')
+        const criticality = nhiEntitlements.some(e => isControlPlaneTier(e.resourceTier) || e.resourceCriticality === 'critical')
           ? 'critical'
           : nhiEntitlements.some(e => e.resourceTier === 'tier_1' || e.resourceCriticality === 'high')
             ? 'high'

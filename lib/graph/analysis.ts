@@ -3,7 +3,8 @@
 // Two attack-graph capabilities that sit above the market (BloodHound Enterprise's
 // premium territory) but run fully self-hosted / air-gapped:
 //
-//  • computeChokePoints — greedy set-cover over every attack path into Tier 0 to answer
+//  • computeChokePoints — greedy set-cover over every attack path into the control plane
+//    (Tier 0, plus Top Tier which can take over Tier 0) to answer
 //    "fix these N edges and you break M% of all paths into Tier 0" (highest-ROI remediation).
 //  • simulateRemoval — remove a node (disable identity) or an edge (revoke a permission),
 //    recompute reachability into Tier 0, and report the exact before/after delta
@@ -12,10 +13,11 @@
 // Both are pure graph algorithms over the cached AdjacencyList — no AI, no new data.
 
 import {
-  buildAdjacencyList, findAllPaths,
+  buildAdjacencyList, findAllPaths, controlPlaneNodeIds, controlPlaneTargetFor,
   type AdjacencyList, type GraphEdge,
 } from './traversal'
-import type { GNode, GLink } from './queries'
+import { TIER_RISK, type GNode, type GLink } from './queries'
+import { isControlPlaneTier, TIER_SHORT, type AdTier } from '@/lib/utils/tiers'
 
 // ── Tuning ──
 // These bound the path enumeration so a large directory can't blow up the request.
@@ -28,12 +30,6 @@ const MAX_FIXES = 8             // fixes returned by the set-cover
 
 // ── Shared helpers ──
 
-function tier0Ids(list: AdjacencyList): Set<string> {
-  const s = new Set<string>()
-  for (const [id, meta] of list.nodeMetadata) if (meta.tier === 'tier_0') s.add(id)
-  return s
-}
-
 function attackerStarts(list: AdjacencyList): string[] {
   const starts: string[] = []
   for (const [id, meta] of list.nodeMetadata) {
@@ -42,14 +38,16 @@ function attackerStarts(list: AdjacencyList): string[] {
   return starts
 }
 
-/** Enumerate attack paths from non-Tier-0 identities into Tier 0, capped for safety. */
+/**
+ * Enumerate attack paths from non-Tier-0 identities into the control plane
+ * (Tier 0, or Top Tier above the start's tier), capped for safety.
+ */
 function enumeratePaths(
   list: AdjacencyList,
-  t0: Set<string>,
 ): Array<{ path: string[]; edges: GraphEdge[]; length: number }> {
   const all: Array<{ path: string[]; edges: GraphEdge[]; length: number }> = []
   for (const s of attackerStarts(list).slice(0, MAX_STARTS)) {
-    all.push(...findAllPaths(list, s, (n) => t0.has(n), MAX_DEPTH))
+    all.push(...findAllPaths(list, s, controlPlaneTargetFor(list, list.nodeMetadata.get(s)?.tier), MAX_DEPTH))
     if (all.length >= MAX_PATHS) break
   }
   return all.slice(0, MAX_PATHS)
@@ -84,16 +82,14 @@ export interface ChokePointResult {
   summary: string
 }
 
-const TIER_RISK: Record<string, number> = { tier_0: 95, tier_1: 65, tier_2: 30, unclassified: 20 }
-
 function chokeNode(list: AdjacencyList, id: string, onFix: boolean): GNode {
   const meta = list.nodeMetadata.get(id)
   const tier = meta?.tier
   return {
     id, label: meta?.name || id, group: meta?.type || 'unknown', tier,
     riskScore: TIER_RISK[tier || 'unclassified'] ?? 20,
-    severity: tier === 'tier_0' ? 'critical' : onFix ? 'high' : undefined,
-    badge: tier === 'tier_0' ? 'T0' : undefined,
+    severity: isControlPlaneTier(tier) ? 'critical' : onFix ? 'high' : undefined,
+    badge: isControlPlaneTier(tier) ? TIER_SHORT[tier as AdTier] : undefined,
     meta: { type: meta?.type },
   }
 }
@@ -105,15 +101,15 @@ function chokeNode(list: AdjacencyList, id: string, onFix: boolean): GNode {
  */
 export async function computeChokePoints(orgId: string): Promise<ChokePointResult> {
   const list = await buildAdjacencyList(orgId)
-  const t0 = tier0Ids(list)
-  if (t0.size === 0) {
+  // Sentinel string is matched by the UI; it now means "no Tier 0 or Top Tier assets".
+  if (controlPlaneNodeIds(list).size === 0) {
     return { totalPaths: 0, fixes: [], nodes: [], links: [], summary: 'No Tier 0 assets found' }
   }
 
-  const paths = enumeratePaths(list, t0)
+  const paths = enumeratePaths(list)
   const totalPaths = paths.length
   if (totalPaths === 0) {
-    return { totalPaths: 0, fixes: [], nodes: [], links: [], summary: 'No attack paths into Tier 0 — nothing to fix.' }
+    return { totalPaths: 0, fixes: [], nodes: [], links: [], summary: 'No attack paths into Tier 0 / Top Tier — nothing to fix.' }
   }
 
   // Map each candidate edge → the set of path indices it appears on.
@@ -176,7 +172,7 @@ export async function computeChokePoints(orgId: string): Promise<ChokePointResul
     fixes,
     nodes,
     links,
-    summary: `${fixes.length} fix(es) eliminate ${topPct}% of ${totalPaths} attack path(s) into Tier 0`,
+    summary: `${fixes.length} fix(es) eliminate ${topPct}% of ${totalPaths} attack path(s) into Tier 0 / Top Tier`,
   }
 }
 
@@ -210,9 +206,7 @@ export interface SimulateResult {
  */
 export async function simulateRemoval(orgId: string, input: SimulateInput): Promise<SimulateResult> {
   const list = await buildAdjacencyList(orgId)
-  const t0 = tier0Ids(list)
-
-  const paths = enumeratePaths(list, t0)
+  const paths = enumeratePaths(list)
   const before = paths.length
   const capped = before >= MAX_PATHS
 
@@ -237,8 +231,8 @@ export async function simulateRemoval(orgId: string, input: SimulateInput): Prom
 
   const verb = kind === 'node' ? 'Disabling' : 'Revoking'
   const summary = broken > 0
-    ? `${verb} ${targetLabel} breaks ${broken} attack path(s) into Tier 0 (${pct}% reduction)`
-    : `${verb} ${targetLabel} does not break any Tier 0 attack paths`
+    ? `${verb} ${targetLabel} breaks ${broken} attack path(s) into Tier 0 / Top Tier (${pct}% reduction)`
+    : `${verb} ${targetLabel} does not break any Tier 0 / Top Tier attack paths`
 
   return { before, after, pathsBroken: broken, pctReduction: pct, targetLabel, kind, summary, capped }
 }

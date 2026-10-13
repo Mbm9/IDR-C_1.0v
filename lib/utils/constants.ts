@@ -1,5 +1,6 @@
 export const AD_TIER_CONFIG = {
   tier_0: { label: 'Tier 0', color: '#dc2626', bgColor: '#fef2f2', description: 'Identity Plane Control' },
+  tier_top: { label: 'Top Tier', color: '#be123c', bgColor: '#fff1f2', description: 'Tier 0 Adjacent Control' },
   tier_1: { label: 'Tier 1', color: '#ea580c', bgColor: '#fff7ed', description: 'Server & Application Control' },
   tier_2: { label: 'Tier 2', color: '#2563eb', bgColor: '#eff6ff', description: 'Workstation & End-User' },
   unclassified: { label: 'Unclassified', color: '#6b7280', bgColor: '#f9fafb', description: 'Not Yet Classified' },

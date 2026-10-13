@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Search, Users, Shield, AlertTriangle, Settings, ShieldAlert, ListChecks, Scale, Network } from 'lucide-react'
+import { AD_TIERS } from '@/lib/utils/tiers'
 
 interface SearchResult {
   id: string
@@ -76,7 +77,7 @@ export function CommandPalette() {
         label: i.displayName,
         description: tSearch('identityDescription', {
           type: i.type === 'human' ? 'human' : 'nhi',
-          tier: ['tier_0', 'tier_1', 'tier_2', 'unclassified'].includes(i.adTier) ? tTiers(i.adTier) : (i.adTier ?? ''),
+          tier: (AD_TIERS as readonly string[]).includes(i.adTier) ? tTiers(i.adTier) : (i.adTier ?? ''),
           risk: i.riskScore ?? 0,
         }),
         category: 'identity' as const,

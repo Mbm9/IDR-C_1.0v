@@ -4,13 +4,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import * as d3 from 'd3'
 import { useTranslations } from 'next-intl'
 import { Search, ZoomIn, ZoomOut, Maximize2, RotateCcw, Pause, Play, X, Tag } from 'lucide-react'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 // ── Generic graph model ──
 export interface FgNode {
   id: string
   label: string
   group: string // colour key
-  tier?: string // tier_0 | tier_1 | tier_2 → ring colour
+  tier?: string // tier_0 | tier_top | tier_1 | tier_2 → ring colour
   riskScore?: number // 0–100 → radius
   severity?: 'critical' | 'high' | 'medium' | 'low' // outer ring
   badge?: string | number
@@ -39,12 +40,18 @@ export interface ForceGraphProps {
 }
 
 // Above this many nodes, labels default to "key" mode (focused node, its neighbours,
-// Tier 0 / critical nodes and search matches) so the canvas stays legible.
+// Tier 0 / Top Tier / critical nodes and search matches) so the canvas stays legible.
 const DENSE_GRAPH = 30
-const isKeyNode = (n: FgNode) => n.tier === 'tier_0' || n.severity === 'critical'
+const isKeyNode = (n: FgNode) => isControlPlaneTier(n.tier) || n.severity === 'critical'
 
-const TIER_RING: Record<string, string> = { tier_0: '#DC2626', tier_1: '#EA580C', tier_2: '#64748B' }
+const TIER_RING: Record<string, string> = { tier_0: '#DC2626', tier_top: '#BE123C', tier_1: '#EA580C', tier_2: '#64748B' }
 const SEVERITY_RING: Record<string, string> = { critical: '#DC2626', high: '#EA580C', medium: '#D97706', low: '#64748B' }
+
+/** Fallback risk (→ node radius) when only the tier is known; Top Tier sits between T0 and T1. */
+const TIER_NODE_RISK: Record<string, number> = { tier_0: 90, tier_top: 75, tier_1: 60 }
+export function riskForTier(tier?: string | null): number {
+  return TIER_NODE_RISK[tier ?? ''] ?? 30
+}
 
 function radiusOf(n: FgNode): number {
   return Math.max(7, Math.min(22, 7 + (n.riskScore ?? 20) / 6))

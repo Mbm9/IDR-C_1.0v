@@ -5,6 +5,7 @@
 
 import type { Connector, RawIdentity, RawGroup, RawEntitlement, SyncProgressCallback } from './base'
 import { oktaStatusMap } from './transformer'
+import { isTopTierName } from './tier-patterns'
 
 interface OktaConfig {
   domain: string     // e.g., dev-123456.okta.com
@@ -243,6 +244,10 @@ export class OktaConnector implements Connector {
 
   private classifyOktaApp(app: any): string {
     const label = (app.label || app.name || '').toLowerCase()
+    // Tier 0 adjacent apps (ADFS, Entra Connect, PKI, PAM / secrets vaults) are Top Tier
+    if (isTopTierName(label) || /(^|[^a-z0-9])(cyberark|beyondtrust|privileged access|hashicorp vault)/.test(label)) {
+      return 'tier_top'
+    }
     // Apps that manage identity plane are Tier 0
     if (label.includes('active directory') || label.includes('azure ad') ||
         label.includes('ldap') || label.includes('admin console')) {

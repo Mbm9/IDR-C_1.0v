@@ -40,6 +40,7 @@ const TONE = {
 function tierBadge(tier: string): string {
   switch (tier) {
     case 'tier_0': return TONE.critical
+    case 'tier_top': return 'bg-[color-mix(in_srgb,var(--color-tier-top)_12%,var(--bg-primary))] text-[color:color-mix(in_srgb,var(--color-tier-top)_60%,var(--text-primary))]'
     case 'tier_1': return TONE.high
     default: return TONE.neutral
   }

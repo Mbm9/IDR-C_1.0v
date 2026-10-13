@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import postgres from 'postgres'
 import * as schema from '../lib/db/schema'
 import bcrypt from 'bcryptjs'
+import { isControlPlaneTier, isStricterTier, stricterTier, type AdTier } from '../lib/utils/tiers'
 
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/identity_radar'
 const client = postgres(DATABASE_URL)
@@ -68,6 +69,14 @@ function randomSvcName(): string {
   return `${randomItem(SVC_PREFIXES)}-${randomItem(SVC_SYSTEMS)}-${randomInt(1, 99).toString().padStart(2, '0')}`
 }
 
+// --- Top Tier (Tier 0 adjacent: ADFS, Entra Connect, PKI, PAM vault, DC backup) ---
+// Kept in sync with scripts/apply-top-tier-demo.ts, which applies the same
+// classification to an existing demo database.
+const TOP_TIER_RESOURCES = new Set(['SRV-ADFS-01', 'SRV-AADConnect', 'SRV-PKI-01', 'SRV-BACKUP-01', 'CyberArk-PAM', 'AZ-KEYVAULT-01'])
+const TOP_TIER_GROUPS = new Set(['Backup Operators', 'AZ-KeyVault-Admins'])
+// Service accounts by index in the service-account loop (SVC-0006, SVC-0007)
+const TOP_TIER_SVC_NAMES: Record<number, string> = { 5: 'svc-backup', 6: 'svc-adconnect' }
+
 // --- Main seed ---
 async function seed() {
   console.log('Seeding database...')
@@ -125,7 +134,8 @@ async function seed() {
       type: 'human',
       subType: 'employee',
       status: dormant ? 'dormant' : 'active',
-      adTier: i < 5 ? 'tier_0' : i < 20 ? 'tier_1' : 'tier_2',
+      // EMP-0006..EMP-0011 are the Top Tier admins (PKI, ADFS, Entra Connect, backup, PAM vault)
+      adTier: i < 5 ? 'tier_0' : i < 11 ? 'tier_top' : i < 20 ? 'tier_1' : 'tier_2',
       riskScore: dormant ? randomInt(40, 70) : randomInt(0, 50),
       sourceSystem: 'active_directory',
       sourceId: `EMP-${(i + 1).toString().padStart(4, '0')}`,
@@ -194,14 +204,14 @@ async function seed() {
 
   // 25 service accounts
   for (let i = 0; i < 25; i++) {
-    const svcName = randomSvcName()
+    const svcName = TOP_TIER_SVC_NAMES[i] ?? randomSvcName()
     const orphaned = i < 5
     identityValues.push({
       displayName: svcName,
       type: 'non_human',
       subType: 'service_account',
       status: orphaned ? 'orphaned' : 'active',
-      adTier: i < 3 ? 'tier_0' : i < 10 ? 'tier_1' : 'tier_2',
+      adTier: i < 3 ? 'tier_0' : TOP_TIER_SVC_NAMES[i] ? 'tier_top' : i < 10 ? 'tier_1' : 'tier_2',
       riskScore: orphaned ? randomInt(60, 90) : randomInt(10, 50),
       sourceSystem: 'active_directory',
       sourceId: `SVC-${(i + 1).toString().padStart(4, '0')}`,
@@ -381,7 +391,7 @@ async function seed() {
         identityId: identity.id,
         platform: platforms[j] || 'ad',
         accountName: identity.samAccountName || identity.displayName,
-        accountType: identity.adTier === 'tier_0' ? 'admin'
+        accountType: isControlPlaneTier(identity.adTier) ? 'admin'
           : identity.adTier === 'tier_1' ? 'privileged'
           : identity.type === 'non_human' ? 'service'
           : 'standard',
@@ -391,7 +401,7 @@ async function seed() {
         mfaMethods: identity.type === 'human' && Math.random() > 0.15
           ? [randomItem(['authenticator', 'sms', 'email', 'fido2'])]
           : [],
-        privileged: identity.adTier === 'tier_0' || identity.adTier === 'tier_1',
+        privileged: isControlPlaneTier(identity.adTier) || identity.adTier === 'tier_1',
         orgId: org.id,
       })
     }
@@ -441,12 +451,14 @@ async function seed() {
   for (let i = 0; i < 100; i++) {
     const rType = resourceTypes[i] || 'server'
     const names = resourceNames[rType] || [`RES-${i}`]
-    let name = names[i % names.length] || `RES-${rType}-${i}`
+    const baseName = names[i % names.length] || `RES-${rType}-${i}`
+    let name = baseName
     if (usedNames.has(name)) name = `${name}-${i}`
     usedNames.add(name)
 
     const tier: (typeof schema.adTierEnum.enumValues)[number] =
       rType === 'domain_controller' ? 'tier_0'
+      : TOP_TIER_RESOURCES.has(baseName) ? 'tier_top'
       : ['server', 'application', 'database'].includes(rType) ? 'tier_1'
       : 'tier_2'
 
@@ -454,7 +466,7 @@ async function seed() {
       name,
       type: rType,
       adTier: tier,
-      criticality: tier === 'tier_0' ? 'critical' : tier === 'tier_1' ? 'high' : 'medium',
+      criticality: isControlPlaneTier(tier) ? 'critical' : tier === 'tier_1' ? 'high' : 'medium',
       environment: Math.random() > 0.15 ? 'production' : randomItem(['staging', 'development', 'dr']),
       ownerIdentityId: Math.random() > 0.3 ? randomItem(humanIds) : undefined,
       orgId: org.id,
@@ -497,7 +509,7 @@ async function seed() {
       name: g.name,
       type: g.type,
       scope: 'global',
-      adTier: g.tier,
+      adTier: TOP_TIER_GROUPS.has(g.name) ? 'tier_top' : g.tier,
       sourceSystem: g.name.startsWith('AZ-') ? 'azure_ad' : 'active_directory',
       sourceId: `GRP-${(i + 1).toString().padStart(4, '0')}`,
       memberCount: 0,
@@ -561,9 +573,11 @@ async function seed() {
   const permissionNames: Record<string, string[]> = {
     tier_0: ['Domain Admin', 'Enterprise Admin', 'Schema Admin', 'Global Admin',
       'Privileged Authentication Admin', 'Exchange Admin', 'Security Admin'],
-    tier_1: ['Server Operator', 'Backup Operator', 'Application Admin',
+    tier_top: ['ADFS Administrator', 'PKI Administrator', 'Entra Connect Admin',
+      'Backup Operator', 'PAM Vault Admin', 'Key Vault Admin'],
+    tier_1: ['Server Operator', 'Application Admin',
       'SQL Admin', 'Storage Blob Contributor', 'Virtual Machine Contributor',
-      'Key Vault Admin', 'Reader', 'Contributor'],
+      'Reader', 'Contributor'],
     tier_2: ['User', 'Reader', 'Help Desk Operator', 'Print Operator',
       'Basic User', 'Standard User', 'Guest'],
   }
@@ -574,7 +588,7 @@ async function seed() {
     const resource = randomItem(allResources)
     const tier = resource.adTier || 'tier_2'
     const tierKey = tier === 'unclassified' ? 'tier_2' : tier
-    const isTierViolation = identity.adTier === 'tier_2' && (tier === 'tier_0' || tier === 'tier_1')
+    const isTierViolation = isStricterTier(tier, identity.adTier)
 
     entitlementValues.push({
       identityId: identity.id,
@@ -602,15 +616,10 @@ async function seed() {
 
   // Mark tier violations on identities
   for (const identity of allIdentities) {
-    const tierNum = (t: string) => t === 'tier_0' ? 0 : t === 'tier_1' ? 1 : t === 'tier_2' ? 2 : 3
     const myEntitlements = allEntitlements.filter(e => e.identityId === identity.id)
-    const highestAccess = myEntitlements.reduce((min, e) => {
-      const t = tierNum(e.adTierOfPermission)
-      return t < min ? t : min
-    }, 3)
-    const myTier = tierNum(identity.adTier || 'unclassified')
-    if (highestAccess < myTier) {
-      const effectiveTier = highestAccess === 0 ? 'tier_0' : highestAccess === 1 ? 'tier_1' : 'tier_2'
+    // Most privileged tier reached through any entitlement
+    const effectiveTier = myEntitlements.reduce<AdTier>((t, e) => stricterTier(t, e.adTierOfPermission), 'unclassified')
+    if (isStricterTier(effectiveTier, identity.adTier)) {
       await db.update(schema.identities)
         .set({ effectiveTier, tierViolation: true })
         .where(eq(schema.identities.id, identity.id))
@@ -878,7 +887,7 @@ async function seed() {
       principalGroupId: allGroups.find(g => !g.isPrivileged)?.id || allGroups[allGroups.length - 1].id,
       accessType: 'allow',
       rights: ['AddMember'],
-      adTierOfObject: pg.adTier as 'tier_0' | 'tier_1' | 'tier_2' | 'unclassified',
+      adTierOfObject: pg.adTier,
       orgId: org.id,
     }))),
     // Medium: ExtendedRight on user objects
@@ -1568,7 +1577,7 @@ async function seed() {
     deviationScore: 2.5 + idx * 0.4,
     excessEntitlements: [
       { permissionName: 'Server Operator', tier: 'tier_1', peersWithSame: 0 },
-      { permissionName: 'Backup Operator', tier: 'tier_1', peersWithSame: 1 },
+      { permissionName: 'Backup Operator', tier: 'tier_top', peersWithSame: 1 },
     ],
     uniqueEntitlements: idx >= 5 ? [
       { permissionName: 'Domain Admin', tier: 'tier_0' },
@@ -1612,7 +1621,7 @@ async function seed() {
           { role: 'user', content: 'Who has Domain Admin access?', timestamp: daysAgo(2).toISOString() },
           { role: 'assistant', content: 'I found 4 identities with Domain Admin access. The highest risk is admin-jdoe with a risk score of 78 and a tier violation.', timestamp: daysAgo(2).toISOString(), metadata: { suggestedActions: ['View details', 'Generate remediation plan'] } },
           { role: 'user', content: 'Which of these have tier violations?', timestamp: daysAgo(2).toISOString() },
-          { role: 'assistant', content: '2 out of 4 Domain Admin holders have tier violations: admin-jdoe (T2 accessing T0) and svc-backup (T1 accessing T0).', timestamp: daysAgo(2).toISOString(), metadata: { suggestedActions: ['Revoke cross-tier access', 'Update tier classification'] } },
+          { role: 'assistant', content: '2 out of 4 Domain Admin holders have tier violations: admin-jdoe (T2 accessing T0) and svc-backup (Top Tier accessing T0).', timestamp: daysAgo(2).toISOString(), metadata: { suggestedActions: ['Revoke cross-tier access', 'Update tier classification'] } },
         ],
       },
       {
@@ -1636,11 +1645,12 @@ async function seed() {
     { name: 'Default Domain Policy', displayName: 'Default Domain Policy', gpoGuid: '{31B2F340-016D-11D2-945F-00C04FB984F9}', status: 'enforced', adTier: 'tier_0', version: 12, description: 'Domain-wide security settings and password policy', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(365), modifiedInSourceAt: daysAgo(15) },
     { name: 'Default Domain Controllers Policy', displayName: 'Default DC Policy', gpoGuid: '{6AC1786C-016F-11D2-945F-00C04FB984F9}', status: 'enforced', adTier: 'tier_0', version: 8, description: 'Security settings for all domain controllers', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(365), modifiedInSourceAt: daysAgo(30) },
     { name: 'Tier 0 Admin Hardening', displayName: 'T0 Admin Hardening', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000001}', status: 'enabled', adTier: 'tier_0', version: 5, description: 'Restricts T0 admin logon to T0 systems only', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(180), modifiedInSourceAt: daysAgo(7) },
-    { name: 'PKI Certificate Autoenrollment', displayName: 'PKI Autoenroll', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000002}', status: 'enabled', adTier: 'tier_0', version: 3, description: 'Certificate autoenrollment for PKI infrastructure', orgId: org.id, createdInSourceAt: daysAgo(200) },
     { name: 'LAPS Configuration - DCs', displayName: 'LAPS DCs', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000003}', status: 'enabled', adTier: 'tier_0', version: 2, description: 'Local admin password solution for domain controllers', ownerIdentityId: t0Identities[1]?.id, orgId: org.id, createdInSourceAt: daysAgo(120) },
     { name: 'Kerberos Authentication Policy', displayName: 'Kerberos Policy', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000004}', status: 'enforced', adTier: 'tier_0', version: 4, description: 'Kerberos ticket lifetime and renewal settings', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(300) },
-    { name: 'AD Connect Sync Policy', displayName: 'AD Connect Sync', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000005}', status: 'enabled', adTier: 'tier_0', version: 1, description: 'Policy for Azure AD Connect sync server', orgId: org.id, createdInSourceAt: daysAgo(90) },
-    { name: 'ADFS Server Baseline', displayName: 'ADFS Baseline', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000006}', status: 'enabled', adTier: 'tier_0', version: 2, description: 'Baseline security for ADFS farm servers', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(150) },
+    // Top Tier GPOs (Tier 0 adjacent: PKI, Entra Connect, ADFS)
+    { name: 'PKI Certificate Autoenrollment', displayName: 'PKI Autoenroll', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000002}', status: 'enabled', adTier: 'tier_top', version: 3, description: 'Certificate autoenrollment for PKI infrastructure', orgId: org.id, createdInSourceAt: daysAgo(200) },
+    { name: 'AD Connect Sync Policy', displayName: 'AD Connect Sync', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000005}', status: 'enabled', adTier: 'tier_top', version: 1, description: 'Policy for Azure AD Connect sync server', orgId: org.id, createdInSourceAt: daysAgo(90) },
+    { name: 'ADFS Server Baseline', displayName: 'ADFS Baseline', gpoGuid: '{A1B2C3D4-0001-0001-0001-000000000006}', status: 'enabled', adTier: 'tier_top', version: 2, description: 'Baseline security for ADFS farm servers', ownerIdentityId: t0Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(150) },
     // Tier 1 GPOs
     { name: 'Server Baseline Security', displayName: 'Server Baseline', gpoGuid: '{B2C3D4E5-0002-0002-0002-000000000001}', status: 'enabled', adTier: 'tier_1', version: 7, description: 'Baseline hardening for all member servers', ownerIdentityId: t1Identities[0]?.id, orgId: org.id, createdInSourceAt: daysAgo(250), modifiedInSourceAt: daysAgo(20) },
     { name: 'Application Server Lockdown', displayName: 'App Server Lockdown', gpoGuid: '{B2C3D4E5-0002-0002-0002-000000000002}', status: 'enabled', adTier: 'tier_1', version: 4, description: 'Restricted logon and audit settings for app servers', ownerIdentityId: t1Identities[1]?.id, orgId: org.id, createdInSourceAt: daysAgo(180) },
@@ -1655,20 +1665,21 @@ async function seed() {
   console.log(`Created ${allGpos.length} GPO objects`)
 
   const t0Gpos = allGpos.filter(g => g.adTier === 'tier_0')
+  const topGpos = allGpos.filter(g => g.adTier === 'tier_top')
   const t1Gpos = allGpos.filter(g => g.adTier === 'tier_1')
   const t2Gpos = allGpos.filter(g => g.adTier === 'tier_2')
 
   // ── GPO Links (25) ──
   const gpoLinkValues: (typeof schema.gpoLinks.$inferInsert)[] = [
-    // T0 GPOs → T0 OUs
+    // T0 GPOs → T0 OUs, Top Tier GPOs → Top Tier OUs
     { gpoId: t0Gpos[0].id, linkedOu: 'DC=acmefs,DC=local', linkOrder: 0, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
     { gpoId: t0Gpos[1].id, linkedOu: 'OU=Domain Controllers,DC=acmefs,DC=local', linkOrder: 0, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
     { gpoId: t0Gpos[2].id, linkedOu: 'OU=Tier 0 Admins,OU=Admin,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[3].id, linkedOu: 'OU=PKI,OU=Tier 0,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[4].id, linkedOu: 'OU=Domain Controllers,DC=acmefs,DC=local', linkOrder: 1, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[5].id, linkedOu: 'DC=acmefs,DC=local', linkOrder: 1, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[6].id, linkedOu: 'OU=AD Connect,OU=Tier 0,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[7].id, linkedOu: 'OU=ADFS,OU=Tier 0,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: topGpos[0].id, linkedOu: 'OU=PKI,OU=Top Tier,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_top', orgId: org.id },
+    { gpoId: t0Gpos[3].id, linkedOu: 'OU=Domain Controllers,DC=acmefs,DC=local', linkOrder: 1, enforced: false, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[4].id, linkedOu: 'DC=acmefs,DC=local', linkOrder: 1, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: topGpos[1].id, linkedOu: 'OU=AD Connect,OU=Top Tier,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_top', orgId: org.id },
+    { gpoId: topGpos[2].id, linkedOu: 'OU=ADFS,OU=Top Tier,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_top', orgId: org.id },
     // T1 GPOs → T1 OUs
     { gpoId: t1Gpos[0].id, linkedOu: 'OU=Servers,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
     { gpoId: t1Gpos[0].id, linkedOu: 'OU=Application Servers,OU=Servers,DC=acmefs,DC=local', linkOrder: 1, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
@@ -1691,7 +1702,7 @@ async function seed() {
     { gpoId: t2Gpos[3].id, linkedOu: 'OU=Workstations,DC=acmefs,DC=local', linkOrder: 3, linkEnabled: false, enforced: false, adTierOfOu: 'tier_2', orgId: org.id },
     // Additional T0 OU links
     { gpoId: t0Gpos[0].id, linkedOu: 'OU=Tier 0 Admins,OU=Admin,DC=acmefs,DC=local', linkOrder: 1, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[5].id, linkedOu: 'OU=Domain Controllers,DC=acmefs,DC=local', linkOrder: 3, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[4].id, linkedOu: 'OU=Domain Controllers,DC=acmefs,DC=local', linkOrder: 3, enforced: true, adTierOfOu: 'tier_0', orgId: org.id },
     // T1 to T1
     { gpoId: t1Gpos[2].id, linkedOu: 'OU=Database Servers,OU=Servers,DC=acmefs,DC=local', linkOrder: 1, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
     { gpoId: t1Gpos[0].id, linkedOu: 'OU=File Servers,OU=Servers,DC=acmefs,DC=local', linkOrder: 0, enforced: false, adTierOfOu: 'tier_1', orgId: org.id },
@@ -1709,11 +1720,11 @@ async function seed() {
     { gpoId: t0Gpos[0].id, trusteeIdentityId: t2Identities[0]?.id, trusteeName: t2Identities[0]?.displayName || 'T2 User 1', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
     { gpoId: t0Gpos[1].id, trusteeIdentityId: t2Identities[1]?.id, trusteeName: t2Identities[1]?.displayName || 'T2 User 2', permissionType: 'modify_security', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
     { gpoId: t0Gpos[2].id, trusteeIdentityId: t2Identities[2]?.id, trusteeName: t2Identities[2]?.displayName || 'T2 User 3', permissionType: 'full_control', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[3].id, trusteeIdentityId: t2Identities[3]?.id, trusteeName: t2Identities[3]?.displayName || 'T2 User 4', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[5].id, trusteeIdentityId: t2Identities[4]?.id, trusteeName: t2Identities[4]?.displayName || 'T2 User 5', permissionType: 'link_gpo', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: topGpos[0].id, trusteeIdentityId: t2Identities[3]?.id, trusteeName: t2Identities[3]?.displayName || 'T2 User 4', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_top', orgId: org.id },
+    { gpoId: t0Gpos[4].id, trusteeIdentityId: t2Identities[4]?.id, trusteeName: t2Identities[4]?.displayName || 'T2 User 5', permissionType: 'link_gpo', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
     // DANGEROUS: T1 identities with edit on T0 GPOs
-    { gpoId: t0Gpos[4].id, trusteeIdentityId: t1Identities[0]?.id, trusteeName: t1Identities[0]?.displayName || 'T1 Admin', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[6].id, trusteeIdentityId: t1Identities[1]?.id, trusteeName: t1Identities[1]?.displayName || 'T1 Admin 2', permissionType: 'modify_security', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: t0Gpos[3].id, trusteeIdentityId: t1Identities[0]?.id, trusteeName: t1Identities[0]?.displayName || 'T1 Admin', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: topGpos[1].id, trusteeIdentityId: t1Identities[1]?.id, trusteeName: t1Identities[1]?.displayName || 'T1 Admin 2', permissionType: 'modify_security', dangerous: true, adTierOfGpo: 'tier_top', orgId: org.id },
     // T1 identities with proper permissions on T1 GPOs (safe)
     { gpoId: t1Gpos[0].id, trusteeIdentityId: t1Identities[0]?.id, trusteeName: t1Identities[0]?.displayName || 'T1 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_1', orgId: org.id },
     { gpoId: t1Gpos[1].id, trusteeIdentityId: t1Identities[1]?.id, trusteeName: t1Identities[1]?.displayName || 'T1 Admin 2', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_1', orgId: org.id },
@@ -1732,13 +1743,13 @@ async function seed() {
     { gpoId: t2Gpos[0].id, trusteeGroupId: allGroups.find(g => !g.isPrivileged)?.id, trusteeName: 'Domain Computers', permissionType: 'apply', dangerous: false, adTierOfGpo: 'tier_2', orgId: org.id },
     { gpoId: t2Gpos[1].id, trusteeGroupId: allGroups.find(g => !g.isPrivileged)?.id, trusteeName: 'Domain Computers', permissionType: 'apply', dangerous: false, adTierOfGpo: 'tier_2', orgId: org.id },
     // Group with edit permission on T0 GPO (dangerous)
-    { gpoId: t0Gpos[7].id, trusteeGroupId: allGroups.find(g => g.adTier === 'tier_2')?.id || allGroups[allGroups.length - 1].id, trusteeName: allGroups.find(g => g.adTier === 'tier_2')?.name || 'T2 Group', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: topGpos[2].id, trusteeGroupId: allGroups.find(g => g.adTier === 'tier_2')?.id || allGroups[allGroups.length - 1].id, trusteeName: allGroups.find(g => g.adTier === 'tier_2')?.name || 'T2 Group', permissionType: 'edit_settings', dangerous: true, adTierOfGpo: 'tier_top', orgId: org.id },
     // More read/apply permissions to fill 30
+    { gpoId: topGpos[0].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_top', orgId: org.id },
     { gpoId: t0Gpos[3].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
     { gpoId: t0Gpos[4].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[5].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[6].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
-    { gpoId: t0Gpos[7].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_0', orgId: org.id },
+    { gpoId: topGpos[1].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_top', orgId: org.id },
+    { gpoId: topGpos[2].id, trusteeIdentityId: t0Identities[0]?.id, trusteeName: t0Identities[0]?.displayName || 'T0 Admin', permissionType: 'full_control', dangerous: false, adTierOfGpo: 'tier_top', orgId: org.id },
     { gpoId: t2Gpos[2].id, trusteeIdentityId: t2Identities[2]?.id, trusteeName: t2Identities[2]?.displayName || 'T2 User 3', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_2', orgId: org.id },
     { gpoId: t2Gpos[3].id, trusteeIdentityId: t2Identities[3]?.id, trusteeName: t2Identities[3]?.displayName || 'T2 User 4', permissionType: 'edit_settings', dangerous: false, adTierOfGpo: 'tier_2', orgId: org.id },
   ]
@@ -1756,7 +1767,7 @@ async function seed() {
   // Kerberos Policy linked to the same root OU with a conflicting LM level → RSoP conflict.
   await db.update(schema.gpoObjects).set({
     settings: { LmCompatibilityLevel: '2' },
-  }).where(eq(schema.gpoObjects.id, t0Gpos[5].id))
+  }).where(eq(schema.gpoObjects.id, t0Gpos[4].id))
   // Workstation Lockdown: dangerous settings + drift.
   await db.update(schema.gpoObjects).set({
     settings: { EnableGuestAccount: 'Enabled', SMBSigningRequired: 'Disabled', MinimumPasswordLength: '6' },
@@ -1769,10 +1780,12 @@ async function seed() {
       settings: { MinimumPasswordLength: '14', PasswordComplexity: 'Enabled', LmCompatibilityLevel: '5', SMBSigningRequired: 'Enabled', EnableGuestAccount: 'Disabled' } },
     { name: 'Tier 0 Hardening Baseline', scope: 'Tier 0 OU', adTier: 'tier_0', orgId: org.id,
       settings: { MinimumPasswordLength: '15', LmCompatibilityLevel: '5', LSAProtection: 'Enabled', SMBSigningRequired: 'Enabled' } },
+    { name: 'Top Tier Hardening Baseline', scope: 'Top Tier OU', adTier: 'tier_top', orgId: org.id,
+      settings: { MinimumPasswordLength: '15', LmCompatibilityLevel: '5', LSAProtection: 'Enabled', SMBSigningRequired: 'Enabled' } },
     { name: 'Workstation Baseline', scope: 'Workstations', adTier: 'tier_2', orgId: org.id,
       settings: { MinimumPasswordLength: '14', EnableGuestAccount: 'Disabled', SMBSigningRequired: 'Enabled' } },
   ])
-  console.log('Created 3 GPO baselines')
+  console.log('Created 4 GPO baselines')
 
   // ── AD CS (certificate templates + CA) for ESC1–ESC8 ──
   const [enterpriseCa] = await db.insert(schema.adcsAuthorities).values({

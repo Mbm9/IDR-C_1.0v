@@ -22,6 +22,7 @@ import {
 import { eq, and, desc, sql, count } from 'drizzle-orm'
 import { logger } from '@/lib/logger'
 import { logAction } from '@/lib/actions/helpers'
+import { isControlPlaneTier, isStricterTier } from '@/lib/utils/tiers'
 
 const log = logger.child({ module: 'tier-remediation' })
 
@@ -109,13 +110,9 @@ export async function generateTierRemediationProposals(orgId: string): Promise<{
       ))
 
     // Find entitlements that are above the identity's assigned tier
-    const tierRank: Record<string, number> = { tier_0: 0, tier_1: 1, tier_2: 2, unclassified: 3 }
-    const identityTierRank = tierRank[identity.adTier] ?? 3
-
-    const violatingEntitlements = crossTierEntitlements.filter(e => {
-      const entTierRank = tierRank[e.adTierOfPermission ?? 'unclassified'] ?? 3
-      return entTierRank < identityTierRank // Lower rank = higher tier = violation
-    })
+    const violatingEntitlements = crossTierEntitlements.filter(e =>
+      isStricterTier(e.adTierOfPermission, identity.adTier)
+    )
 
     if (violatingEntitlements.length > 0) {
       // Propose revoking each cross-tier entitlement
@@ -138,7 +135,7 @@ export async function generateTierRemediationProposals(orgId: string): Promise<{
           effectiveTier: identity.effectiveTier ?? 'unknown',
           riskScore: identity.riskScore,
           effort: isUnused ? 'low' : 'medium',
-          impact: ent.adTierOfPermission === 'tier_0' ? 'high' : 'medium',
+          impact: isControlPlaneTier(ent.adTierOfPermission) ? 'high' : 'medium',
         })
       }
     } else {
@@ -156,7 +153,7 @@ export async function generateTierRemediationProposals(orgId: string): Promise<{
         effectiveTier: identity.effectiveTier ?? 'unknown',
         riskScore: identity.riskScore,
         effort: 'medium',
-        impact: identity.effectiveTier === 'tier_0' ? 'high' : 'medium',
+        impact: isControlPlaneTier(identity.effectiveTier) ? 'high' : 'medium',
       })
     }
   }
@@ -174,7 +171,9 @@ export async function generateTierRemediationProposals(orgId: string): Promise<{
     `${quickWins.length} quick wins (low effort, high impact) identified.`,
     actions.some(a => a.effectiveTier === 'tier_0')
       ? 'CRITICAL: Tier 0 (Domain Controller level) violations detected — prioritize these.'
-      : '',
+      : actions.some(a => a.effectiveTier === 'tier_top')
+        ? 'CRITICAL: Top Tier (Tier 0 adjacent: ADFS, Entra Connect, PKI, PAM, DC backup) violations detected — prioritize these.'
+        : '',
   ].filter(Boolean).join(' ')
 
   // Save as remediation plan awaiting approval

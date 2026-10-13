@@ -8,6 +8,7 @@ import {
 } from '@/lib/db/schema'
 import { eq, and, desc, asc, sql, gte, lte, or, ilike, SQL } from 'drizzle-orm'
 import { unauthorized } from '@/lib/actions/helpers'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 // Reads the session per request; never prerender at build time.
 export const dynamic = 'force-dynamic'
@@ -403,7 +404,7 @@ export async function GET(req: NextRequest) {
 
           for (const r of dangerousPerms) {
             const sev: 'critical' | 'high' | 'medium' | 'low' =
-              r.gpoTier === 'tier_0' ? 'critical' : r.gpoTier === 'tier_1' ? 'high' : 'medium'
+              isControlPlaneTier(r.gpoTier) ? 'critical' : r.gpoTier === 'tier_1' ? 'high' : 'medium'
 
             results.push({
               id: `gpo-${r.gpoId}-${r.trusteeName}`,

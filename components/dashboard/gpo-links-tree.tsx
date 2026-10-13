@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ChevronRight, ChevronDown, FolderTree, FileText } from 'lucide-react'
+import { isControlPlaneTier, isStricterTier } from '@/lib/utils/tiers'
 
 interface GpoLink {
   id: string
@@ -31,6 +32,7 @@ interface OuTreeNode {
 
 const TIER_COLORS: Record<string, string> = {
   tier_0: '#DC2626',
+  tier_top: '#BE123C',
   tier_1: '#EA580C',
   tier_2: '#6B7280',
   unclassified: '#9CA3AF',
@@ -41,6 +43,7 @@ const tone = (c: string) => `bg-[var(--color-${c}-bg)] text-[color:color-mix(in_
 const NEUTRAL = 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
 const TIER_BADGE: Record<string, string> = {
   tier_0: `${tone('critical')} border-[var(--color-critical)]/30`,
+  tier_top: 'bg-[color-mix(in_srgb,var(--color-tier-top)_12%,var(--bg-primary))] text-[color:color-mix(in_srgb,var(--color-tier-top)_60%,var(--text-primary))] border-[var(--color-tier-top)]/30',
   tier_1: `${tone('high')} border-[var(--color-high)]/30`,
   tier_2: `${NEUTRAL} border-[var(--border-default)]`,
   unclassified: `${NEUTRAL} border-[var(--border-default)]`,
@@ -90,8 +93,8 @@ function buildTree(links: GpoLink[]): OuTreeNode {
     // Set the tier of the leaf OU from the link
     current.tier = link.adTierOfOu
 
-    // Determine if this GPO-OU combo is dangerous
-    const dangerous = link.adTierOfOu === 'tier_0' && link.gpoTier !== 'tier_0'
+    // Dangerous: a less privileged GPO applied to a Tier 0 / Top Tier OU
+    const dangerous = isControlPlaneTier(link.adTierOfOu) && isStricterTier(link.adTierOfOu, link.gpoTier)
 
     current.gpos.push({
       id: link.gpoId,

@@ -7,6 +7,7 @@ import { IdentityGraph, type GraphLayout, type GraphNode, type GraphLink } from 
 import { GraphDetailPanel } from '@/components/dashboard/graph-detail-panel'
 import { CardSkeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
+import { AD_TIERS } from '@/lib/utils/tiers'
 
 // ── Edge Tooltip Component ──
 
@@ -167,7 +168,7 @@ function StatsPanel({ nodes, links }: { nodes: any[]; links: any[] }) {
     const edgesByType: Record<string, number> = {}
     let totalRisk = 0
     let identityCount = 0
-    const tierCounts: Record<string, number> = { tier_0: 0, tier_1: 0, tier_2: 0, unclassified: 0 }
+    const tierCounts: Record<string, number> = Object.fromEntries(AD_TIERS.map((k) => [k, 0]))
     const violationTypes: Record<string, number> = {}
 
     for (const n of nodes) {
@@ -261,7 +262,7 @@ function StatsPanel({ nodes, links }: { nodes: any[]; links: any[] }) {
             <div className="space-y-1">
               {Object.entries(stats.tierCounts).map(([tier, count]) => (
                 <div key={tier} className="flex justify-between text-[11px]">
-                  <span className="font-medium" style={{ color: tier === 'tier_0' ? sevColor('critical') : tier === 'tier_1' ? sevColor('high') : 'var(--text-secondary)' }}>
+                  <span className="font-medium" style={{ color: tier === 'tier_0' ? sevColor('critical') : tier === 'tier_top' ? 'color-mix(in srgb, var(--color-tier-top) 60%, var(--text-primary))' : tier === 'tier_1' ? sevColor('high') : 'var(--text-secondary)' }}>
                     {tTiers.has(tier) ? tTiers(tier) : tier.replace('_', ' ')}
                   </span>
                   <span className="text-[var(--text-primary)] font-medium">{count}</span>
@@ -559,6 +560,7 @@ export default function GraphPage() {
           >
             <option value="">{tTiers('allTiers')}</option>
             <option value="tier_0">{tTiers('tier_0')}</option>
+            <option value="tier_top">{tTiers('tier_top')}</option>
             <option value="tier_1">{tTiers('tier_1')}</option>
             <option value="tier_2">{tTiers('tier_2')}</option>
           </select>

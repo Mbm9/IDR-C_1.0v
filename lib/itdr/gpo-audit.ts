@@ -8,6 +8,7 @@
 // (category 'gpo').
 
 import type { ExposureSeverity, RawFinding } from './exposure-types'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 export interface GpoInput {
   id: string
@@ -68,7 +69,7 @@ export function checkDangerousSettings(gpos: GpoInput[]): RawFinding[] {
     for (const [key, value] of Object.entries(gpo.settings)) {
       const rule = DANGEROUS_VALUES[key]
       if (rule && rule.bad.map((v) => v.toLowerCase()).includes(String(value).toLowerCase())) {
-        const sev: ExposureSeverity = gpo.adTier === 'tier_0' ? 'critical' : rule.severity
+        const sev: ExposureSeverity = isControlPlaneTier(gpo.adTier) ? 'critical' : rule.severity
         out.push(gpoFinding('gpo_dangerous_setting', gpo.name, sev,
           `GPO "${gpo.name}": ${rule.title} (${key}=${value}).`,
           { setting: key, value, adTier: gpo.adTier }))
@@ -110,7 +111,7 @@ export function checkRsopConflicts(gpos: GpoInput[], links: GpoLinkInput[]): Raw
           (a.enforced === b.enforced ? a.order - b.order : a.enforced ? -1 : 1))
         const winner = sorted[0]
         const sev: ExposureSeverity = SENSITIVE_SETTINGS.has(key)
-          ? (ouLinks.some((l) => l.adTierOfOu === 'tier_0') ? 'high' : 'medium')
+          ? (ouLinks.some((l) => isControlPlaneTier(l.adTierOfOu)) ? 'high' : 'medium')
           : 'low'
         out.push(gpoFinding('rsop_conflict', ou, sev,
           `RSoP conflict on OU "${ou}": setting "${key}" is set to ${distinct.size} different values across applied GPOs (effective: "${winner.value}" from "${winner.gpo}").`,
@@ -162,7 +163,7 @@ export function checkBaselineDrift(
 
     if (drifted.length > 0) {
       const hasSensitive = drifted.some((d) => SENSITIVE_SETTINGS.has(d.setting))
-      const sev: ExposureSeverity = ouTier === 'tier_0' && hasSensitive ? 'high'
+      const sev: ExposureSeverity = isControlPlaneTier(ouTier) && hasSensitive ? 'high'
         : hasSensitive ? 'medium' : 'low'
       out.push(gpoFinding('baseline_drift', ou, sev,
         `OU "${ou}" drifts from baseline "${baseline.name}": ${drifted.length} setting(s) differ.`,

@@ -8,7 +8,8 @@ import {
   BLAST_RADIUS_LEGEND_EDGES,
   TIER_COLORS,
 } from './graph-legend'
-import { ForceGraph, type FgNode, type FgLink } from './force-graph'
+import { ForceGraph, riskForTier, type FgNode, type FgLink } from './force-graph'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 // ── Types (unchanged public API) ──
 
@@ -75,9 +76,6 @@ const BR_COLORS: Record<string, string> = {
 }
 const BR_COLOR_OF = (group: string) => BR_COLORS[group] ?? BR_COLORS.unknown
 
-function riskForTier(tier?: string): number {
-  return tier === 'tier_0' ? 90 : tier === 'tier_1' ? 60 : 30
-}
 const ADMIN_ACCESS = ['admin', 'owner', 'full_control', 'write', 'genericall']
 
 // ── Component (force-directed + draggable via the shared engine) ──
@@ -106,7 +104,7 @@ export function BlastRadiusGraph({ data, height = 580, onNodeClick, className = 
           nMap.set(node.id, {
             id: node.id, label: node.name, group: node.type,
             tier: node.tier, riskScore: riskForTier(node.tier),
-            severity: node.tier === 'tier_0' ? 'critical' : node.tier === 'tier_1' ? 'high' : undefined,
+            severity: isControlPlaneTier(node.tier) ? 'critical' : node.tier === 'tier_1' ? 'high' : undefined,
             meta: {
               type: node.type,
               ...(node.accessType ? { access: node.accessType } : {}),
@@ -120,7 +118,7 @@ export function BlastRadiusGraph({ data, height = 580, onNodeClick, className = 
         const key = `${data.center.id}|${node.id}`
         if (!linkSet.has(key)) {
           linkSet.add(key)
-          links.push({ source: data.center.id, target: node.id, dangerous: node.tier === 'tier_0' })
+          links.push({ source: data.center.id, target: node.id, dangerous: isControlPlaneTier(node.tier) })
         }
       }
       // lateral edges within the ring, if provided

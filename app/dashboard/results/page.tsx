@@ -12,6 +12,7 @@ import {
 import { formatRelativeTime, formatDateTime } from '@/lib/utils/formatters'
 import { useEnumLabel } from '@/components/ui/enum-label'
 import { TONE_TEXT, toneBadge, severityTone, tierTone, type Tone } from '@/components/ui/tone'
+import { TIER_SHORT as TIER_SHORT_LABELS } from '@/lib/utils/tiers'
 
 // ── Types ──
 
@@ -101,7 +102,7 @@ function typeBadgeColor(type: string): string {
   return toneBadge(TYPE_TONES[type] ?? 'neutral')
 }
 
-const TIER_SHORT: Record<string, string> = { tier_0: 'T0', tier_1: 'T1', tier_2: 'T2', unclassified: '?' }
+const TIER_SHORT: Record<string, string> = TIER_SHORT_LABELS
 
 function riskBarWidth(score: number | null): string {
   if (score === null || score === undefined) return '0%'
@@ -469,6 +470,7 @@ export default function ResultsPage() {
         >
           <option value="">{tTiers('allTiers')}</option>
           <option value="tier_0">{tTiers('tier_0')}</option>
+          <option value="tier_top">{tTiers('tier_top')}</option>
           <option value="tier_1">{tTiers('tier_1')}</option>
           <option value="tier_2">{tTiers('tier_2')}</option>
           <option value="unclassified">{tTiers('unclassified')}</option>

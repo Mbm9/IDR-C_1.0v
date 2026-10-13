@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { gpoObjects, gpoLinks, gpoPermissions, identities, groups } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, inArray } from 'drizzle-orm'
 import { unauthorized } from '@/lib/actions/helpers'
+import { isControlPlaneTier, TIER_SHORT } from '@/lib/utils/tiers'
 
 // Reads the session per request; never prerender at build time.
 export const dynamic = 'force-dynamic'
@@ -28,22 +29,25 @@ export async function GET(req: NextRequest) {
     const orgId = session.user.orgId
     const risks: GpoRisk[] = []
 
-    // 1. GPOs linked to T0 OUs modifiable by T2 identities
+    // 1. GPOs linked to control-plane OUs (Tier 0, or Top Tier which can take over Tier 0)
+    //    modifiable by T2 identities
     const t0LinkedGpos = await db
       .select({
         gpoId: gpoLinks.gpoId,
         gpoName: gpoObjects.name,
         gpoTier: gpoObjects.adTier,
         linkedOu: gpoLinks.linkedOu,
+        ouTier: gpoLinks.adTierOfOu,
       })
       .from(gpoLinks)
       .innerJoin(gpoObjects, eq(gpoLinks.gpoId, gpoObjects.id))
       .where(and(
         eq(gpoLinks.orgId, orgId),
-        eq(gpoLinks.adTierOfOu, 'tier_0')
+        inArray(gpoLinks.adTierOfOu, ['tier_0', 'tier_top'])
       ))
 
     for (const gpo of t0LinkedGpos) {
+      const isT0 = gpo.ouTier === 'tier_0'
       // Find non-T0 identities with edit permissions on this GPO
       const dangerousPerms = await db
         .select({
@@ -65,8 +69,8 @@ export async function GET(req: NextRequest) {
           gpoId: gpo.gpoId,
           gpoName: gpo.gpoName,
           gpoTier: gpo.gpoTier,
-          riskType: 't2_edit_t0_gpo',
-          description: `T2 identity "${perm.trusteeName}" can ${perm.permissionType} on GPO linked to T0 OU (${gpo.linkedOu})`,
+          riskType: isT0 ? 't2_edit_t0_gpo' : 't2_edit_top_gpo',
+          description: `T2 identity "${perm.trusteeName}" can ${perm.permissionType} on GPO linked to ${TIER_SHORT[gpo.ouTier]} OU (${gpo.linkedOu})`,
           severity: 'critical',
           affectedIdentity: perm.trusteeName,
           affectedIdentityTier: perm.identityTier || 'unknown',
@@ -95,7 +99,7 @@ export async function GET(req: NextRequest) {
 
     for (const perm of editPerms) {
       // Avoid duplicating risks already caught above
-      if (!risks.some(r => r.gpoId === perm.gpoId && r.affectedIdentity === perm.trusteeName && r.riskType === 't2_edit_t0_gpo')) {
+      if (!risks.some(r => r.gpoId === perm.gpoId && r.affectedIdentity === perm.trusteeName && (r.riskType === 't2_edit_t0_gpo' || r.riskType === 't2_edit_top_gpo'))) {
         risks.push({
           gpoId: perm.gpoId,
           gpoName: perm.gpoName,
@@ -172,7 +176,7 @@ export async function GET(req: NextRequest) {
         gpoTier: gpo.adTier,
         riskType: 'no_owner',
         description: `GPO "${gpo.name}" has no assigned owner`,
-        severity: gpo.adTier === 'tier_0' ? 'high' : 'medium',
+        severity: isControlPlaneTier(gpo.adTier) ? 'high' : 'medium',
       })
     }
 

@@ -37,7 +37,7 @@ export async function GET() {
       .where(and(
         eq(identities.orgId, orgId),
         eq(identities.type, 'non_human'),
-        sql`${identities.adTier} IN ('tier_0', 'tier_1')`,
+        sql`${identities.adTier} IN ('tier_0', 'tier_top', 'tier_1')`,
       )),
   ])
 

@@ -3,7 +3,7 @@
 > Definitions of key IAM and Identity Radar terms.
 
 **AD Tier**
-: Active Directory tiering classifies identities and resources into three tiers: Tier 0 (identity plane control - Domain Controllers, AD DS), Tier 1 (server and application control), and Tier 2 (workstation and end-user level).
+: Active Directory tiering classifies identities and resources into four tiers: Tier 0 (identity plane control - Domain Controllers, AD DS), Top Tier (Tier 0 adjacent - ADFS, Entra Connect, PKI, PAM vaults, DC backup), Tier 1 (server and application control), and Tier 2 (workstation and end-user level).
 
 **Attack Path**
 : A sequence of steps an attacker could take to escalate from a lower-privileged identity to a higher-privileged target, such as Domain Admin.

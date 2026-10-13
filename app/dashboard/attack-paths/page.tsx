@@ -10,6 +10,7 @@ import {
 import { AttackPathGraph } from '@/components/dashboard/attack-path-graph'
 import type { AttackPathData } from '@/components/dashboard/attack-path-graph'
 import { useAppRole } from '@/lib/hooks/use-app-role'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 interface AttackPath {
   id: string
@@ -383,7 +384,7 @@ export default function AttackPathsPage() {
                           <ArrowRight size={14} aria-hidden className="text-[var(--text-secondary)] rtl:-scale-x-100" />
                           <bdi className="text-body text-[var(--text-primary)]">{targetNode?.name || t('unknown')}</bdi>
                           {targetNode?.tier && (
-                            <span className={`text-micro px-1.5 py-0.5 rounded whitespace-nowrap ${targetNode.tier === 'tier_0' ? 'bg-[var(--color-critical-bg)] text-[var(--text-primary)] border border-[var(--color-critical)]/40' : 'text-[var(--text-secondary)]'}`}>
+                            <span className={`text-micro px-1.5 py-0.5 rounded whitespace-nowrap ${isControlPlaneTier(targetNode.tier) ? 'bg-[var(--color-critical-bg)] text-[var(--text-primary)] border border-[var(--color-critical)]/40' : 'text-[var(--text-secondary)]'}`}>
                               {tierLabel(targetNode.tier)}
                             </span>
                           )}

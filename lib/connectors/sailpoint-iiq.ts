@@ -4,6 +4,7 @@
 // Pulls: identities, entitlements, roles, certifications, SoD policies
 
 import type { Connector, RawIdentity, RawGroup, RawEntitlement, SyncProgressCallback } from './base'
+import { isTopTierName } from './tier-patterns'
 
 interface SailPointIIQConfig {
   baseUrl: string        // e.g., https://sailpoint-iiq.example.com/identityiq
@@ -312,6 +313,9 @@ export class SailPointIIQConnector implements Connector {
 
   private classifyIIQRole(roleName: string): string {
     const name = roleName.toLowerCase()
+    // Tier 0 adjacent roles (Backup Operators, PKI/ADFS/Entra Connect admins, vault admins)
+    if (isTopTierName(name) || name.includes('top tier')) return 'tier_top'
+
     const tier0 = [
       'domain admin', 'enterprise admin', 'schema admin', 'global admin',
       'privileged access', 'tier 0', 'identity admin', 'security admin',
@@ -337,6 +341,9 @@ export class SailPointIIQConnector implements Connector {
   private classifyEntitlementTier(entitlement: any): string {
     const name = (entitlement.displayName || entitlement.value || entitlement.name || '').toLowerCase()
     const app = (entitlement.application?.name || entitlement.applicationName || '').toLowerCase()
+
+    // Tier 0 adjacent entitlements (Backup Operators, Cert Publishers, vault admins...)
+    if (isTopTierName(name)) return 'tier_top'
 
     // AD-related entitlements
     if (app.includes('active directory') || app.includes('ldap')) {

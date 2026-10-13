@@ -26,7 +26,8 @@ AI-powered risk scoring, remediation recommendations, anomaly detection, and pos
 
 | Tier | Scope | Risk Level |
 |------|-------|------------|
-| Tier 0 | Identity plane control (DCs, AD DS, PKI, Schema Admins) | CRITICAL |
+| Tier 0 | Identity plane control (DCs, AD DS, Schema Admins) | CRITICAL |
+| Top Tier | Tier 0 adjacent (ADFS, Entra Connect, PKI/CA, PAM vaults, DC backup) | CRITICAL |
 | Tier 1 | Server & application control (member servers, service accounts) | HIGH |
 | Tier 2 | Workstation & end-user (standard accounts, helpdesk) | STANDARD |
 

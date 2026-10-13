@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     const topNames = context.topRiskyIdentities.map((i: any) => `${i.name}(risk:${i.risk},tier:${i.tier}${i.tierViolation ? ',VIOLATION' : ''})`).join(', ')
     const violStr = Object.entries(context.openViolations).map(([k, v]) => `${k}:${v}`).join(', ')
 
-    const userPrompt = `Analyze IAM posture. ${Number(s.identityCounts.human) + Number(s.identityCounts.non_human)} identities (${s.identityCounts.human} human, ${s.identityCounts.non_human} NHI). Tiers: T0=${s.tierDistribution.tier_0 || 0}, T1=${s.tierDistribution.tier_1 || 0}, T2=${s.tierDistribution.tier_2 || 0}. ${s.orphanedNhiCount} orphaned NHIs. MFA: ${s.mfaCoverage.withMfa}/${s.mfaCoverage.total}. Open violations: ${violStr}. Top risky: ${topNames}. Timeline: ${timelineDays || 30} days. Risk appetite: ${riskAppetite}. Give 5 prioritized actions. Respond JSON only.`
+    const userPrompt = `Analyze IAM posture. ${Number(s.identityCounts.human) + Number(s.identityCounts.non_human)} identities (${s.identityCounts.human} human, ${s.identityCounts.non_human} NHI). Tiers: T0=${s.tierDistribution.tier_0 || 0}, TOP=${s.tierDistribution.tier_top || 0}, T1=${s.tierDistribution.tier_1 || 0}, T2=${s.tierDistribution.tier_2 || 0}. ${s.orphanedNhiCount} orphaned NHIs. MFA: ${s.mfaCoverage.withMfa}/${s.mfaCoverage.total}. Open violations: ${violStr}. Top risky: ${topNames}. Timeline: ${timelineDays || 30} days. Risk appetite: ${riskAppetite}. Give 5 prioritized actions. Respond JSON only.`
 
     // Provider chain (Ollama → Anthropic) via the shared client, then deterministic fallback
     const ai = await generateJSON(

@@ -18,6 +18,7 @@ export interface OverviewMetrics {
     subType: string
     riskScore: number
     adTier: string
+    effectiveTier: string | null
     tierViolation: boolean
     status: string
   }>

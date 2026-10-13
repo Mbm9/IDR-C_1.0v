@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { identities, entitlements, resources } from '@/lib/db/schema'
 import { eq, and, sql, inArray } from 'drizzle-orm'
 import { z } from 'zod'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 const inputSchema = z.object({
   identityId: z.string().uuid(),
@@ -115,7 +116,7 @@ export async function POST(req: NextRequest) {
         affectedResources: uniqueResources,
         directReports,
         criticalResourceCount: uniqueResources.filter(
-          r => r.tier === 'tier_0' || r.criticality === 'critical'
+          r => isControlPlaneTier(r.tier) || r.criticality === 'critical'
         ).length,
       },
       recommendations: {
@@ -123,7 +124,9 @@ export async function POST(req: NextRequest) {
         suggestedActions: [
           affectedNhis.length > 0 ? `Transfer ownership of ${affectedNhis.length} NHIs before departure` : null,
           directReports.length > 0 ? `Reassign ${directReports.length} direct reports to a new manager` : null,
-          uniqueResources.some(r => r.tier === 'tier_0') ? 'URGENT: Tier 0 resources will be impacted - immediate action required' : null,
+          uniqueResources.some(r => r.tier === 'tier_0') ? 'URGENT: Tier 0 resources will be impacted - immediate action required'
+            : uniqueResources.some(r => r.tier === 'tier_top') ? 'URGENT: Top Tier (Tier 0 adjacent) resources will be impacted - immediate action required'
+            : null,
           'Rotate credentials for all owned service accounts',
           'Update runbooks and documentation',
         ].filter(Boolean),

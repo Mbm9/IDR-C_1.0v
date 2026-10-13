@@ -4,6 +4,7 @@
 // certificate details for lifecycle tracking of certificate-based identities.
 
 import type { Connector, RawIdentity, RawGroup, RawEntitlement, SyncProgressCallback } from './base'
+import { isTopTierName } from './tier-patterns'
 
 interface DigiCertConfig {
   apiKey: string           // X-DC-DEVKEY header value
@@ -327,12 +328,19 @@ export class DigiCertConnector implements Connector {
       return 'tier_1'
     }
 
+    // Federation, directory sync and CA certificates → Top Tier (Tier 0 adjacent):
+    // a stolen ADFS token-signing or CA key forges Tier 0 credentials.
+    if (
+      cn.includes('adfs') || cn.includes('aad') ||
+      cn.includes('pki') || cn.includes('ca.') || isTopTierName(cn)
+    ) {
+      return 'tier_top'
+    }
+
     // Domain controller certificates → Tier 0
     if (
       cn.includes('dc01') || cn.includes('dc02') || cn.includes('dc0') ||
       cn.includes('domain controller') ||
-      cn.includes('adfs') || cn.includes('aad') ||
-      cn.includes('pki') || cn.includes('ca.') ||
       cn.includes('ldap') || cn.includes('kerberos')
     ) {
       return 'tier_0'

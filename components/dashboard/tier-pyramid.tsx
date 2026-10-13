@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { CLASSIFIED_TIERS } from '@/lib/utils/tiers'
 
 interface TierPyramidProps {
   tierCounts: Record<string, number>
@@ -9,6 +10,7 @@ interface TierPyramidProps {
 
 const TIER_COLOR: Record<string, string> = {
   tier_0: 'var(--color-tier0)',
+  tier_top: 'var(--color-tier-top)',
   tier_1: 'var(--color-tier1)',
   tier_2: 'var(--color-info)',
   unclassified: 'var(--text-secondary)',
@@ -18,7 +20,7 @@ const textColor = (key: string) => `color-mix(in srgb, ${TIER_COLOR[key]} 65%, v
 
 export function TierPyramid({ tierCounts, total }: TierPyramidProps) {
   const tTiers = useTranslations('tiers')
-  const keys = ['tier_0', 'tier_1', 'tier_2', ...((tierCounts.unclassified || 0) > 0 ? ['unclassified'] : [])]
+  const keys: string[] = [...CLASSIFIED_TIERS, ...((tierCounts.unclassified || 0) > 0 ? ['unclassified'] : [])]
   const rows = keys.map((key) => ({ key, count: tierCounts[key] || 0 }))
   const maxCount = Math.max(...rows.map((r) => r.count), 1)
 

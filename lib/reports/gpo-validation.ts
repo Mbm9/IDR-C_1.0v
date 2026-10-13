@@ -6,8 +6,10 @@
  * database access. Findings carry a stable `check` key and plain data; display
  * text is produced by the UI from messages (EN/AR), never stored here.
  *
- * Tier rank: tier_0 is the most privileged (rank 0). A trustee "below" a GPO
- * has a higher rank number than the GPO.
+ * Tier rank (lib/utils/tiers): tier_0 is the most privileged (rank 0), then
+ * tier_top, tier_1, tier_2. A trustee "below" a GPO has a higher rank number
+ * than the GPO. Top Tier (Tier 0 adjacent) is control plane: findings that a
+ * lower tier can change or reach it carry Tier 0 severity.
  */
 import { and, eq, inArray } from 'drizzle-orm'
 import { db } from '@/lib/db'
@@ -16,13 +18,14 @@ import {
   groupMemberships, accounts, policies, policyViolations,
 } from '@/lib/db/schema'
 import { checkDangerousSettings } from '@/lib/itdr/gpo-audit'
+import { TIER_RANK as RANK, isControlPlaneTier, type AdTier } from '@/lib/utils/tiers'
 
-export type Tier = 'tier_0' | 'tier_1' | 'tier_2' | 'unclassified'
+export type Tier = AdTier
 export type Severity = 'critical' | 'high' | 'medium' | 'low'
 
 export type CheckKey =
   | 'edit_right_below_tier'      // account/group can change a GPO of a more privileged tier
-  | 'tier0_admin_on_lower_tier'  // Tier 0 account administers a lower-tier GPO (credential exposure)
+  | 'tier0_admin_on_lower_tier'  // Tier 0 account administers a Tier 1/2 GPO (credential exposure)
   | 'inactive_trustee'           // dormant / disabled / orphaned / long-unused account holds edit rights
   | 'trustee_without_mfa'        // human account with edit rights has no MFA-enabled account
   | 'link_tier_inversion'        // lower-tier GPO applies to a higher-tier OU
@@ -89,7 +92,6 @@ export interface ValidationInput {
 export const EDIT_PERMISSIONS = new Set(['edit_settings', 'modify_security', 'full_control', 'link_gpo'])
 export const INACTIVITY_DAYS = 90
 
-const RANK: Record<Tier, number> = { tier_0: 0, tier_1: 1, tier_2: 2, unclassified: 3 }
 const SEVERITY_ORDER: Record<Severity, number> = { critical: 0, high: 1, medium: 2, low: 3 }
 
 const CONTROLS: Record<CheckKey, string[]> = {
@@ -141,10 +143,11 @@ export function evaluateGpoFindings(input: ValidationInput): Finding[] {
     if (RANK[trustee.tier] > RANK[gpo.adTier]) {
       push({
         ...base, check: 'edit_right_below_tier',
-        severity: gpo.adTier === 'tier_0' ? 'critical' : 'high',
+        severity: isControlPlaneTier(gpo.adTier) ? 'critical' : 'high',
         evidence: { trusteeTier: trustee.tier, gpoTier: gpo.adTier, ...(group ? { members: group.memberCount } : {}) },
       })
-    } else if (trustee.tier === 'tier_0' && RANK[gpo.adTier] > 0 && gpo.adTier !== 'unclassified') {
+    } else if (trustee.tier === 'tier_0' && !isControlPlaneTier(gpo.adTier) && gpo.adTier !== 'unclassified') {
+      // A Top Tier GPO is not an exposure: owning it already owns Tier 0.
       push({ ...base, check: 'tier0_admin_on_lower_tier', severity: 'medium', evidence: { trusteeTier: trustee.tier, gpoTier: gpo.adTier } })
     }
 
@@ -152,14 +155,14 @@ export function evaluateGpoFindings(input: ValidationInput): Finding[] {
       if (isInactive(ident, now)) {
         push({
           ...base, check: 'inactive_trustee',
-          severity: gpo.adTier === 'tier_0' ? 'high' : 'medium',
+          severity: isControlPlaneTier(gpo.adTier) ? 'high' : 'medium',
           evidence: { status: ident.status, daysSinceLogon: daysSince(ident.lastLogonAt, now) },
         })
       }
       if (ident.type === 'human' && !ident.mfa) {
         push({
           ...base, check: 'trustee_without_mfa',
-          severity: gpo.adTier === 'tier_0' ? 'high' : 'medium',
+          severity: isControlPlaneTier(gpo.adTier) ? 'high' : 'medium',
           evidence: { mfa: false },
         })
       }
@@ -175,7 +178,7 @@ export function evaluateGpoFindings(input: ValidationInput): Finding[] {
     if (RANK[gpo.adTier] > RANK[l.adTierOfOu]) {
       push({
         gpoId: gpo.id, gpoName: gpo.name, gpoTier: gpo.adTier, ou, check: 'link_tier_inversion',
-        severity: l.adTierOfOu === 'tier_0' ? 'critical' : 'high',
+        severity: isControlPlaneTier(l.adTierOfOu) ? 'critical' : 'high',
         evidence: { gpoTier: gpo.adTier, ouTier: l.adTierOfOu, enforced: l.enforced },
       })
     } else if (RANK[gpo.adTier] < RANK[l.adTierOfOu]) {
@@ -215,7 +218,8 @@ export function evaluateGpoFindings(input: ValidationInput): Finding[] {
 
   // Baseline drift, per GPO: each setting the GPO sets is compared with the
   // approved baseline for every tier the GPO is linked to (falling back to
-  // the Domain baseline). Settings already reported as dangerous are skipped.
+  // the Domain baseline, e.g. a Top Tier OU with no tier_top baseline). Settings
+  // already reported as dangerous are skipped.
   for (const g of input.gpos) {
     if (!g.settings || g.status === 'disabled') continue
     const tiers = new Set(input.links.filter((l) => l.gpoId === g.id && l.linkEnabled).map((l) => l.adTierOfOu))
@@ -231,7 +235,7 @@ export function evaluateGpoFindings(input: ValidationInput): Finding[] {
         seen.add(key)
         push({
           gpoId: g.id, gpoName: g.name, gpoTier: g.adTier, check: 'baseline_drift',
-          severity: g.adTier === 'tier_0' || tier === 'tier_0' ? 'high' : 'medium',
+          severity: isControlPlaneTier(g.adTier) || isControlPlaneTier(tier) ? 'high' : 'medium',
           evidence: { setting: key, actual: String(actual), expected: String(expected), baseline: baseline.name },
         })
       }
@@ -243,7 +247,7 @@ export function evaluateGpoFindings(input: ValidationInput): Finding[] {
     if (!g.ownerIdentityId) {
       push({
         gpoId: g.id, gpoName: g.name, gpoTier: g.adTier, check: 'gpo_without_owner',
-        severity: g.adTier === 'tier_0' ? 'medium' : 'low', evidence: {},
+        severity: isControlPlaneTier(g.adTier) ? 'medium' : 'low', evidence: {},
       })
     }
   }

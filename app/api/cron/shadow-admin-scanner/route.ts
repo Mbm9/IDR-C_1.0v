@@ -3,8 +3,9 @@ import { db } from '@/lib/db'
 import {
   shadowAdmins, identities, entitlements, groups, groupMemberships, organizations,
 } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, inArray } from 'drizzle-orm'
 import { verifyCronSecret } from '@/lib/auth/cron'
+import { isControlPlaneTier, TIER_SHORT } from '@/lib/utils/tiers'
 
 export async function GET(request: NextRequest) {
   if (!verifyCronSecret(request)) {
@@ -37,11 +38,11 @@ export async function GET(request: NextRequest) {
         .innerJoin(groups, eq(groupMemberships.groupId, groups.id))
         .where(eq(groupMemberships.orgId, orgId))
 
-      // Load T0 entitlements
+      // Load control-plane entitlements: T0, and Top Tier (which can take over T0)
       const t0Ents = await db
-        .select({ identityId: entitlements.identityId, permissionName: entitlements.permissionName })
+        .select({ identityId: entitlements.identityId, permissionName: entitlements.permissionName, tier: entitlements.adTierOfPermission })
         .from(entitlements)
-        .where(and(eq(entitlements.orgId, orgId), eq(entitlements.adTierOfPermission, 'tier_0')))
+        .where(and(eq(entitlements.orgId, orgId), inArray(entitlements.adTierOfPermission, ['tier_0', 'tier_top'])))
 
       const privilegedMembers = new Set(
         allMemberships.filter(m => m.isPrivileged).map(m => m.identityId)
@@ -49,22 +50,24 @@ export async function GET(request: NextRequest) {
 
       const candidates: (typeof shadowAdmins.$inferInsert)[] = []
 
-      // T0 access without privileged group membership
-      const t0ByIdentity = new Map<string, string[]>()
+      // T0 / Top Tier access without privileged group membership
+      const t0ByIdentity = new Map<string, { perms: string[]; hasT0: boolean }>()
       for (const ent of t0Ents) {
-        if (!t0ByIdentity.has(ent.identityId)) t0ByIdentity.set(ent.identityId, [])
-        t0ByIdentity.get(ent.identityId)!.push(ent.permissionName)
+        if (!t0ByIdentity.has(ent.identityId)) t0ByIdentity.set(ent.identityId, { perms: [], hasT0: false })
+        const entry = t0ByIdentity.get(ent.identityId)!
+        entry.perms.push(ent.permissionName)
+        if (ent.tier === 'tier_0') entry.hasT0 = true
       }
 
-      for (const [identityId, perms] of t0ByIdentity) {
+      for (const [identityId, { perms, hasT0 }] of t0ByIdentity) {
         if (!privilegedMembers.has(identityId)) {
           candidates.push({
             identityId,
             detectionMethod: 'acl_analysis',
-            detectionReasons: [`Has ${perms.length} T0 entitlements without privileged group membership`],
+            detectionReasons: [`Has ${perms.length} ${hasT0 ? 'T0' : 'Top Tier'} entitlements without privileged group membership`],
             effectiveRights: perms,
-            equivalentToGroups: ['Tier 0 access holders'],
-            riskScore: Math.min(100, 60 + perms.length * 10),
+            equivalentToGroups: [hasT0 ? 'Tier 0 access holders' : 'Top Tier access holders'],
+            riskScore: Math.min(100, (hasT0 ? 60 : 50) + perms.length * 10),
             status: 'open',
             orgId,
           })
@@ -73,13 +76,13 @@ export async function GET(request: NextRequest) {
 
       // T0 group membership via non-privileged group
       for (const mem of allMemberships) {
-        if (mem.groupTier === 'tier_0' && !mem.isPrivileged && !privilegedMembers.has(mem.identityId)) {
+        if (isControlPlaneTier(mem.groupTier) && !mem.isPrivileged && !privilegedMembers.has(mem.identityId)) {
           const existing = candidates.find(c => c.identityId === mem.identityId)
           if (!existing) {
             candidates.push({
               identityId: mem.identityId,
               detectionMethod: 'nested_group',
-              detectionReasons: [`Member of T0 group "${mem.groupName}" not marked as privileged`],
+              detectionReasons: [`Member of ${TIER_SHORT[mem.groupTier]} group "${mem.groupName}" not marked as privileged`],
               effectiveRights: [`Group: ${mem.groupName}`],
               equivalentToGroups: [mem.groupName],
               riskScore: 70,

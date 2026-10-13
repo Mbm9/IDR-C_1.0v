@@ -11,6 +11,7 @@ interface TierBadgeProps {
 // Orange and amber are darkened so white text keeps a 4.5:1 contrast ratio.
 const TIER_CONFIG: Record<string, { short: string; bg: string; text: string }> = {
   tier_0: { short: 'T0', bg: 'var(--color-critical)', text: '#fff' },
+  tier_top: { short: 'TOP', bg: 'var(--color-tier-top)', text: '#fff' },
   tier_1: { short: 'T1', bg: 'color-mix(in srgb, var(--color-high) 80%, black)', text: '#fff' },
   tier_2: { short: 'T2', bg: 'var(--color-tier2)', text: '#fff' },
   unclassified: { short: '?', bg: 'color-mix(in srgb, var(--color-unclassified) 75%, black)', text: '#fff' },

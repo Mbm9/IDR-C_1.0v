@@ -4,6 +4,7 @@
 // user groups, access policies, and privileged session data.
 
 import type { Connector, RawIdentity, RawGroup, RawEntitlement, SyncProgressCallback } from './base'
+import { isTopTierName } from './tier-patterns'
 
 interface BeyondTrustConfig {
   host: string             // e.g., https://pam.example.com
@@ -215,7 +216,8 @@ export class BeyondTrustConnector implements Connector {
           email: user.EmailAddress || user.Email || undefined,
           department: user.Department || undefined,
           status: user.IsLocked ? 'suspended' : user.IsEnabled === false ? 'disabled' : 'active',
-          adTier: user.IsAdmin ? 'tier_0' : 'tier_1',
+          // Password Safe console admins control the vault: Tier 0 adjacent
+          adTier: user.IsAdmin ? 'tier_top' : 'tier_1',
           lastLogonAt: user.LastLoginDate ? new Date(user.LastLoginDate) : undefined,
           privileged: user.IsAdmin === true,
           mfaEnabled: user.MFAEnabled || undefined,
@@ -264,7 +266,7 @@ export class BeyondTrustConnector implements Connector {
           name: `BT Group: ${name}`,
           type: isPrivileged ? 'privileged_access' : 'security',
           members,
-          adTier: isPrivileged ? 'tier_0' : 'tier_1',
+          adTier: isPrivileged ? 'tier_top' : 'tier_1', // PAM vault admin groups are Top Tier
           isPrivileged,
         })
       }
@@ -463,11 +465,23 @@ export class BeyondTrustConnector implements Connector {
     if (
       name.includes('domain admin') || name.includes('enterprise admin') ||
       name.includes('schema admin') || name.includes('krbtgt') ||
-      name.includes('dsrm') || name === 'administrator' ||
-      system.includes('dc') || system.includes('domain controller') ||
-      system.includes('pki') || system.includes('adfs') ||
-      system.includes('aad connect') || system.includes('entra connect')
+      name.includes('dsrm')
     ) {
+      return 'tier_0'
+    }
+
+    // Tier 0 adjacent systems (PKI, ADFS, Entra Connect, DC backup) → Top Tier.
+    // Checked before the 'dc' match so e.g. "ADConnect01" is not read as a DC.
+    if (
+      system.includes('pki') || system.includes('adfs') ||
+      system.includes('aad connect') || system.includes('aadconnect') ||
+      system.includes('adconnect') || system.includes('entra connect') ||
+      isTopTierName(system) || isTopTierName(name)
+    ) {
+      return 'tier_top'
+    }
+
+    if (name === 'administrator' || system.includes('dc') || system.includes('domain controller')) {
       return 'tier_0'
     }
 

@@ -88,6 +88,7 @@ export function parseCypherQuery(query: string): GraphQuery {
  *
  * Examples:
  *   "tier 0 identities with violations"
+ *   "top tier service accounts"
  *   "orphaned service accounts"
  *   "high risk identities"
  */
@@ -100,9 +101,11 @@ export function parseNaturalLanguageQuery(query: string): GraphQuery {
     filters: {},
   }
 
-  // Tier detection
+  // Tier detection ("top tier" / "tier top" / "tier 0 adjacent" / Arabic "المستوى العلوي" → tier_top)
   const tierMatch = lower.match(/tier\s*([012])/i)
-  if (tierMatch) {
+  if (/\btop[\s_-]*tier\b|\btier[\s_-]*top\b|tier[\s_-]*0[\s_-]*adjacent|المستوى\s*العلوي/.test(lower)) {
+    result.filters.adTier = 'tier_top'
+  } else if (tierMatch) {
     result.filters.adTier = `tier_${tierMatch[1]}`
   }
 

@@ -20,7 +20,7 @@ vi.mock('drizzle-orm', () => ({
   lt: vi.fn(),
 }))
 
-import { calculateRiskScore } from '@/lib/risk/scorer'
+import { calculateRiskScore, privilegeLevelForTier } from '@/lib/risk/scorer'
 
 // Helper to create a default zero-risk factors object
 function zeroFactors() {
@@ -183,5 +183,16 @@ describe('calculateRiskScore', () => {
     // ~7.5 + 1.67 + 4 + 8 = 21.17 → 21
     expect(score).toBeGreaterThanOrEqual(18)
     expect(score).toBeLessThanOrEqual(25)
+  })
+})
+
+describe('privilegeLevelForTier', () => {
+  it('ranks Top Tier between Tier 0 and Tier 1', () => {
+    expect(privilegeLevelForTier('tier_0')).toBe(1)
+    expect(privilegeLevelForTier('tier_top')).toBe(0.75)
+    expect(privilegeLevelForTier('tier_1')).toBe(0.5)
+    expect(privilegeLevelForTier('tier_2')).toBe(0)
+    expect(privilegeLevelForTier('unclassified')).toBe(0)
+    expect(privilegeLevelForTier(null)).toBe(0)
   })
 })

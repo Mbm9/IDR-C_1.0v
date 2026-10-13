@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { identities, entitlements, resources } from '@/lib/db/schema'
 import { eq, and, count, desc, sql, countDistinct } from 'drizzle-orm'
+import { CLASSIFIED_TIERS } from '@/lib/utils/tiers'
 
 export async function GET() {
   const session = await auth()
@@ -18,6 +19,8 @@ export async function GET() {
     crossTierIdentities,
     tier0Identities,
     tier0Resources,
+    topTierIdentities,
+    topTierResources,
     unclassifiedIdentities,
   ] = await Promise.all([
     // Tier counts
@@ -84,6 +87,32 @@ export async function GET() {
       .from(resources)
       .where(and(eq(resources.orgId, orgId), eq(resources.adTier, 'tier_0'))),
 
+    // Top Tier identities (Tier 0 adjacent: ADFS, Entra Connect, PKI, PAM, DC backup)
+    db
+      .select({
+        id: identities.id,
+        displayName: identities.displayName,
+        type: identities.type,
+        subType: identities.subType,
+        status: identities.status,
+        riskScore: identities.riskScore,
+      })
+      .from(identities)
+      .where(and(eq(identities.orgId, orgId), eq(identities.adTier, 'tier_top')))
+      .orderBy(desc(identities.riskScore)),
+
+    // Top Tier resources
+    db
+      .select({
+        id: resources.id,
+        name: resources.name,
+        type: resources.type,
+        criticality: resources.criticality,
+        environment: resources.environment,
+      })
+      .from(resources)
+      .where(and(eq(resources.orgId, orgId), eq(resources.adTier, 'tier_top'))),
+
     // Unclassified identities
     db
       .select({
@@ -99,7 +128,7 @@ export async function GET() {
   ])
 
   // Build heatmap matrix
-  const tiers = ['tier_0', 'tier_1', 'tier_2'] as const
+  const tiers = CLASSIFIED_TIERS
   const heatmap: Record<string, Record<string, number>> = {}
   for (const row of tiers) {
     heatmap[row] = {}
@@ -124,6 +153,8 @@ export async function GET() {
     crossTierIdentities,
     tier0Identities,
     tier0Resources,
+    topTierIdentities,
+    topTierResources,
     unclassifiedIdentities,
   })
 }

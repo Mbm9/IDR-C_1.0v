@@ -2,20 +2,17 @@
 
 import { useTranslations } from 'next-intl'
 import { TONE_TEXT, tierTone } from '@/components/ui/tone'
+import { CLASSIFIED_TIERS as TIERS, TIER_SHORT, tierRank } from '@/lib/utils/tiers'
 
 interface TierHeatmapProps {
   heatmap: Record<string, Record<string, number>>
 }
 
-const TIERS = ['tier_0', 'tier_1', 'tier_2'] as const
-const TIER_SHORT = { tier_0: 'T0', tier_1: 'T1', tier_2: 'T2' }
-const tierNum = (t: string) => (t === 'tier_0' ? 0 : t === 'tier_1' ? 1 : 2)
-
 // Cell fills are tints of the semantic tokens so they follow light/dark mode.
 function getCellColor(identityTier: string, accessTier: string, count: number): string {
   if (count === 0) return 'var(--bg-secondary)'
-  const iTier = tierNum(identityTier)
-  const aTier = tierNum(accessTier)
+  const iTier = tierRank(identityTier)
+  const aTier = tierRank(accessTier)
   if (iTier === aTier) return 'var(--color-low-bg)' // same tier = compliant
   if (aTier < iTier) {
     // Accessing a more privileged tier = violation; intensity grows with the count.
@@ -56,7 +53,7 @@ export function TierHeatmap({ heatmap }: TierHeatmapProps) {
             </div>
             {TIERS.map((col) => {
               const count = heatmap[row]?.[col] || 0
-              const isViolation = tierNum(col) < tierNum(row) && count > 0
+              const isViolation = tierRank(col) < tierRank(row) && count > 0
               const title = t('heatmapCellTitle', { from: tTiers(row), to: tTiers(col), count })
 
               return (

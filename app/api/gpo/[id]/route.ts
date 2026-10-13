@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { gpoObjects, gpoLinks, gpoPermissions, identities, groups, attackPaths } from '@/lib/db/schema'
 import { eq, and, sql } from 'drizzle-orm'
 import { unauthorized } from '@/lib/actions/helpers'
+import { isControlPlaneTier, isStricterTier, TIER_SHORT } from '@/lib/utils/tiers'
 
 // GET: GPO detail with links, permissions, and risk info
 export async function GET(
@@ -66,37 +67,36 @@ export async function GET(
     // Identify risks for this GPO
     const risks: Array<{ type: string; description: string; severity: string }> = []
 
-    // Check for dangerous permissions
+    // Check for dangerous permissions held below a control-plane GPO's tier
+    // (Tier 0, or Top Tier which can take over Tier 0).
+    const gpoTier = gpo.adTier
+    const gpoTarget = gpoTier === 'tier_0' ? 'T0' : 'Top'
     const dangerousPerms = permissions.filter(p => p.dangerous)
     for (const p of dangerousPerms) {
       const trusteeTier = p.identityTier || p.groupTier || 'unclassified'
-      const gpoTier = gpo.adTier
-      if (gpoTier === 'tier_0' && (trusteeTier === 'tier_2' || trusteeTier === 'unclassified')) {
-        risks.push({
-          type: 't2EditT0',
-          description: `${p.trusteeName} (${trusteeTier}) can ${p.permissionType} on T0 GPO`,
-          severity: 'critical',
-        })
-      } else if (gpoTier === 'tier_0' && trusteeTier === 'tier_1') {
-        risks.push({
-          type: 't1EditT0',
-          description: `${p.trusteeName} (${trusteeTier}) can ${p.permissionType} on T0 GPO`,
-          severity: 'high',
-        })
-      }
+      if (!isControlPlaneTier(gpoTier) || !isStricterTier(gpoTier, trusteeTier)) continue
+      const lowTier = trusteeTier === 'tier_2' || trusteeTier === 'unclassified'
+      const source = lowTier ? 't2' : trusteeTier === 'tier_1' ? 't1' : 'top'
+      risks.push({
+        type: `${source}Edit${gpoTarget}`,
+        description: `${p.trusteeName} (${trusteeTier}) can ${p.permissionType} on ${TIER_SHORT[gpoTier]} GPO`,
+        severity: lowTier ? 'critical' : 'high',
+      })
     }
 
-    // Check T0 OU links with non-T0 permission holders
-    const t0Links = links.filter(l => l.adTierOfOu === 'tier_0')
-    if (t0Links.length > 0) {
-      const nonT0Perms = permissions.filter(p => {
+    // Check control-plane OU links (T0, then Top Tier) with lower-tier permission holders
+    const linkedTier = links.some(l => l.adTierOfOu === 'tier_0') ? 'tier_0'
+      : links.some(l => l.adTierOfOu === 'tier_top') ? 'tier_top'
+      : null
+    if (linkedTier) {
+      const lowerPerms = permissions.filter(p => {
         const tier = p.identityTier || p.groupTier || 'unclassified'
-        return tier !== 'tier_0' && (p.permissionType === 'edit_settings' || p.permissionType === 'modify_security' || p.permissionType === 'full_control')
+        return isStricterTier(linkedTier, tier) && (p.permissionType === 'edit_settings' || p.permissionType === 'modify_security' || p.permissionType === 'full_control')
       })
-      for (const p of nonT0Perms) {
+      for (const p of lowerPerms) {
         risks.push({
-          type: 'gpoLinkedToT0',
-          description: `GPO linked to T0 OU modifiable by ${p.trusteeName}`,
+          type: linkedTier === 'tier_0' ? 'gpoLinkedToT0' : 'gpoLinkedToTop',
+          description: `GPO linked to ${TIER_SHORT[linkedTier]} OU modifiable by ${p.trusteeName}`,
           severity: 'critical',
         })
       }

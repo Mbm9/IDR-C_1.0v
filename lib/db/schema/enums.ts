@@ -12,7 +12,7 @@ export const identityStatusEnum = pgEnum('identity_status', [
 ])
 
 // AD tiering
-export const adTierEnum = pgEnum('ad_tier', ['tier_0', 'tier_1', 'tier_2', 'unclassified'])
+export const adTierEnum = pgEnum('ad_tier', ['tier_0', 'tier_top', 'tier_1', 'tier_2', 'unclassified'])
 
 // Source systems
 export const sourceSystemEnum = pgEnum('source_system', [

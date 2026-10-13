@@ -4,6 +4,7 @@
 // Pulls: entities (identities), groups, policies (entitlements), auth methods, secret engines.
 
 import type { Connector, RawIdentity, RawGroup, RawEntitlement, SyncProgressCallback } from './base'
+import { stricterTier } from '@/lib/utils/tiers'
 
 interface VaultConfig {
   vaultAddr: string
@@ -209,8 +210,8 @@ export class HashiCorpVaultConnector implements Connector {
         )
 
         let adTier = 'unclassified'
-        if (policies.includes('root')) {
-          adTier = 'tier_0'
+        if (policies.some((p: string) => this.classifyPolicyTier(p) === 'tier_top')) {
+          adTier = 'tier_top'
         } else if (isPrivileged) {
           adTier = 'tier_1'
         }
@@ -354,11 +355,10 @@ export class HashiCorpVaultConnector implements Connector {
                 const tokenPolicies = roleData.token_policies || roleData.policies || []
 
                 // The AppRole itself is an entitlement for any entity using it
-                const tier = tokenPolicies.some((p: string) => p === 'root')
-                  ? 'tier_0'
-                  : tokenPolicies.some((p: string) => p.includes('admin') || p.includes('sudo'))
-                    ? 'tier_1'
-                    : 'tier_2'
+                const tier = tokenPolicies.reduce(
+                  (t: string, p: string) => stricterTier(t, this.classifyPolicyTier(p)),
+                  'tier_2',
+                )
 
                 entitlements.push({
                   sourceId: `vault-approle-${mountPath}-${roleName}`,
@@ -426,8 +426,12 @@ export class HashiCorpVaultConnector implements Connector {
   private classifyPolicyTier(policyName: string): string {
     const name = policyName.toLowerCase()
 
-    if (name === 'root') return 'tier_0'
-    if (name.includes('admin') || name.includes('sudo') || name.includes('superuser')) return 'tier_1'
+    // Vault holds the secrets that unlock Tier 0 but is not the identity plane
+    // itself: root and vault-wide admin policies are Top Tier (Tier 0 adjacent).
+    if (name === 'root' || name.includes('superuser') || name.includes('sudo') ||
+        name === 'admin' || name.includes('vault-admin') || name.includes('vault_admin') ||
+        name.includes('sys-admin') || name.includes('sys_admin')) return 'tier_top'
+    if (name.includes('admin')) return 'tier_1'
     if (name === 'default' || name.includes('read') || name.includes('list')) return 'tier_2'
 
     return 'tier_2'

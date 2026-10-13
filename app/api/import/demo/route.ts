@@ -40,7 +40,8 @@ export async function POST(_req: NextRequest) {
       const first = pick(FIRST_NAMES)
       const last = pick(LAST_NAMES)
       const dept = pick(DEPARTMENTS)
-      const tier = i < 3 ? 'tier_0' : i < 10 ? 'tier_1' : 'tier_2'
+      // 3 Tier 0, 2 Top Tier (Tier 0 adjacent: PKI / ADFS admins), 5 Tier 1, rest Tier 2
+      const tier = i < 3 ? 'tier_0' : i < 5 ? 'tier_top' : i < 10 ? 'tier_1' : 'tier_2'
       const tierViolation = i < 5 && tier === 'tier_2'
 
       demoIdentities.push({
@@ -68,8 +69,10 @@ export async function POST(_req: NextRequest) {
     // NHI identities (10)
     const NHI_NAMES = ['svc-backup', 'svc-monitoring', 'app-crm-api', 'svc-deploy', 'bot-audit',
       'svc-mail-relay', 'app-erp-sync', 'svc-dns-update', 'svc-certificate', 'app-sso-proxy']
+    // DC backup and certificate service accounts are Top Tier (Tier 0 adjacent)
+    const TOP_TIER_NHI = new Set(['svc-backup', 'svc-certificate'])
     for (let i = 0; i < 10; i++) {
-      const tier = i < 2 ? 'tier_0' : i < 5 ? 'tier_1' : 'tier_2'
+      const tier = TOP_TIER_NHI.has(NHI_NAMES[i]) ? 'tier_top' : i < 2 ? 'tier_0' : i < 5 ? 'tier_1' : 'tier_2'
       demoIdentities.push({
         displayName: NHI_NAMES[i],
         type: 'non_human',
@@ -103,7 +106,8 @@ export async function POST(_req: NextRequest) {
       name,
       type: i < 6 ? 'privileged_access' : 'security' as any,
       scope: 'global' as any,
-      adTier: i < 3 ? 'tier_0' : i < 8 ? 'tier_1' : 'tier_2' as any,
+      // Backup Operators can back up and restore DCs: Top Tier (Tier 0 adjacent)
+      adTier: name === 'Backup Operators' ? 'tier_top' : i < 3 ? 'tier_0' : i < 8 ? 'tier_1' : 'tier_2' as any,
       sourceSystem: 'manual' as any,
       sourceId: `demo-group-${i}`,
       memberCount: Math.floor(Math.random() * 20) + 2,
@@ -118,12 +122,15 @@ export async function POST(_req: NextRequest) {
     const RESOURCE_NAMES = [
       'DC01', 'DC02', 'APP-Server-01', 'SQL-Server-01', 'File-Server-01',
       'Web-Server-01', 'Mail-Server-01', 'CRM Application', 'ERP System', 'HR Portal',
+      'ADFS-Server-01', 'PKI-CA-01',
     ]
+    // Tier 0 adjacent servers (federation, certificate authority) are Top Tier
+    const TOP_TIER_RESOURCES = new Set(['ADFS-Server-01', 'PKI-CA-01'])
     const demoResources: (typeof resources.$inferInsert)[] = RESOURCE_NAMES.map((name, i) => ({
       name,
-      type: i < 2 ? 'domain_controller' : i < 7 ? 'server' : 'application' as any,
-      adTier: i < 2 ? 'tier_0' : i < 7 ? 'tier_1' : 'tier_2' as any,
-      criticality: i < 2 ? 'critical' : i < 5 ? 'high' : 'medium' as any,
+      type: TOP_TIER_RESOURCES.has(name) ? 'server' : i < 2 ? 'domain_controller' : i < 7 ? 'server' : 'application' as any,
+      adTier: TOP_TIER_RESOURCES.has(name) ? 'tier_top' : i < 2 ? 'tier_0' : i < 7 ? 'tier_1' : 'tier_2' as any,
+      criticality: TOP_TIER_RESOURCES.has(name) || i < 2 ? 'critical' : i < 5 ? 'high' : 'medium' as any,
       environment: 'production' as any,
       orgId,
     }))
@@ -141,7 +148,7 @@ export async function POST(_req: NextRequest) {
       const identityId = identityIds[Math.floor(Math.random() * identityIds.length)]
       const resourceId = resourceIds[Math.floor(Math.random() * resourceIds.length)]
       const permName = pick(PERMISSION_NAMES)
-      const permTier = i < 10 ? 'tier_0' : i < 30 ? 'tier_1' : 'tier_2'
+      const permTier = i < 10 ? 'tier_0' : i < 18 ? 'tier_top' : i < 30 ? 'tier_1' : 'tier_2'
 
       demoEntitlements.push({
         identityId,

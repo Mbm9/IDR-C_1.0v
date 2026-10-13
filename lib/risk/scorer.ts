@@ -120,6 +120,20 @@ export function velocityFromHistory(
  *   peerAnomalyScore:      4  (NEW)
  *   supplyChainRisk:       4  (NEW)
  */
+/**
+ * Privilege factor (0–1) for an identity's assigned tier. Top Tier can take over
+ * Tier 0, so it sits between Tier 0 and Tier 1.
+ */
+export const TIER_PRIVILEGE_LEVEL: Record<string, number> = {
+  tier_0: 1,
+  tier_top: 0.75,
+  tier_1: 0.5,
+}
+
+export function privilegeLevelForTier(tier: string | null | undefined): number {
+  return TIER_PRIVILEGE_LEVEL[tier ?? ''] ?? 0
+}
+
 export function calculateRiskScore(factors: RiskFactors): number {
   const score =
     (factors.tierViolation ? 1 : 0) * 22 +
@@ -188,7 +202,7 @@ export async function recalculateRiskForIdentity(identityId: string, orgId: stri
     ? Math.floor((Date.now() - new Date(identity.lastLogonAt).getTime()) / (1000 * 60 * 60 * 24))
     : null
 
-  const isPrivileged = identity.adTier === 'tier_0' ? 1 : identity.adTier === 'tier_1' ? 0.5 : 0
+  const isPrivileged = privilegeLevelForTier(identity.adTier)
   const isOrphanedNhi = identity.type === 'non_human' && !identity.ownerIdentityId
 
   // Check supply chain risk: NHI owner with no backup owners for critical NHIs

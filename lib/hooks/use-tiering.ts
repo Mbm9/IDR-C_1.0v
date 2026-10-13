@@ -30,6 +30,21 @@ export interface TieringData {
     criticality: string
     environment: string
   }>
+  topTierIdentities: Array<{
+    id: string
+    displayName: string
+    type: string
+    subType: string
+    status: string
+    riskScore: number
+  }>
+  topTierResources: Array<{
+    id: string
+    name: string
+    type: string
+    criticality: string
+    environment: string
+  }>
   unclassifiedIdentities: Array<{
     id: string
     displayName: string

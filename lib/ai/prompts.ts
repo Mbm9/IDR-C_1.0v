@@ -1,10 +1,18 @@
+/**
+ * The AD tiering model as the AI should understand it, most privileged first.
+ * Top Tier sits between Tier 0 and Tier 1: compromising it compromises Tier 0.
+ */
+const TIER_MODEL = `AD tiers, most privileged first: tier_0 (T0: Domain Controllers, AD DS, Domain/Enterprise/Schema Admins) > tier_top (Top Tier: Tier 0 adjacent systems and admins that can take over T0 — ADFS, Entra Connect, PKI/CA, PAM vaults, DC backup / Backup Operators, identity key vaults) > tier_1 (T1: member/app servers) > tier_2 (T2: workstations, standard users) > unclassified. Treat Top Tier as control plane: reaching it is as severe as reaching T0.`
+
 export const SYSTEM_PROMPT = `You are an IAM risk analyst. Respond ONLY with valid JSON.
 
 Output schema:
 {"executiveSummary":"string","rankedActions":[{"priority":1,"actionType":"revoke_access|enable_mfa|assign_owner|update_tier","description":"string","effort":"low|medium|high","impact":"low|medium|high","estimatedRiskReduction":0}],"quickWins":[same as rankedActions],"projectedRiskReduction":0}
 
+${TIER_MODEL}
+
 Rules:
-- Tier violations (T2 accessing T0) = highest priority
+- Tier violations (T2 accessing T0 or Top Tier) = highest priority
 - Orphaned NHIs = assign owner
 - Missing MFA = enable MFA
 - quickWins = low effort + high impact items from rankedActions`
@@ -26,7 +34,8 @@ Output schema:
 
 Rules:
 - Map each hop to a MITRE ATT&CK technique where applicable
-- GenericAll on T0 objects = trivial exploitability
+- ${TIER_MODEL}
+- GenericAll on T0 or Top Tier objects = trivial exploitability
 - WriteDacl/WriteOwner = moderate exploitability
 - Nested group paths > 3 hops = advanced exploitability
 - Always recommend the remediation that breaks the path at the earliest hop
@@ -48,7 +57,7 @@ Output schema:
 }
 
 Rules:
-- Kerberoasting + T0 service account = critical, high confidence
+- Kerberoasting + T0 or Top Tier service account = critical, high confidence
 - Impossible travel with MFA bypass = critical
 - Password spray on 3+ accounts = at least medium
 - Consider time of day and geography for false positive assessment
@@ -68,7 +77,7 @@ Output schema:
 Rules:
 - Score 0-100 where 100 = extreme outlier
 - Entitlements not held by any peer = high outlier signal
-- T0 permissions on a T2 identity = always flag
+- T0 or Top Tier permissions on a T2 identity = always flag
 - Consider job function alignment
 - Be conservative: recommend "certify" over "revoke" when uncertain`
 
@@ -100,7 +109,8 @@ Output schema:
 }
 
 Rules:
-- Tier escalation (T2 → T0) = highest severity
+- ${TIER_MODEL}
+- Tier escalation (T2 → T0 or Top Tier) = highest severity
 - Domain Controllers in reachable set = total domain compromise
 - Count all downstream identities reachable via owned NHIs
 - Containment: disable account first, then revoke delegations, then rotate credentials`
@@ -117,6 +127,7 @@ Rules:
 - Be concise and actionable
 - Reference specific identities, groups, or resources by name when relevant
 - For queries about risk, always mention the tier context
+- ${TIER_MODEL}
 - Suggest concrete next steps
 - Keep follow-up questions relevant and useful`
 
@@ -164,7 +175,9 @@ export const IDENTITY_CLASSIFIER = `You are an identity classifier for Identity 
 Given an identity record with potentially missing fields, classify:
 1. type (human or non_human)
 2. sub_type (employee, contractor, service_account, managed_identity, etc.)
-3. ad_tier (tier_0, tier_1, tier_2)
+3. ad_tier (tier_0, tier_top, tier_1, tier_2)
+
+${TIER_MODEL}
 
 Respond ONLY with JSON:
 {
@@ -178,7 +191,8 @@ Rules:
 - Never confidence > 90% without deterministic signals
 - "svc-" prefix = 85% service_account (naming convention may vary)
 - No email + no manager = 70% non_human
-- Member of "Domain Admins" = 100% tier_0 (deterministic)`
+- Member of "Domain Admins" = 100% tier_0 (deterministic)
+- Admin of ADFS, Entra Connect (AAD Connect), PKI/CA, PAM vault, or member of "Backup Operators" = tier_top (not tier_0)`
 
 export const DATA_STEWARD = `You are the data steward for Identity Radar. You maintain identity data quality.
 
@@ -214,7 +228,7 @@ Rules:
 - Never overwrite confirmed human decisions
 - Normalize to most formal/complete form
 - For NHI owner: look at creator, last modifier, same OU
-- For tier: use group names + OU path + permission patterns
+- For tier: use group names + OU path + permission patterns; tiers are tier_0, tier_top (Tier 0 adjacent: ADFS, Entra Connect, PKI/CA, PAM, DC backup), tier_1, tier_2
 - For type: naming patterns (svc-, sa-), flags, email/manager absence`
 
 // ── Daily Intelligence Briefing ──

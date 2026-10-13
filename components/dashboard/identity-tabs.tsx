@@ -9,6 +9,7 @@ import type { IdentityDetail } from '@/lib/hooks/use-identities'
 import { useAppRole } from '@/lib/hooks/use-app-role'
 import { useEnumLabel } from '@/components/ui/enum-label'
 import { TONE_TEXT, toneBadge, riskTone, severityTone, statusTone, tierTone, type Tone } from '@/components/ui/tone'
+import { AD_TIERS, isControlPlaneTier, stricterTier } from '@/lib/utils/tiers'
 
 const TABS = ['overview', 'accounts', 'entitlements', 'groups', 'violations', 'timeline', 'ai_insights', 'blast_radius'] as const
 
@@ -18,7 +19,7 @@ interface Props {
   data: IdentityDetail
 }
 
-const TIER_KEYS = ['tier_0', 'tier_1', 'tier_2', 'unclassified']
+const TIER_KEYS: readonly string[] = AD_TIERS
 const tierKeyOf = (tier: string | null | undefined) => (tier && TIER_KEYS.includes(tier) ? tier : 'unclassified')
 
 const thClass = 'px-3 py-2 text-start text-xs font-medium text-[var(--text-secondary)] whitespace-nowrap'
@@ -590,12 +591,11 @@ function BlastRadiusTab({ identityId, identityName }: { identityId: string; iden
       const allNodes = (data.rings || []).flatMap((r: any) => r.nodes || [])
       const t0Count = allNodes.filter((n: any) => n.tier === 'tier_0').length
       const totalReachable = allNodes.length
-      const blastScore = Math.min(100, totalReachable * 2 + t0Count * 15 + allNodes.filter((n: any) => n.criticality === 'critical' || n.tier === 'tier_0').length * 5)
+      const blastScore = Math.min(100, totalReachable * 2 + t0Count * 15 + allNodes.filter((n: any) => n.criticality === 'critical' || isControlPlaneTier(n.tier)).length * 5)
 
-      let highestTier = 'tier_2'
+      let highestTier: string = 'tier_2'
       for (const n of allNodes) {
-        if (n.tier === 'tier_0') { highestTier = 'tier_0'; break }
-        if (n.tier === 'tier_1') highestTier = 'tier_1'
+        if (n.tier && n.tier !== 'unclassified') highestTier = stricterTier<string>(n.tier, highestTier)
       }
 
       const labels = ringLabel.current as Record<number, string>
@@ -695,7 +695,7 @@ function BlastRadiusTab({ identityId, identityName }: { identityId: string; iden
         </div>
         <div className={cardClass}>
           <dt className="text-xs text-[var(--text-secondary)]">{t('highestTier')}</dt>
-          <dd className={`text-lg font-bold whitespace-nowrap ${highest === 'tier_0' ? TONE_TEXT.critical : 'text-[var(--text-primary)]'}`}>
+          <dd className={`text-lg font-bold whitespace-nowrap ${isControlPlaneTier(highest) ? TONE_TEXT.critical : 'text-[var(--text-primary)]'}`}>
             {highest ? tTiers(tierKeyOf(highest)) : tCommon('na')}
           </dd>
         </div>

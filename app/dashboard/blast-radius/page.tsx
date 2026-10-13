@@ -6,6 +6,7 @@ import { MetricCard } from '@/components/ui/metric-card'
 import { BlastRadiusGraph } from '@/components/dashboard/blast-radius-graph'
 import type { BlastRadiusGraphProps } from '@/components/dashboard/blast-radius-graph'
 import { Search, GitCompare, X } from 'lucide-react'
+import { isControlPlaneTier, stricterTier } from '@/lib/utils/tiers'
 
 interface BlastNode {
   id: string
@@ -45,17 +46,13 @@ function computeBlastRadiusScore(stats: BlastResult['stats']): number {
 }
 
 function computeHighestTier(rings: BlastResult['rings']): string {
+  let highest = 'tier_2'
   for (const ring of rings) {
     for (const node of ring.nodes) {
-      if (node.tier === 'tier_0') return 'tier_0'
+      if (node.tier && node.tier !== 'unclassified') highest = stricterTier(node.tier, highest)
     }
   }
-  for (const ring of rings) {
-    for (const node of ring.nodes) {
-      if (node.tier === 'tier_1') return 'tier_1'
-    }
-  }
-  return 'tier_2'
+  return highest
 }
 
 // Badge tones built from theme tokens so they keep AA contrast in light and dark themes.
@@ -299,7 +296,7 @@ export default function BlastRadiusPage() {
             <MetricCard
               label={t('highestTier')}
               value={tierLabel(primaryGraphData.stats.highestTier)}
-              color={primaryGraphData.stats.highestTier === 'tier_0' ? 'red' : 'blue'}
+              color={isControlPlaneTier(primaryGraphData.stats.highestTier) ? 'red' : 'blue'}
             />
           </div>
 
@@ -312,7 +309,7 @@ export default function BlastRadiusPage() {
               <MetricCard
                 label={t('bLabel', { label: t('highestTier') })}
                 value={tierLabel(compareGraphData.stats.highestTier)}
-                color={compareGraphData.stats.highestTier === 'tier_0' ? 'red' : 'blue'}
+                color={isControlPlaneTier(compareGraphData.stats.highestTier) ? 'red' : 'blue'}
               />
             </div>
           )}
@@ -372,7 +369,7 @@ export default function BlastRadiusPage() {
                         <td className="py-2 px-3">
                           {node.tier && node.tier !== 'unclassified' && (
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
-                              node.tier === 'tier_0' ? TONE.critical : node.tier === 'tier_1' ? TONE.high : TONE.low
+                              isControlPlaneTier(node.tier) ? TONE.critical : node.tier === 'tier_1' ? TONE.high : TONE.low
                             }`}>
                               {tierLabel(node.tier)}
                             </span>

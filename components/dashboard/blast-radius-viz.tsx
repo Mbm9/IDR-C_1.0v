@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
+import { isControlPlaneTier } from '@/lib/utils/tiers'
 
 interface BlastNode {
   id: string
@@ -97,11 +98,11 @@ export function BlastRadiusViz({ center, rings }: Props) {
         const y = cy + (ringRadius + jitter) * Math.sin(angle)
         const nodeRadius = node.type === 'resource' ? 4 : 6
 
-        // T0 highlight ring
-        if (node.tier === 'tier_0') {
+        // T0 / Top Tier highlight ring
+        if (isControlPlaneTier(node.tier)) {
           ctx.beginPath()
           ctx.arc(x, y, nodeRadius + 3, 0, Math.PI * 2)
-          ctx.strokeStyle = '#ef4444'
+          ctx.strokeStyle = node.tier === 'tier_top' ? '#be123c' : '#ef4444'
           ctx.lineWidth = 2
           ctx.stroke()
         }
@@ -127,7 +128,7 @@ export function BlastRadiusViz({ center, rings }: Props) {
     // Draw center node
     ctx.beginPath()
     ctx.arc(cx, cy, 16, 0, Math.PI * 2)
-    ctx.fillStyle = center.tier === 'tier_0' ? '#ef4444' : '#3b82f6'
+    ctx.fillStyle = center.tier === 'tier_0' ? '#ef4444' : center.tier === 'tier_top' ? '#be123c' : '#3b82f6'
     ctx.fill()
     ctx.strokeStyle = '#ffffff'
     ctx.lineWidth = 2
@@ -157,6 +158,7 @@ export function BlastRadiusViz({ center, rings }: Props) {
       { color: NODE_COLORS.resource, label: 'Resource' },
       { color: NODE_COLORS.group, label: 'Group' },
       { color: '#ef4444', label: 'T0 (ring)' },
+      { color: '#be123c', label: 'TOP (ring)' },
     ]
     legendItems.forEach((item, idx) => {
       const lx = 16
@@ -209,7 +211,7 @@ export function BlastRadiusViz({ center, rings }: Props) {
             {tooltip.node.type}{tooltip.node.subType ? ` / ${tooltip.node.subType}` : ''}
           </p>
           {tooltip.node.tier && (
-            <p className={`text-xs font-medium ${tooltip.node.tier === 'tier_0' ? 'text-[color:color-mix(in_srgb,var(--color-critical)_70%,var(--text-primary))]' : ''}`}>
+            <p className={`text-xs font-medium ${isControlPlaneTier(tooltip.node.tier) ? 'text-[color:color-mix(in_srgb,var(--color-critical)_70%,var(--text-primary))]' : ''}`}>
               {tooltip.node.tier.replace('_', ' ')}
             </p>
           )}
