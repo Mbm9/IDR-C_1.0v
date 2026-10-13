@@ -1,8 +1,12 @@
 'use client'
 
 import Link from 'next/link'
-import { AD_TIER_CONFIG, IDENTITY_STATUS_CONFIG, getRiskLevel } from '@/lib/utils/constants'
+import { useRouter } from 'next/navigation'
+import type { MouseEvent } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { formatRelativeTime } from '@/lib/utils/formatters'
+import { useEnumLabel } from '@/components/ui/enum-label'
+import { TONE_TEXT, toneBadge, riskTone, statusTone, tierTone } from '@/components/ui/tone'
 import type { IdentityListItem } from '@/lib/hooks/use-identities'
 
 interface IdentityTableProps {
@@ -13,149 +17,175 @@ interface IdentityTableProps {
 }
 
 const COLUMNS = [
-  { key: 'displayName', label: 'Name', sortable: true },
-  { key: 'type', label: 'Type', sortable: true },
-  { key: 'subType', label: 'Sub-type', sortable: true },
-  { key: 'adTier', label: 'AD Tier', sortable: true },
-  { key: 'riskScore', label: 'Risk', sortable: true },
-  { key: 'velocity', label: 'Velocity', sortable: true },
-  { key: 'quality', label: 'Quality', sortable: false },
-  { key: 'status', label: 'Status', sortable: true },
-  { key: 'sourceSystem', label: 'Source', sortable: true },
-  { key: 'lastLogonAt', label: 'Last Logon', sortable: true },
-]
+  { key: 'displayName', labelKey: 'colName', sortable: true },
+  { key: 'type', labelKey: 'colType', sortable: true },
+  { key: 'subType', labelKey: 'colSubType', sortable: true },
+  { key: 'adTier', labelKey: 'colAdTier', sortable: true },
+  { key: 'riskScore', labelKey: 'colRisk', sortable: true },
+  { key: 'velocity', labelKey: 'colVelocity', sortable: true },
+  { key: 'quality', labelKey: 'colQuality', sortable: false },
+  { key: 'status', labelKey: 'colStatus', sortable: true },
+  { key: 'sourceSystem', labelKey: 'colSource', sortable: true },
+  { key: 'lastLogonAt', labelKey: 'colLastLogon', sortable: true },
+] as const
 
-function SortIcon({ column, sortBy, sortOrder }: { column: string; sortBy: string; sortOrder: string }) {
-  if (column !== sortBy) return <span className="text-slate-300 ml-1">↕</span>
-  return <span className="ml-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>
+function SortIcon({ active, order }: { active: boolean; order: 'asc' | 'desc' }) {
+  if (!active) return <span className="text-[var(--text-secondary)] opacity-60" aria-hidden="true">↕</span>
+  return <span aria-hidden="true">{order === 'asc' ? '↑' : '↓'}</span>
 }
 
-function formatSource(source: string): string {
-  return source.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
-function formatSubType(subType: string): string {
-  return subType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+/** Clicks on links, buttons and form controls keep their own behaviour. */
+function isInteractiveTarget(e: MouseEvent<HTMLElement>): boolean {
+  const target = e.target as HTMLElement | null
+  return !!target?.closest('a, button, input, select, textarea, label, [role="button"]')
 }
 
 export function IdentityTable({ data, sortBy, sortOrder, onSort }: IdentityTableProps) {
+  const t = useTranslations('identityTable')
+  const tTiers = useTranslations('tiers')
+  const tStatus = useTranslations('status')
+  const tCommon = useTranslations('common')
+  const locale = useLocale()
+  const label = useEnumLabel()
+  const router = useRouter()
+
   if (data.length === 0) {
     return (
-      <div className="text-center py-12 text-slate-400">
-        No identities found matching your filters
+      <div className="text-center py-12 text-[var(--text-secondary)]">
+        {t('noMatches')}
       </div>
     )
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="w-full text-sm">
+        <caption className="sr-only">{t('caption')}</caption>
         <thead>
-          <tr className="border-b border-slate-200">
-            {COLUMNS.map((col) => (
-              <th
-                key={col.key}
-                className={`px-4 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider ${
-                  col.sortable ? 'cursor-pointer hover:text-slate-700 select-none' : ''
-                }`}
-                onClick={() => col.sortable && onSort(col.key)}
-              >
-                {col.label}
-                {col.sortable && <SortIcon column={col.key} sortBy={sortBy} sortOrder={sortOrder} />}
-              </th>
-            ))}
+          <tr className="border-b border-[var(--border-default)]">
+            {COLUMNS.map((col) => {
+              const active = col.key === sortBy
+              return (
+                <th
+                  key={col.key}
+                  scope="col"
+                  aria-sort={active ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+                  className="px-4 py-3 text-start text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider whitespace-nowrap"
+                >
+                  {col.sortable ? (
+                    <button
+                      type="button"
+                      onClick={() => onSort(col.key)}
+                      className="inline-flex items-center gap-1 uppercase tracking-wider hover:text-[var(--text-primary)] select-none"
+                    >
+                      {t(col.labelKey)}
+                      <SortIcon active={active} order={sortOrder} />
+                    </button>
+                  ) : (
+                    t(col.labelKey)
+                  )}
+                </th>
+              )
+            })}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-[var(--border-default)]">
           {data.map((identity) => {
-            const tierConfig = AD_TIER_CONFIG[identity.adTier as keyof typeof AD_TIER_CONFIG]
-            const statusConfig = IDENTITY_STATUS_CONFIG[identity.status as keyof typeof IDENTITY_STATUS_CONFIG]
-            const risk = getRiskLevel(identity.riskScore)
+            const href = `/dashboard/identities/${identity.id}`
+            const tierKey = ['tier_0', 'tier_1', 'tier_2'].includes(identity.adTier) ? identity.adTier : 'unclassified'
+            const rf = (identity as IdentityListItem & { riskFactors?: { riskVelocity?: number } | null }).riskFactors
+            const velocity = rf?.riskVelocity ?? 0
+            const quality = identity.dataQuality?.score
+            const statusLabel = tStatus.has(identity.status) ? tStatus(identity.status) : label('findingStatus', identity.status)
 
             return (
-              <tr key={identity.id} className="hover:bg-slate-50 transition-colors">
+              <tr
+                key={identity.id}
+                onClick={(e) => {
+                  if (isInteractiveTarget(e)) return
+                  if (e.metaKey || e.ctrlKey) { window.open(href, '_blank'); return }
+                  router.push(href)
+                }}
+                className="hover:bg-[var(--bg-secondary)] transition-colors cursor-pointer"
+              >
                 <td className="px-4 py-3">
                   <Link
-                    href={`/dashboard/identities/${identity.id}`}
-                    className="font-medium text-slate-900 hover:text-blue-600 transition-colors"
+                    href={href}
+                    className="font-medium text-[var(--text-primary)] hover:text-[var(--color-info)] transition-colors"
                   >
-                    {identity.displayName}
+                    <bdi>{identity.displayName}</bdi>
                   </Link>
                   {identity.email && (
-                    <p className="text-xs text-slate-400 mt-0.5">{identity.email}</p>
+                    <p className="text-xs text-[var(--text-secondary)] mt-0.5"><bdi>{identity.email}</bdi></p>
                   )}
                 </td>
-                <td className="px-4 py-3">
-                  <span className="text-base mr-1">{identity.type === 'human' ? '👤' : '🤖'}</span>
-                  <span className="text-slate-600">{identity.type === 'human' ? 'Human' : 'NHI'}</span>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <span className="text-base me-1" aria-hidden="true">{identity.type === 'human' ? '👤' : '🤖'}</span>
+                  <span className="text-[var(--text-secondary)]">{label('identityType', identity.type)}</span>
                 </td>
-                <td className="px-4 py-3 text-slate-600">{formatSubType(identity.subType)}</td>
+                <td className="px-4 py-3 text-[var(--text-secondary)]">{label('subType', identity.subType)}</td>
                 <td className="px-4 py-3">
-                  <span
-                    className="text-xs px-2 py-1 rounded-full font-medium"
-                    style={{ color: tierConfig?.color, backgroundColor: tierConfig?.bgColor }}
-                  >
-                    {tierConfig?.label}
+                  <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${toneBadge(tierTone(tierKey))}`}>
+                      {tTiers(tierKey)}
+                    </span>
+                    {identity.tierViolation && (
+                      <span className={`text-xs font-bold ${TONE_TEXT.critical}`} title={t('tierViolation')}>
+                        <span aria-hidden="true">!</span>
+                        <span className="sr-only">{t('tierViolation')}</span>
+                      </span>
+                    )}
                   </span>
-                  {identity.tierViolation && (
-                    <span className="ml-1 text-xs text-red-600 font-bold" title="Tier Violation">!</span>
-                  )}
                 </td>
                 <td className="px-4 py-3">
-                  <span className="font-semibold" style={{ color: risk.color }}>
+                  <span className={`font-semibold ${TONE_TEXT[riskTone(identity.riskScore)]}`}>
                     {identity.riskScore}
                   </span>
                 </td>
                 <td className="px-4 py-3">
-                  {(() => {
-                    const rf = (identity as any).riskFactors as { riskVelocity?: number } | null
-                    const velocity = rf?.riskVelocity ?? 0
-                    if (velocity > 0.5) {
-                      return (
-                        <span className="text-xs font-medium text-red-600 flex items-center gap-0.5" title={`+${velocity}/day`}>
-                          <span>↑</span> {velocity.toFixed(2)}
-                        </span>
-                      )
-                    }
-                    if (velocity < -0.5) {
-                      return (
-                        <span className="text-xs font-medium text-green-600 flex items-center gap-0.5" title={`${velocity}/day`}>
-                          <span>↓</span> {velocity.toFixed(2)}
-                        </span>
-                      )
-                    }
-                    return (
-                      <span className="text-xs text-slate-400" title="Stable">—</span>
-                    )
-                  })()}
+                  {velocity > 0.5 ? (
+                    <span className={`text-xs font-medium flex items-center gap-0.5 ${TONE_TEXT.critical}`} title={t('perDay', { value: `+${velocity}` })}>
+                      <span aria-hidden="true">↑</span> <bdi>{velocity.toFixed(2)}</bdi>
+                      <span className="sr-only">{t('deteriorating')}</span>
+                    </span>
+                  ) : velocity < -0.5 ? (
+                    <span className={`text-xs font-medium flex items-center gap-0.5 ${TONE_TEXT.low}`} title={t('perDay', { value: String(velocity) })}>
+                      <span aria-hidden="true">↓</span> <bdi>{velocity.toFixed(2)}</bdi>
+                      <span className="sr-only">{t('improving')}</span>
+                    </span>
+                  ) : (
+                    <span className="text-xs text-[var(--text-secondary)]" title={t('stable')}>
+                      <span aria-hidden="true">—</span>
+                      <span className="sr-only">{t('stable')}</span>
+                    </span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
-                  {(() => {
-                    const dq = (identity as any).dataQuality as { score?: number } | null
-                    const score = dq?.score
-                    if (score == null) return <span className="inline-block w-full h-1.5 rounded-full bg-slate-200" title="Unscored" />
-                    const color = score > 80 ? '#22c55e' : score > 50 ? '#f59e0b' : '#ef4444'
-                    return (
-                      <div className="flex items-center gap-1.5" title={`Quality: ${score}/100`}>
-                        <div className="w-16 h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                          <div className="h-full rounded-full" style={{ width: `${score}%`, backgroundColor: color }} />
-                        </div>
-                        <span className="text-xs text-slate-500">{score}</span>
+                  {quality == null ? (
+                    <span className="inline-block w-full h-1.5 rounded-full bg-[var(--bg-tertiary)]" title={t('unscored')} aria-label={t('unscored')} />
+                  ) : (
+                    <div className="flex items-center gap-1.5" title={t('qualityScore', { score: quality })}>
+                      <div className="w-16 h-1.5 rounded-full bg-[var(--bg-tertiary)] overflow-hidden" aria-hidden="true">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${quality}%`,
+                            backgroundColor: quality > 80 ? 'var(--color-low)' : quality > 50 ? 'var(--color-medium)' : 'var(--color-critical)',
+                          }}
+                        />
                       </div>
-                    )
-                  })()}
+                      <span className="text-xs text-[var(--text-secondary)]">{quality}</span>
+                    </div>
+                  )}
                 </td>
                 <td className="px-4 py-3">
-                  <span
-                    className="text-xs px-2 py-1 rounded-full font-medium"
-                    style={{ color: statusConfig?.color, backgroundColor: `${statusConfig?.color}15` }}
-                  >
-                    {statusConfig?.label}
+                  <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${toneBadge(statusTone(identity.status))}`}>
+                    {statusLabel}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-slate-600 text-xs">{formatSource(identity.sourceSystem)}</td>
-                <td className="px-4 py-3 text-slate-500 text-xs">
-                  {identity.lastLogonAt ? formatRelativeTime(identity.lastLogonAt) : 'Never'}
+                <td className="px-4 py-3 text-[var(--text-secondary)] text-xs whitespace-nowrap">{label('sourceSystem', identity.sourceSystem)}</td>
+                <td className="px-4 py-3 text-[var(--text-secondary)] text-xs whitespace-nowrap">
+                  {identity.lastLogonAt ? formatRelativeTime(identity.lastLogonAt, locale) : tCommon('never')}
                 </td>
               </tr>
             )

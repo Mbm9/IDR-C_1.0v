@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ArrowUpRight, ArrowDownRight, Minus, ArrowRight } from 'lucide-react'
 import { Sparkline, SEVERITY_SERIES } from './chart-theme'
+import { TONE_TEXT } from './tone'
 
 type Severity = 'critical' | 'high' | 'medium' | 'low' | 'neutral'
 
@@ -87,14 +88,13 @@ export function StatTile(props: StatTileProps) {
             <span className="text-2xl font-semibold tabular-nums text-[var(--text-primary)] leading-none">{display}</span>
             {delta != null && (
               <span
-                className="inline-flex items-center gap-0.5 text-[11px] font-semibold tabular-nums"
-                style={{ color: deltaGood == null ? 'var(--text-tertiary)' : deltaGood ? 'var(--color-low)' : 'var(--color-critical)' }}
+                className={`inline-flex items-center gap-0.5 text-[11px] font-semibold tabular-nums ${deltaGood == null ? 'text-[var(--text-secondary)]' : TONE_TEXT[deltaGood ? 'low' : 'critical']}`}
               >
-                <DeltaIcon size={12} />{Math.abs(delta)}{deltaSuffix}
+                <DeltaIcon size={12} className="rtl:-scale-x-100" aria-hidden="true" /><bdi>{Math.abs(delta)}{deltaSuffix}</bdi>
               </span>
             )}
           </div>
-          {hint && <p className="mt-1 text-[11px] text-[var(--text-tertiary)] truncate">{hint}</p>}
+          {hint && <p className="mt-1 text-[11px] text-[var(--text-secondary)] truncate">{hint}</p>}
         </div>
         {spark && spark.length > 1 && (
           <div className="shrink-0 pt-1"><Sparkline data={spark} color={sparkColor} /></div>

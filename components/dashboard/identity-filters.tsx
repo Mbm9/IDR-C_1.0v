@@ -18,7 +18,7 @@ function SelectFilter({ label, value, options, onChange }: {
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-info)]"
+      className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-info)]"
       aria-label={label}
     >
       {options.map((opt) => (
@@ -34,6 +34,7 @@ export function IdentityFilters({ filters, onChange, onReset }: IdentityFiltersP
   const tStatus = useTranslations('status')
   const tSources = useTranslations('sources')
   const tCommon = useTranslations('common')
+  const tf = useTranslations('identityTable')
 
   const TYPE_OPTIONS = [
     { value: '', label: t('allTypes') },
@@ -86,26 +87,27 @@ export function IdentityFilters({ filters, onChange, onReset }: IdentityFiltersP
   const hasFilters = Object.values(filters).some(v => v !== '' && v !== undefined)
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" role="search" aria-label={tf('filtersLabel')}>
       <div className="flex flex-wrap gap-2">
         <input
-          type="text"
+          type="search"
+          aria-label={tf('searchLabel')}
           placeholder={t('searchPlaceholder')}
           value={filters.search || ''}
           onChange={(e) => onChange('search', e.target.value)}
-          className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm w-64 bg-[var(--bg-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-info)]"
+          className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm w-full sm:w-64 bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-info)]"
         />
-        <SelectFilter label={t('allTypes')} value={filters.type || ''} options={TYPE_OPTIONS} onChange={(v) => onChange('type', v)} />
-        <SelectFilter label={t('allSubTypes')} value={filters.subType || ''} options={SUB_TYPE_OPTIONS} onChange={(v) => onChange('subType', v)} />
-        <SelectFilter label={tTiers('allTiers')} value={filters.adTier || ''} options={TIER_OPTIONS} onChange={(v) => onChange('adTier', v)} />
-        <SelectFilter label={tStatus('allStatuses')} value={filters.status || ''} options={STATUS_OPTIONS} onChange={(v) => onChange('status', v)} />
-        <SelectFilter label={tSources('allSources')} value={filters.sourceSystem || ''} options={SOURCE_OPTIONS} onChange={(v) => onChange('sourceSystem', v)} />
+        <SelectFilter label={tf('filterType')} value={filters.type || ''} options={TYPE_OPTIONS} onChange={(v) => onChange('type', v)} />
+        <SelectFilter label={tf('filterSubType')} value={filters.subType || ''} options={SUB_TYPE_OPTIONS} onChange={(v) => onChange('subType', v)} />
+        <SelectFilter label={tf('filterTier')} value={filters.adTier || ''} options={TIER_OPTIONS} onChange={(v) => onChange('adTier', v)} />
+        <SelectFilter label={tf('filterStatus')} value={filters.status || ''} options={STATUS_OPTIONS} onChange={(v) => onChange('status', v)} />
+        <SelectFilter label={tf('filterSource')} value={filters.sourceSystem || ''} options={SOURCE_OPTIONS} onChange={(v) => onChange('sourceSystem', v)} />
 
         <SelectFilter
-          label="Velocity"
+          label={tf('filterVelocity')}
           value={filters.velocityDirection || ''}
           options={[
-            { value: '', label: tCommon('all') },
+            { value: '', label: tf('allVelocities') },
             { value: 'deteriorating', label: t('deteriorating') },
             { value: 'improving', label: t('improving') },
             { value: 'stable', label: t('stable') },
@@ -113,7 +115,7 @@ export function IdentityFilters({ filters, onChange, onReset }: IdentityFiltersP
           onChange={(v) => onChange('velocityDirection', v)}
         />
 
-        <label className="flex items-center gap-2 px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] cursor-pointer">
+        <label className="flex items-center gap-2 px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] text-[var(--text-primary)] cursor-pointer">
           <input
             type="checkbox"
             checked={filters.tierViolation === 'true'}

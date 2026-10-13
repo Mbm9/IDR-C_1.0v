@@ -123,7 +123,7 @@
     "allTypes": "جميع الأنواع",
     "allSubTypes": "جميع الأنواع الفرعية",
     "explorer": "الهويات",
-    "identitiesFound": "تم العثور على {count} هوية",
+    "identitiesFound": "{count, plural, zero {لم يتم العثور على أي هوية} one {تم العثور على هوية واحدة} two {تم العثور على هويتين} few {تم العثور على # هويات} many {تم العثور على # هوية} other {تم العثور على # هوية}}",
     "loadingIdentities": "جاري تحميل الهويات...",
     "failedToLoad": "فشل تحميل الهويات. تحقق من اتصال قاعدة البيانات.",
     "tierViolationsOnly": "مخالفات التصنيف فقط",
@@ -133,7 +133,8 @@
     "identityNotFound": "الهوية غير موجودة أو الوصول مرفوض.",
     "deteriorating": "متدهور",
     "improving": "متحسن",
-    "stable": "مستقر"
+    "stable": "مستقر",
+    "breadcrumb": "مسار التنقل"
   },
   "dashboard": {
     "title": "نظرة عامة",
@@ -149,7 +150,7 @@
     "failedToLoad": "فشل تحميل مقاييس لوحة التحكم",
     "checkConnection": "تحقق من اتصال قاعدة البيانات وحاول مرة أخرى.",
     "identitiesWithoutViolations": "هويات بدون مخالفات تصنيف",
-    "identitiesMonitored": "{count} هوية تحت المراقبة",
+    "identitiesMonitored": "{count, plural, zero {لا توجد هويات تحت المراقبة} one {هوية واحدة تحت المراقبة} two {هويتان تحت المراقبة} few {# هويات تحت المراقبة} many {# هوية تحت المراقبة} other {# هوية تحت المراقبة}}",
     "exportRiskSummary": "تصدير ملخص المخاطر",
     "attackPaths": "مسارات الهجوم",
     "adExposures": "تعرضات AD",
@@ -158,8 +159,12 @@
     "hintOpenViolations": "مخالفات سياسات مفتوحة",
     "hintOpenFindings": "نتائج مفتوحة",
     "hintCrossTier": "وصول عبر المستويات",
-    "hintOfIdentities": "من أصل {count} هوية",
-    "hintMeanRisk": "متوسط درجة المخاطر"
+    "hintOfIdentities": "{count, plural, one {من أصل هوية واحدة} two {من أصل هويتين} few {من أصل # هويات} many {من أصل # هوية} other {من أصل # هوية}}",
+    "hintMeanRisk": "متوسط درجة المخاطر",
+    "pendingAction": {
+      "certification": "اعتمادات منتهية الصلاحية",
+      "violation": "مخالفات مفتوحة"
+    }
   },
   "exposures": {
     "title": "تعرضات Active Directory",
@@ -221,10 +226,18 @@
     "colAffected": "المتأثرة",
     "colFirstSeen": "أول اكتشاف",
     "noIssues": "لا توجد مشكلات مطابقة لهذا المرشّح",
-    "failedToLoad": "فشل تحميل المشكلات"
+    "failedToLoad": "فشل تحميل المشكلات",
+    "copy": "نسخ",
+    "copied": "تم النسخ",
+    "loading": "جارٍ تحميل المشكلة…",
+    "close": "إغلاق",
+    "affectedCount": "{count, plural, zero {لا عناصر متأثرة} one {عنصر واحد متأثر} two {عنصران متأثران} few {# عناصر متأثرة} many {# عنصرًا متأثرًا} other {# عنصر متأثر}}",
+    "exposurePointsCount": "{count, plural, zero {لا نقاط تعرض} one {نقطة تعرض واحدة} two {نقطتا تعرض} few {# نقاط تعرض} many {# نقطة تعرض} other {# نقطة تعرض}}",
+    "filterStatus": "تصفية حسب الحالة",
+    "filterSeverity": "تصفية حسب الخطورة"
   },
   "violations": {
-    "title": "المخالفات السياسية",
+    "title": "مخالفات السياسات",
     "tierBreach": "خرق التصنيف",
     "sodConflict": "تعارض فصل المهام",
     "excessivePrivilege": "صلاحيات مفرطة",
@@ -240,7 +253,20 @@
     "violationsRemediated": "المخالفات المعالجة",
     "activeExceptions": "الاستثناءات النشطة",
     "expires": "تنتهي",
-    "violationsCount": "{count} مخالفة"
+    "violationsCount": "{count, plural, zero {لا توجد مخالفات} one {مخالفة واحدة} two {مخالفتان} few {# مخالفات} many {# مخالفة} other {# مخالفة}}",
+    "noViolations": "لا توجد مخالفات",
+    "colType": "النوع",
+    "colSeverity": "الخطورة",
+    "colStatus": "الحالة",
+    "colIdentity": "الهوية",
+    "colPolicy": "السياسة",
+    "colDetected": "تاريخ الاكتشاف",
+    "filterType": "نوع المخالفة",
+    "filterSeverity": "الخطورة",
+    "filterStatus": "الحالة",
+    "allStatuses": "جميع الحالات",
+    "pageOf": "صفحة {page} من {total}",
+    "activeExceptionsCount": "الاستثناءات النشطة ({count})"
   },
   "tiering": {
     "title": "امتثال تصنيف AD",
@@ -257,10 +283,21 @@
     "effectiveTier": "المستوى الفعلي",
     "riskScore": "درجة المخاطر",
     "tier0Inventory": "جرد المستوى ٠",
-    "identitiesCount": "{count} هوية",
-    "resourcesCount": "{count} مورد",
+    "identitiesCount": "{count, plural, zero {لا هويات} one {هوية واحدة} two {هويتان} few {# هويات} many {# هوية} other {# هوية}}",
+    "resourcesCount": "{count, plural, zero {لا موارد} one {مورد واحد} two {موردان} few {# موارد} many {# موردًا} other {# مورد}}",
     "unclassifiedIdentities": "هويات غير مصنفة",
-    "failedToLoad": "فشل تحميل بيانات التصنيف"
+    "failedToLoad": "فشل تحميل بيانات التصنيف",
+    "crossTierPathsCount": "مسارات الوصول عبر المستويات ({count})",
+    "unclassifiedCount": "هويات غير مصنفة ({count})",
+    "heatmapAccesses": "يصل إلى {tier}",
+    "heatmapIdentityTier": "مستوى الهوية",
+    "heatmapCellTitle": "هويات {from} التي تصل إلى موارد {to}: {count}",
+    "heatmapViolation": "مخالفة",
+    "heatmapCompliant": "ممتثل",
+    "heatmapTierViolation": "مخالفة تصنيف",
+    "heatmapDownward": "وصول إلى مستوى أدنى",
+    "listSeparator": "، ",
+    "percentOfTotal": "{pct}%"
   },
   "nhi": {
     "title": "الهويات غير البشرية",
@@ -283,7 +320,7 @@
     "totalEntitlements": "إجمالي الصلاحيات",
     "unused90Days": "غير مستخدمة (٩٠+ يوم)",
     "riskTagged": "موسومة بالمخاطر",
-    "certificationStatus": "حالة الشهادة",
+    "certificationStatus": "حالة الاعتماد",
     "permissionTypes": "أنواع الأذونات",
     "overProvisioned": "هويات ذات صلاحيات مفرطة",
     "unusedEntitlements": "صلاحيات غير مستخدمة (٩٠+ يوم)",
@@ -291,7 +328,10 @@
     "identityCol": "الهوية",
     "resource": "المورد",
     "lastUsed": "آخر استخدام",
-    "entitlementsCount": "{count} صلاحية"
+    "entitlementsCount": "{count, plural, zero {لا صلاحيات} one {صلاحية واحدة} two {صلاحيتان} few {# صلاحيات} many {# صلاحية} other {# صلاحية}}",
+    "overProvisionedCount": "هويات ذات صلاحيات مفرطة ({count})",
+    "certificationChartLabel": "حالة الاعتماد: {summary}",
+    "permissionChartLabel": "أنواع الأذونات: {summary}"
   },
   "certifications": {
     "title": "شهادات الوصول",
@@ -826,7 +866,32 @@
     "acknowledge": "إقرار",
     "resolve": "حل",
     "investigate": "تحقيق",
-    "selected": "محدد"
+    "selected": "محدد",
+    "refresh": "تحديث",
+    "findingTypes": "أنواع النتائج",
+    "searchFindings": "البحث في النتائج",
+    "clearSearch": "مسح البحث",
+    "filterSeverity": "الخطورة",
+    "filterStatus": "الحالة",
+    "allStatuses": "جميع الحالات",
+    "filterTier": "المستوى",
+    "sortBy": "الترتيب حسب",
+    "sortDetected": "تاريخ الاكتشاف",
+    "sortSeverity": "الخطورة",
+    "sortRiskScore": "درجة المخاطر",
+    "sortIdentity": "الهوية",
+    "selectedCount": "{count, plural, one {عنصر واحد محدد} two {عنصران محددان} few {# عناصر محددة} many {# عنصرًا محددًا} other {# عنصر محدد}}",
+    "failedToLoad": "فشل تحميل النتائج",
+    "selectAll": "تحديد جميع النتائج في هذه الصفحة",
+    "selectRow": "تحديد النتيجة: {title}",
+    "colSeverity": "الخطورة",
+    "colIdentity": "الهوية",
+    "colTier": "المستوى",
+    "colRisk": "المخاطر",
+    "colStatus": "الحالة",
+    "tierEscalation": "المستوى المعيّن {assigned}، ويصل إلى {effective}",
+    "showingRange": "عرض {from}–{to} من أصل {total}",
+    "goToPage": "صفحة {page}"
   },
   "gpo": {
     "title": "كائنات سياسة المجموعة",
@@ -1110,5 +1175,435 @@
     "fallbackWin": "تم جمع بيانات التقرير بنجاح",
     "fallbackForecast": "توقعات الذكاء الاصطناعي غير متاحة. راجع المؤشرات أدناه.",
     "fallbackRecommendation": "فعّل مزوّد ذكاء اصطناعي للحصول على السرد الكامل للتقرير"
+  },
+  "header": {
+    "roles": {
+      "viewer": "مُطّلع",
+      "analyst": "محلل أمني",
+      "iam_admin": "مسؤول إدارة الهويات",
+      "ciso": "رئيس أمن المعلومات",
+      "admin": "مدير النظام"
+    },
+    "openSearch": "بحث (⌘K)",
+    "darkMode": "التبديل إلى الوضع الداكن",
+    "lightMode": "التبديل إلى الوضع الفاتح",
+    "aiAssistant": "المساعد الذكي"
+  },
+  "sidebar": {
+    "tagline": "وضع إدارة الهويات",
+    "mainNav": "التنقل الرئيسي",
+    "expand": "توسيع الشريط الجانبي",
+    "openMenu": "فتح القائمة",
+    "closeMenu": "إغلاق القائمة"
+  },
+  "dashboardShell": {
+    "demoBanner": "الوضع التجريبي — يتم استخدام بيانات اصطناعية. اربط بيئتك للحصول على رؤى فعلية.",
+    "connectNow": "اربط الآن",
+    "unexpectedError": "حدث خطأ غير متوقع."
+  },
+  "ui": {
+    "errorTitle": "تعذّر تحميل هذه البيانات",
+    "errorDescription": "فشل الطلب. تحقق من اتصالك بالخادم وحاول مرة أخرى.",
+    "retry": "إعادة المحاولة",
+    "exportCsv": "تصدير CSV",
+    "highConfidence": "ثقة عالية",
+    "estimated": "تقديري",
+    "lowConfidence": "ثقة منخفضة",
+    "riskLevel": {
+      "critical": "خطر حرج",
+      "high": "خطر مرتفع",
+      "medium": "خطر متوسط",
+      "low": "خطر منخفض"
+    },
+    "riskTooltip": "المخاطر {score} — {level}",
+    "tierViolationBadge": "مخالفة تصنيف: المستوى المعيّن {assigned}، ويصل إلى {effective}"
+  },
+  "charts": {
+    "noTrendData": "لا تتوفر بيانات للاتجاه",
+    "avgRisk": "متوسط المخاطر",
+    "riskTrendLabel": "متوسط درجة المخاطر من {from} إلى {to}؛ أحدث قيمة {value}",
+    "noViolationData": "لا توجد بيانات مخالفات",
+    "count": "العدد",
+    "violationBreakdownLabel": "{count, plural, zero {لا توجد مخالفات} one {مخالفة واحدة} two {مخالفتان} few {# مخالفات} many {# مخالفة} other {# مخالفة}} حسب النوع: {types}"
+  },
+  "identityTable": {
+    "caption": "قائمة الهويات",
+    "noMatches": "لا توجد هويات تطابق عوامل التصفية",
+    "colName": "الاسم",
+    "colType": "النوع",
+    "colSubType": "النوع الفرعي",
+    "colAdTier": "مستوى AD",
+    "colRisk": "المخاطر",
+    "colVelocity": "وتيرة التغيّر",
+    "colQuality": "جودة البيانات",
+    "colStatus": "الحالة",
+    "colSource": "المصدر",
+    "colLastLogon": "آخر تسجيل دخول",
+    "tierViolation": "مخالفة تصنيف",
+    "perDay": "{value} يوميًا",
+    "deteriorating": "متدهورة",
+    "improving": "متحسّنة",
+    "stable": "مستقرة",
+    "unscored": "غير مقيّمة",
+    "qualityScore": "الجودة: {score}/100",
+    "searchLabel": "البحث في الهويات",
+    "filtersLabel": "عوامل تصفية الهويات",
+    "filterType": "نوع الهوية",
+    "filterSubType": "النوع الفرعي",
+    "filterTier": "مستوى AD",
+    "filterStatus": "الحالة",
+    "filterSource": "نظام المصدر",
+    "filterVelocity": "اتجاه المخاطر",
+    "allVelocities": "جميع الاتجاهات",
+    "pageOf": "صفحة {page} من {total}"
+  },
+  "identityDetail": {
+    "tabsLabel": "تفاصيل الهوية",
+    "tabs": {
+      "overview": "نظرة عامة",
+      "accounts": "الحسابات",
+      "entitlements": "الصلاحيات",
+      "groups": "المجموعات",
+      "violations": "المخالفات",
+      "timeline": "الخط الزمني",
+      "ai_insights": "رؤى الذكاء الاصطناعي",
+      "blast_radius": "نطاق الانفجار"
+    },
+    "fields": {
+      "displayName": "الاسم المعروض",
+      "upn": "اسم المستخدم الأساسي (UPN)",
+      "samAccountName": "اسم حساب SAM",
+      "email": "البريد الإلكتروني",
+      "department": "القسم",
+      "sourceSystem": "نظام المصدر",
+      "sourceId": "معرّف المصدر",
+      "lastLogon": "آخر تسجيل دخول",
+      "passwordLastSet": "آخر تعيين لكلمة المرور",
+      "createdInSource": "تاريخ الإنشاء في المصدر",
+      "expiry": "تاريخ الانتهاء",
+      "created": "تاريخ الإنشاء"
+    },
+    "tierOption": {
+      "tier_0": "المستوى 0 – التحكم في مستوى الهوية",
+      "tier_1": "المستوى 1 – التحكم في الخوادم والتطبيقات",
+      "tier_2": "المستوى 2 – محطات العمل والمستخدمون النهائيون",
+      "unclassified": "غير مصنف"
+    },
+    "errorUpdateTier": "فشل تحديث المستوى",
+    "errorTriggerReview": "فشل بدء المراجعة",
+    "errorDisable": "فشل تعطيل الهوية",
+    "tierViolation": "مخالفة تصنيف",
+    "qualityScore": "الجودة: {score}/100",
+    "improveData": "تحسين البيانات",
+    "department": "القسم",
+    "email": "البريد الإلكتروني",
+    "manager": "المدير",
+    "owner": "المالك",
+    "lastLogon": "آخر تسجيل دخول",
+    "source": "المصدر",
+    "riskScore": "درجة المخاطر",
+    "triggerReview": "بدء مراجعة",
+    "updateTier": "تحديث المستوى",
+    "certifyAll": "اعتماد الكل",
+    "disable": "تعطيل",
+    "updateTierTitle": "تحديث مستوى AD",
+    "newTier": "المستوى الجديد",
+    "rationale": "المبرر",
+    "rationalePlaceholder": "اشرح سبب الحاجة إلى تغيير المستوى…",
+    "triggerReviewTitle": "بدء مراجعة الوصول",
+    "triggerReviewBody": "سيؤدي هذا إلى بدء مراجعة وصول للهوية <strong>{name}</strong>. سيتم إشعار مدير الهوية ومطالبته بمراجعة جميع الصلاحيات.",
+    "certifyTitle": "اعتماد جميع الصلاحيات",
+    "certifyBody": "سيؤدي هذا إلى بدء مراجعة اعتماد لجميع الصلاحيات التابعة للهوية <strong>{name}</strong>.",
+    "certifyCount": "{count, plural, zero {لن تُدرج أي صلاحيات في حملة الاعتماد هذه.} one {ستُدرج صلاحية واحدة في حملة الاعتماد هذه.} two {ستُدرج صلاحيتان في حملة الاعتماد هذه.} few {ستُدرج # صلاحيات في حملة الاعتماد هذه.} many {ستُدرج # صلاحية في حملة الاعتماد هذه.} other {ستُدرج # صلاحية في حملة الاعتماد هذه.}}",
+    "disableTitle": "تعطيل الهوية",
+    "disableConfirm": "تعطيل الهوية",
+    "warning": "تحذير",
+    "disableWarning": "سيؤدي تعطيل هذه الهوية إلى إلغاء جميع الجلسات النشطة ومنع المصادقة مستقبلًا. يمكن لمسؤول إدارة الهويات التراجع عن هذا الإجراء.",
+    "disableReason": "سبب التعطيل",
+    "disableReasonPlaceholder": "اذكر سبب تعطيل هذه الهوية…",
+    "noAccounts": "لا توجد حسابات مرتبطة",
+    "colPlatform": "المنصة",
+    "colAccountName": "اسم الحساب",
+    "colType": "النوع",
+    "colEnabled": "مفعّل",
+    "colMfa": "المصادقة متعددة العوامل",
+    "colLastAuth": "آخر مصادقة",
+    "yes": "نعم",
+    "no": "لا",
+    "mfaEnabled": "مفعّلة",
+    "mfaDisabled": "معطّلة",
+    "noEntitlements": "لا توجد صلاحيات مسندة",
+    "colPermission": "الإذن",
+    "colResource": "المورد",
+    "colTier": "المستوى",
+    "colCertification": "الاعتماد",
+    "colLastUsed": "آخر استخدام",
+    "colRiskTags": "وسوم المخاطر",
+    "noGroups": "لا توجد عضويات في مجموعات",
+    "colGroup": "المجموعة",
+    "colMembership": "العضوية",
+    "colPrivileged": "مميّزة",
+    "noViolations": "لا توجد مخالفات للسياسات",
+    "colSeverity": "الخطورة",
+    "colStatus": "الحالة",
+    "colPolicy": "السياسة",
+    "colDetected": "تاريخ الاكتشاف",
+    "noActivity": "لا يوجد نشاط مسجّل",
+    "byActor": "بواسطة <bdi>{name}</bdi>",
+    "analysisFailedStatus": "فشل طلب التحليل ({status})",
+    "analysisComplete": "اكتمل التحليل.",
+    "analysisFailed": "فشل طلب التحليل بالذكاء الاصطناعي",
+    "riskSummary": "ملخص المخاطر",
+    "riskLevel": "مستوى المخاطر",
+    "tierStatus": "حالة التصنيف",
+    "violationFlag": "مخالفة",
+    "openViolations": "المخالفات المفتوحة",
+    "riskFactors": "عوامل المخاطر",
+    "noRiskFactors": "لم تُرصد عوامل مخاطر جوهرية.",
+    "aiAnalysis": "التحليل بالذكاء الاصطناعي",
+    "analyzing": "جارٍ التحليل…",
+    "requestAnalysis": "طلب تحليل بالذكاء الاصطناعي",
+    "riskNarrative": "سرد المخاطر",
+    "executiveSummary": "الملخص التنفيذي",
+    "recommendations": "التوصيات",
+    "noAnalysis": "لا يتوفر تحليل بالذكاء الاصطناعي بعد.",
+    "noAnalysisHint": "اختر «طلب تحليل بالذكاء الاصطناعي» لإنشاء رؤى لهذه الهوية.",
+    "analyzingProfile": "جارٍ تحليل ملف مخاطر الهوية…",
+    "ringDirect": "مباشر",
+    "ringIndirect": "غير مباشر",
+    "ringTransitive": "متعدٍّ",
+    "blastFailed": "فشل حساب نطاق الانفجار",
+    "computingBlast": "جارٍ حساب نطاق الانفجار للهوية <bdi>{name}</bdi>…",
+    "retry": "إعادة المحاولة",
+    "noBlastData": "لا توجد بيانات لنطاق الانفجار",
+    "totalReachable": "إجمالي ما يمكن الوصول إليه",
+    "t0Reachable": "ما يمكن الوصول إليه في المستوى 0",
+    "blastScore": "درجة الانفجار",
+    "highestTier": "أعلى مستوى",
+    "factors": {
+      "tierViolation": {
+        "name": "مخالفة التصنيف",
+        "description": "الهوية مصنّفة في {assigned} لكنها تملك وصولًا إلى موارد {effective}"
+      },
+      "openViolations": {
+        "name": "مخالفات مفتوحة",
+        "description": "{count, plural, one {مخالفة سياسة واحدة غير محلولة} two {مخالفتا سياسة غير محلولتين} few {# مخالفات سياسة غير محلولة} many {# مخالفة سياسة غير محلولة} other {# مخالفة سياسة غير محلولة}}"
+      },
+      "expiredCertifications": {
+        "name": "اعتمادات منتهية",
+        "description": "{count, plural, one {صلاحية واحدة انتهى اعتمادها} two {صلاحيتان انتهى اعتمادهما} few {# صلاحيات انتهى اعتمادها} many {# صلاحية انتهى اعتمادها} other {# صلاحية انتهى اعتمادها}}"
+      },
+      "unusedEntitlements": {
+        "name": "صلاحيات غير مستخدمة",
+        "description": "{count, plural, one {صلاحية واحدة لم تُستخدم قط — مرشحة للإلغاء} two {صلاحيتان لم تُستخدما قط — مرشحتان للإلغاء} few {# صلاحيات لم تُستخدم قط — مرشحة للإلغاء} many {# صلاحية لم تُستخدم قط — مرشحة للإلغاء} other {# صلاحية لم تُستخدم قط — مرشحة للإلغاء}}"
+      },
+      "privilegedGroups": {
+        "name": "عضوية في مجموعات مميّزة",
+        "description": "{count, plural, one {عضو في مجموعة مميّزة واحدة} two {عضو في مجموعتين مميّزتين} few {عضو في # مجموعات مميّزة} many {عضو في # مجموعة مميّزة} other {عضو في # مجموعة مميّزة}}"
+      },
+      "toxicCombinations": {
+        "name": "تركيبات صلاحيات خطرة",
+        "description": "{count, plural, one {صلاحية واحدة موسومة كتركيبة خطرة أو مخالفة لفصل المهام} two {صلاحيتان موسومتان كتركيبة خطرة أو مخالفة لفصل المهام} few {# صلاحيات موسومة كتركيبة خطرة أو مخالفة لفصل المهام} many {# صلاحية موسومة كتركيبة خطرة أو مخالفة لفصل المهام} other {# صلاحية موسومة كتركيبة خطرة أو مخالفة لفصل المهام}}"
+      },
+      "dormantIdentity": {
+        "name": "هوية خاملة",
+        "description": "لم تسجّل الهوية الدخول مؤخرًا لكنها ما زالت نشطة"
+      },
+      "orphanedIdentity": {
+        "name": "هوية يتيمة",
+        "description": "هوية غير بشرية بلا مالك صالح"
+      }
+    }
+  },
+  "enumLabels": {
+    "sourceSystem": {
+      "active_directory": "Active Directory",
+      "azure_ad": "Azure AD",
+      "okta": "Okta",
+      "sailpoint": "SailPoint",
+      "cyberark": "CyberArk",
+      "broadcom_sso": "Broadcom SSO",
+      "broadcom_pam": "Broadcom PAM",
+      "sailpoint_iiq": "SailPoint IIQ",
+      "servicenow": "ServiceNow",
+      "microsoft_defender": "Microsoft Defender",
+      "sap_grc": "SAP GRC",
+      "hashicorp_vault": "HashiCorp Vault",
+      "splunk": "Splunk",
+      "beyondtrust": "BeyondTrust",
+      "digicert": "DigiCert",
+      "manual": "يدوي",
+      "csv": "استيراد CSV"
+    },
+    "platform": {
+      "ad": "Active Directory",
+      "azure_ad": "Azure AD",
+      "okta": "Okta",
+      "sailpoint": "SailPoint",
+      "cyberark": "CyberArk",
+      "broadcom_sso": "Broadcom SSO",
+      "broadcom_pam": "Broadcom PAM",
+      "sailpoint_iiq": "SailPoint IIQ",
+      "servicenow": "ServiceNow",
+      "microsoft_defender": "Microsoft Defender",
+      "sap_grc": "SAP GRC",
+      "hashicorp_vault": "HashiCorp Vault",
+      "splunk": "Splunk",
+      "beyondtrust": "BeyondTrust",
+      "digicert": "DigiCert",
+      "aws_iam": "AWS IAM",
+      "gcp_iam": "GCP IAM"
+    },
+    "identityType": {
+      "human": "بشرية",
+      "non_human": "غير بشرية"
+    },
+    "subType": {
+      "employee": "موظف",
+      "contractor": "متعاقد",
+      "vendor": "مورّد",
+      "partner": "شريك",
+      "service_account": "حساب خدمة",
+      "managed_identity": "هوية مُدارة",
+      "app_registration": "تسجيل تطبيق",
+      "api_key": "مفتاح API",
+      "bot": "روبوت برمجي",
+      "machine": "جهاز",
+      "certificate": "شهادة رقمية"
+    },
+    "violationType": {
+      "tier_breach": "خرق التصنيف",
+      "sod_conflict": "تعارض فصل المهام",
+      "excessive_privilege": "صلاحيات مفرطة",
+      "dormant_access": "وصول خامل",
+      "orphaned_identity": "هوية يتيمة",
+      "missing_mfa": "غياب المصادقة متعددة العوامل",
+      "expired_certification": "اعتماد منتهي الصلاحية",
+      "password_age": "تقادم كلمة المرور",
+      "kerberoastable": "عرضة لهجوم Kerberoasting",
+      "asrep_roastable": "عرضة لهجوم AS-REP Roasting",
+      "unconstrained_delegation": "تفويض غير مقيّد",
+      "constrained_delegation": "تفويض مقيّد",
+      "reversible_encryption": "تشفير قابل للعكس",
+      "password_not_required": "كلمة المرور غير مطلوبة",
+      "password_never_expires": "كلمة مرور لا تنتهي صلاحيتها",
+      "stale_privileged_account": "حساب مميّز خامل"
+    },
+    "findingStatus": {
+      "open": "مفتوحة",
+      "active": "نشطة",
+      "acknowledged": "تم الإقرار",
+      "investigating": "قيد التحقيق",
+      "contained": "تم الاحتواء",
+      "remediated": "تمت المعالجة",
+      "resolved": "تم الحل",
+      "investigated": "تم التحقيق",
+      "excepted": "مستثناة",
+      "false_positive": "إنذار كاذب",
+      "dismissed": "مرفوضة",
+      "confirmed": "مؤكدة"
+    },
+    "accountType": {
+      "standard": "قياسي",
+      "privileged": "مميّز",
+      "admin": "إداري",
+      "service": "خدمة",
+      "shared": "مشترك",
+      "emergency": "طوارئ"
+    },
+    "groupType": {
+      "security": "أمنية",
+      "distribution": "توزيع",
+      "dynamic": "ديناميكية",
+      "role_based": "قائمة على الأدوار",
+      "privileged_access": "وصول مميّز"
+    },
+    "membershipType": {
+      "direct": "مباشرة",
+      "nested": "متداخلة",
+      "dynamic": "ديناميكية"
+    },
+    "permissionType": {
+      "role": "دور",
+      "group_membership": "عضوية مجموعة",
+      "direct_assignment": "إسناد مباشر",
+      "inherited": "موروثة",
+      "delegated": "مفوّضة"
+    },
+    "certStatus": {
+      "pending": "قيد الانتظار",
+      "certified": "معتمدة",
+      "revoked": "ملغاة",
+      "expired": "منتهية"
+    },
+    "actionType": {
+      "assess_identity": "تقييم الهوية",
+      "certify_entitlement": "اعتماد صلاحية",
+      "revoke_access": "إلغاء وصول",
+      "approve_exception": "اعتماد استثناء",
+      "escalate_risk": "تصعيد مخاطر",
+      "trigger_review": "بدء مراجعة",
+      "update_tier": "تحديث المستوى",
+      "sync_source": "مزامنة مصدر",
+      "generate_recommendation": "إنشاء توصية",
+      "acknowledge_violation": "الإقرار بمخالفة",
+      "login_success": "تسجيل دخول ناجح",
+      "login_failed": "فشل تسجيل الدخول",
+      "change_role": "تغيير الدور",
+      "invite_user": "دعوة مستخدم",
+      "manage_integration": "تحديث تكامل",
+      "manage_api_key": "تحديث مفتاح API"
+    },
+    "actionSource": {
+      "manual": "يدوي",
+      "automated": "آلي",
+      "ai_recommended": "بتوصية الذكاء الاصطناعي"
+    },
+    "resourceType": {
+      "server": "خادم",
+      "application": "تطبيق",
+      "database": "قاعدة بيانات",
+      "file_share": "مجلد مشترك",
+      "cloud_resource": "مورد سحابي",
+      "domain_controller": "وحدة تحكم بالمجال",
+      "workstation": "محطة عمل",
+      "network_device": "جهاز شبكة",
+      "saas_app": "تطبيق SaaS"
+    },
+    "riskTag": {
+      "toxic_combination": "تركيبة صلاحيات خطرة",
+      "sod_violation": "مخالفة فصل المهام",
+      "excessive_privilege": "صلاحيات مفرطة",
+      "tier_violation": "مخالفة التصنيف"
+    },
+    "issueCategory": {
+      "identity": "الهوية",
+      "certificate": "الشهادات (AD CS)",
+      "gpo": "نهج المجموعة (GPO)",
+      "secret": "الأسرار"
+    },
+    "certainty": {
+      "confirmed": "مؤكد",
+      "probable": "مرجّح",
+      "potential": "محتمل"
+    },
+    "privilege": {
+      "any": "أي مستخدم",
+      "authenticated": "مستخدم موثَّق",
+      "admin": "مسؤول"
+    },
+    "ease": {
+      "easy": "سهل",
+      "moderate": "متوسط",
+      "hard": "صعب"
+    },
+    "issueEvent": {
+      "first_detected": "أول اكتشاف",
+      "risk_increased": "ارتفاع المخاطر",
+      "reappeared": "عاود الظهور",
+      "partially_remediated": "معالجة جزئية",
+      "fully_remediated": "معالجة كاملة",
+      "status_changed": "تغيّرت الحالة"
+    }
   }
 }

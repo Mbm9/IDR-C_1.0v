@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { TONE_TEXT } from './tone'
 
 export interface MetricCardProps {
   label: string
@@ -17,24 +19,26 @@ export interface MetricCardProps {
   subtitle?: string
 }
 
+// Logical (start) border so the accent stripe sits on the reading-start side in RTL too.
 const SEVERITY_STYLES: Record<string, string> = {
-  critical: 'border-l-[var(--color-critical)]',
-  high: 'border-l-[var(--color-high)]',
-  medium: 'border-l-[var(--color-medium)]',
-  low: 'border-l-[var(--color-low)]',
+  critical: 'border-s-[var(--color-critical)]',
+  high: 'border-s-[var(--color-high)]',
+  medium: 'border-s-[var(--color-medium)]',
+  low: 'border-s-[var(--color-low)]',
 }
 
 const COLOR_STYLES: Record<string, string> = {
-  red: 'border-l-[var(--color-critical)]',
-  orange: 'border-l-[var(--color-high)]',
-  green: 'border-l-[var(--color-low)]',
-  blue: 'border-l-[var(--color-info)]',
+  red: 'border-s-[var(--color-critical)]',
+  orange: 'border-s-[var(--color-high)]',
+  green: 'border-s-[var(--color-low)]',
+  blue: 'border-s-[var(--color-info)]',
 }
 
 export function MetricCard({
   label, value, previousValue, trend, trendIsPositive = false,
   severity, color, href, loading, confidence, subtitle,
 }: MetricCardProps) {
+  const t = useTranslations('ui')
   const [displayValue, setDisplayValue] = useState(0)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -72,7 +76,7 @@ export function MetricCard({
       {...wrapperProps}
       className={`
         block rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-5
-        ${severity ? `border-l-[3px] ${SEVERITY_STYLES[severity]}` : color ? `border-l-[3px] ${COLOR_STYLES[color]}` : ''}
+        ${severity ? `border-s-[3px] ${SEVERITY_STYLES[severity]}` : color ? `border-s-[3px] ${COLOR_STYLES[color]}` : ''}
         ${href ? 'cursor-pointer hover:border-[var(--border-hover)] transition-colors' : ''}
       `}
       style={{ boxShadow: 'var(--shadow-card)' }}
@@ -86,14 +90,14 @@ export function MetricCard({
         {trend && (
           <span className={`flex items-center gap-0.5 text-micro font-medium ${
             (trend === 'up' && trendIsPositive) || (trend === 'down' && !trendIsPositive)
-              ? 'text-[var(--color-low)]'
+              ? TONE_TEXT.low
               : (trend === 'up' && !trendIsPositive) || (trend === 'down' && trendIsPositive)
-                ? 'text-[var(--color-critical)]'
-                : 'text-[var(--text-tertiary)]'
+                ? TONE_TEXT.critical
+                : 'text-[var(--text-secondary)]'
           }`}>
-            {trend === 'up' && <TrendingUp size={14} />}
-            {trend === 'down' && <TrendingDown size={14} />}
-            {trend === 'flat' && <Minus size={14} />}
+            {trend === 'up' && <TrendingUp size={14} className="rtl:-scale-x-100" aria-hidden="true" />}
+            {trend === 'down' && <TrendingDown size={14} className="rtl:-scale-x-100" aria-hidden="true" />}
+            {trend === 'flat' && <Minus size={14} aria-hidden="true" />}
             {trendDelta !== null && `${Math.abs(trendDelta)}%`}
           </span>
         )}
@@ -105,10 +109,10 @@ export function MetricCard({
             style={{
               backgroundColor: confidence >= 80 ? 'var(--color-low)' : confidence >= 50 ? 'var(--color-medium)' : 'var(--color-critical)',
             }}
-            title={confidence >= 80 ? 'High confidence' : confidence >= 50 ? 'Estimated' : 'Low confidence'}
+            title={confidence >= 80 ? t('highConfidence') : confidence >= 50 ? t('estimated') : t('lowConfidence')}
           />
           {confidence < 50 && (
-            <span className="text-micro font-medium" style={{ color: 'var(--color-critical)' }}>Low confidence</span>
+            <span className={`text-micro font-medium ${TONE_TEXT.critical}`}>{t('lowConfidence')}</span>
           )}
         </div>
       )}

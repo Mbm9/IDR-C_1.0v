@@ -77,7 +77,7 @@ export function IdentityAvatar({ name, type, subType, status, size = 'md' }: Ide
       {/* Status dot */}
       {statusColor && (
         <span
-          className="absolute bottom-0 right-0 rounded-full border-2 border-[var(--bg-primary)]"
+          className="absolute bottom-0 end-0 rounded-full border-2 border-[var(--bg-primary)]"
           style={{
             width: size === 'lg' ? 14 : size === 'md' ? 12 : 10,
             height: size === 'lg' ? 14 : size === 'md' ? 12 : 10,

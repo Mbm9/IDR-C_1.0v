@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -10,6 +10,8 @@ import {
   ChevronDown, X,
 } from 'lucide-react'
 import { formatRelativeTime, formatDateTime } from '@/lib/utils/formatters'
+import { useEnumLabel } from '@/components/ui/enum-label'
+import { TONE_TEXT, toneBadge, severityTone, tierTone, type Tone } from '@/components/ui/tone'
 
 // ── Types ──
 
@@ -52,13 +54,7 @@ type TabKey = 'all' | 'violation' | 'attack_path' | 'threat' | 'shadow_admin' | 
 // ── Helpers ──
 
 function severityColor(severity: string): string {
-  switch (severity) {
-    case 'critical': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-    case 'high': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-    case 'medium': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-    case 'low': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-    default: return 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400'
-  }
+  return toneBadge(severityTone(severity))
 }
 
 function statusDotColor(status: string): string {
@@ -91,27 +87,21 @@ function typeIcon(type: string) {
   }
 }
 
-function typeBadgeColor(type: string): string {
-  switch (type) {
-    case 'violation': return 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
-    case 'attack_path': return 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400'
-    case 'threat': return 'bg-orange-50 text-orange-600 dark:bg-orange-900/20 dark:text-orange-400'
-    case 'shadow_admin': return 'bg-pink-50 text-pink-600 dark:bg-pink-900/20 dark:text-pink-400'
-    case 'peer_anomaly': return 'bg-cyan-50 text-cyan-600 dark:bg-cyan-900/20 dark:text-cyan-400'
-    case 'gpo_risk': return 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400'
-    case 'canary_trigger': return 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400'
-    default: return 'bg-slate-50 text-slate-600 dark:bg-slate-900/20 dark:text-slate-400'
-  }
+const TYPE_TONES: Record<string, Tone> = {
+  violation: 'critical',
+  attack_path: 'nhi',
+  threat: 'high',
+  shadow_admin: 'critical',
+  peer_anomaly: 'info',
+  gpo_risk: 'medium',
+  canary_trigger: 'low',
 }
 
-function tierBadge(tier: string | null, effectiveTier: string | null): string {
-  if (!tier) return ''
-  const display = tier.replace('_', ' ').toUpperCase()
-  if (effectiveTier && effectiveTier !== tier) {
-    return `${display} -> ${effectiveTier.replace('_', ' ').toUpperCase()}`
-  }
-  return display
+function typeBadgeColor(type: string): string {
+  return toneBadge(TYPE_TONES[type] ?? 'neutral')
 }
+
+const TIER_SHORT: Record<string, string> = { tier_0: 'T0', tier_1: 'T1', tier_2: 'T2', unclassified: '?' }
 
 function riskBarWidth(score: number | null): string {
   if (score === null || score === undefined) return '0%'
@@ -119,11 +109,11 @@ function riskBarWidth(score: number | null): string {
 }
 
 function riskBarColor(score: number | null): string {
-  if (score === null) return 'bg-slate-300'
-  if (score >= 80) return 'bg-red-500'
-  if (score >= 60) return 'bg-orange-500'
-  if (score >= 40) return 'bg-amber-500'
-  return 'bg-green-500'
+  if (score === null) return 'bg-[var(--border-hover)]'
+  if (score >= 80) return 'bg-[var(--color-critical)]'
+  if (score >= 60) return 'bg-[var(--color-high)]'
+  if (score >= 40) return 'bg-[var(--color-medium)]'
+  return 'bg-[var(--color-low)]'
 }
 
 // ── Export CSV ──
@@ -170,6 +160,8 @@ export default function ResultsPage() {
   const tSev = useTranslations('severity')
   const tCommon = useTranslations('common')
   const tTiers = useTranslations('tiers')
+  const locale = useLocale()
+  const label = useEnumLabel()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams() ?? new URLSearchParams()
@@ -334,7 +326,7 @@ export default function ResultsPage() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-h2 font-bold text-[var(--text-primary)]">{t('title')}</h1>
-          <p className="text-body text-[var(--text-tertiary)] mt-1">{t('description')}</p>
+          <p className="text-body text-[var(--text-secondary)] mt-1">{t('description')}</p>
         </div>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-micro text-[var(--text-secondary)]">
@@ -347,18 +339,23 @@ export default function ResultsPage() {
             {t('autoRefresh')}
           </label>
           <button
+            type="button"
             onClick={fetchData}
             disabled={loading}
-            className="flex items-center gap-2 px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-badge)] text-body hover:bg-[var(--bg-secondary)] transition-colors"
+            aria-label={t('refresh')}
+            title={t('refresh')}
+            className="flex items-center gap-2 px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-badge)] text-body text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
           >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} aria-hidden="true" />
           </button>
           <button
+            type="button"
             onClick={handleExportAll}
             disabled={exporting}
-            className="flex items-center gap-2 px-4 py-2 bg-[var(--color-info)] text-white rounded-[var(--radius-badge)] hover:opacity-90 transition-opacity disabled:opacity-50 text-body"
+            className="flex items-center gap-2 px-4 py-2 text-white rounded-[var(--radius-badge)] hover:opacity-90 transition-opacity disabled:opacity-50 text-body"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--color-info) 85%, black)' }}
           >
-            <Download size={14} />
+            <Download size={14} aria-hidden="true" />
             {t('exportAll')}
           </button>
         </div>
@@ -366,7 +363,7 @@ export default function ResultsPage() {
 
       {/* Summary Bar */}
       {data && (
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3" role="status">
           <SummaryPill color="red" label={tSev('critical')} count={summary.bySeverity.critical || 0} />
           <SummaryPill color="orange" label={tSev('high')} count={summary.bySeverity.high || 0} />
           <SummaryPill color="amber" label={tSev('medium')} count={summary.bySeverity.medium || 0} />
@@ -383,7 +380,7 @@ export default function ResultsPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex overflow-x-auto border-b border-[var(--border-default)] -mb-px">
+      <div className="flex overflow-x-auto border-b border-[var(--border-default)] -mb-px" role="tablist" aria-label={t('findingTypes')}>
         {TABS.map(tab => {
           const Icon = tab.icon
           const isActive = activeTab === tab.key
@@ -391,18 +388,21 @@ export default function ResultsPage() {
           return (
             <button
               key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
               onClick={() => handleTabChange(tab.key)}
               className={`flex items-center gap-2 px-4 py-3 text-body font-medium border-b-2 transition-colors whitespace-nowrap ${
                 isActive
-                  ? 'border-[var(--color-info)] text-[var(--color-info)]'
+                  ? `border-[var(--color-info)] ${TONE_TEXT.info}`
                   : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-default)]'
               }`}
             >
-              <Icon size={14} />
+              <Icon size={14} aria-hidden="true" />
               {t(tab.labelKey)}
               {count > 0 && (
                 <span className={`text-micro px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-[var(--color-info)]/10 text-[var(--color-info)]' : 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)]'
+                  isActive ? toneBadge('info') : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
                 }`}>
                   {count}
                 </span>
@@ -415,20 +415,23 @@ export default function ResultsPage() {
       {/* Filters Row */}
       <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 max-w-xs">
-          <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+          <Search size={14} className="absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" aria-hidden="true" />
           <input
-            type="text"
+            type="search"
+            aria-label={t('searchFindings')}
             placeholder={tCommon('search')}
             value={searchQuery}
             onChange={e => handleSearch(e.target.value)}
-            className="w-full ps-9 pe-3 py-2 rounded-[var(--radius-badge)] border border-[var(--border-default)] bg-[var(--bg-primary)] text-body"
+            className="w-full ps-9 pe-8 py-2 rounded-[var(--radius-badge)] border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-body"
           />
           {searchQuery && (
             <button
+              type="button"
               onClick={() => handleSearch('')}
-              className="absolute end-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)] hover:text-[var(--text-primary)]"
+              aria-label={t('clearSearch')}
+              className="absolute end-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
             >
-              <X size={14} />
+              <X size={14} aria-hidden="true" />
             </button>
           )}
         </div>
@@ -436,7 +439,8 @@ export default function ResultsPage() {
         <select
           value={severityFilter}
           onChange={e => handleFilterChange('severity', e.target.value)}
-          className="px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-badge)] text-body bg-[var(--bg-primary)]"
+          aria-label={t('filterSeverity')}
+          className="px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-badge)] text-body bg-[var(--bg-primary)] text-[var(--text-primary)]"
         >
           <option value="">{tSev('allSeverities')}</option>
           <option value="critical">{tSev('critical')}</option>
@@ -448,20 +452,20 @@ export default function ResultsPage() {
         <select
           value={statusFilter}
           onChange={e => handleFilterChange('status', e.target.value)}
-          className="px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-badge)] text-body bg-[var(--bg-primary)]"
+          aria-label={t('filterStatus')}
+          className="px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-badge)] text-body bg-[var(--bg-primary)] text-[var(--text-primary)]"
         >
-          <option value="">{tCommon('all')}</option>
-          <option value="open">{tCommon('open')}</option>
-          <option value="active">Active</option>
-          <option value="acknowledged">{tCommon('acknowledged')}</option>
-          <option value="remediated">{tCommon('remediated')}</option>
-          <option value="excepted">{tCommon('excepted')}</option>
+          <option value="">{t('allStatuses')}</option>
+          {['open', 'active', 'acknowledged', 'investigating', 'remediated', 'resolved', 'excepted'].map((s) => (
+            <option key={s} value={s}>{label('findingStatus', s)}</option>
+          ))}
         </select>
 
         <select
           value={tierFilter}
           onChange={e => handleFilterChange('tier', e.target.value)}
-          className="px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-badge)] text-body bg-[var(--bg-primary)]"
+          aria-label={t('filterTier')}
+          className="px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-badge)] text-body bg-[var(--bg-primary)] text-[var(--text-primary)]"
         >
           <option value="">{tTiers('allTiers')}</option>
           <option value="tier_0">{tTiers('tier_0')}</option>
@@ -473,16 +477,18 @@ export default function ResultsPage() {
         <select
           value={sortBy}
           onChange={e => handleSort(e.target.value)}
-          className="px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-badge)] text-body bg-[var(--bg-primary)]"
+          aria-label={t('sortBy')}
+          className="px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-badge)] text-body bg-[var(--bg-primary)] text-[var(--text-primary)]"
         >
-          <option value="detectedAt">{t('detected')}</option>
-          <option value="severity">{tSev('critical')}/{tSev('low')}</option>
-          <option value="riskScore">Risk Score</option>
-          <option value="identityName">{t('finding')}</option>
+          <option value="detectedAt">{t('sortDetected')}</option>
+          <option value="severity">{t('sortSeverity')}</option>
+          <option value="riskScore">{t('sortRiskScore')}</option>
+          <option value="identityName">{t('sortIdentity')}</option>
         </select>
 
         {(severityFilter || statusFilter || tierFilter || searchQuery) && (
           <button
+            type="button"
             onClick={() => {
               setSeverityFilter('')
               setStatusFilter('')
@@ -491,7 +497,7 @@ export default function ResultsPage() {
               setPage(1)
               updateUrl({ severity: '', status: '', tier: '', search: '', page: '' })
             }}
-            className="text-body text-[var(--color-info)] hover:underline"
+            className={`text-body hover:underline ${TONE_TEXT.info}`}
           >
             {tCommon('clearFilters')}
           </button>
@@ -501,21 +507,24 @@ export default function ResultsPage() {
       {/* Bulk actions */}
       {selectedRows.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-2 bg-[var(--color-info)]/5 border border-[var(--color-info)]/20 rounded-[var(--radius-card)]">
-          <span className="text-body text-[var(--text-secondary)]">
-            {selectedRows.size} {t('selected')}
+          <span className="text-body text-[var(--text-secondary)]" role="status">
+            {t('selectedCount', { count: selectedRows.size })}
           </span>
           <button
+            type="button"
             onClick={() => {
               const selected = (data?.results || []).filter(r => selectedRows.has(r.id))
               downloadCsv(selected, `selected-results-${new Date().toISOString().slice(0, 10)}.csv`)
             }}
-            className="px-3 py-1 text-micro bg-[var(--color-info)] text-white rounded-[var(--radius-badge)]"
+            className="px-3 py-1 text-micro text-white rounded-[var(--radius-badge)]"
+            style={{ backgroundColor: 'color-mix(in srgb, var(--color-info) 85%, black)' }}
           >
             {t('exportFiltered')}
           </button>
           <button
+            type="button"
             onClick={() => setSelectedRows(new Set())}
-            className="px-3 py-1 text-micro border border-[var(--border-default)] rounded-[var(--radius-badge)] hover:bg-[var(--bg-secondary)]"
+            className="px-3 py-1 text-micro border border-[var(--border-default)] rounded-[var(--radius-badge)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]"
           >
             {tCommon('cancel')}
           </button>
@@ -524,20 +533,20 @@ export default function ResultsPage() {
 
       {/* Error */}
       {error && (
-        <div className="p-4 rounded-[var(--radius-card)] bg-red-50 dark:bg-red-900/10 text-red-700 dark:text-red-400">
-          {error}
+        <div className={`p-4 rounded-[var(--radius-card)] ${toneBadge('critical')}`} role="alert">
+          {t('failedToLoad')}
         </div>
       )}
 
       {/* Table */}
       <div className="bg-[var(--bg-primary)] rounded-[var(--radius-card)] border border-[var(--border-default)] overflow-hidden" style={{ boxShadow: 'var(--shadow-card)' }}>
         {loading && !data ? (
-          <div className="p-12 text-center text-[var(--text-tertiary)] animate-pulse">
+          <div className="p-12 text-center text-[var(--text-secondary)] animate-pulse" role="status">
             {tCommon('loading')}
           </div>
         ) : !data || data.results.length === 0 ? (
           <div className="p-12 text-center">
-            <Shield size={48} className="mx-auto mb-3 opacity-20 text-[var(--text-tertiary)]" />
+            <Shield size={48} className="mx-auto mb-3 opacity-20 text-[var(--text-tertiary)]" aria-hidden="true" />
             <p className="text-body font-medium text-[var(--text-secondary)]">{tCommon('noResults')}</p>
           </div>
         ) : (
@@ -545,33 +554,25 @@ export default function ResultsPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-[var(--bg-secondary)] text-[var(--text-tertiary)] text-micro uppercase tracking-wider">
-                    <th className="px-3 py-3 text-start w-8">
+                  <tr className="bg-[var(--bg-secondary)] text-[var(--text-secondary)] text-micro uppercase tracking-wider">
+                    <th scope="col" className="px-3 py-3 text-start w-8">
                       <input
                         type="checkbox"
                         checked={selectedRows.size === data.results.length && data.results.length > 0}
                         onChange={handleToggleAll}
+                        aria-label={t('selectAll')}
                         className="rounded border-[var(--border-default)]"
                       />
                     </th>
-                    <th className="px-3 py-3 text-start">#</th>
-                    <th className="px-3 py-3 text-start min-w-[280px]">{t('finding')}</th>
-                    <th className="px-3 py-3 text-start">{t('type')}</th>
-                    <th className="px-3 py-3 text-center cursor-pointer hover:text-[var(--text-primary)]" onClick={() => handleSort('severity')}>
-                      {tSev('critical').charAt(0)}/{tSev('low').charAt(0)}
-                      {sortBy === 'severity' && <span className="ms-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
-                    </th>
-                    <th className="px-3 py-3 text-start min-w-[140px]">Identity</th>
-                    <th className="px-3 py-3 text-center">Tier</th>
-                    <th className="px-3 py-3 text-center cursor-pointer hover:text-[var(--text-primary)]" onClick={() => handleSort('riskScore')}>
-                      Risk
-                      {sortBy === 'riskScore' && <span className="ms-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
-                    </th>
-                    <th className="px-3 py-3 text-center">Status</th>
-                    <th className="px-3 py-3 text-end cursor-pointer hover:text-[var(--text-primary)]" onClick={() => handleSort('detectedAt')}>
-                      {t('detected')}
-                      {sortBy === 'detectedAt' && <span className="ms-1">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
-                    </th>
+                    <th scope="col" className="px-3 py-3 text-start">#</th>
+                    <th scope="col" className="px-3 py-3 text-start min-w-[280px]">{t('finding')}</th>
+                    <th scope="col" className="px-3 py-3 text-start">{t('type')}</th>
+                    <SortHeader label={t('colSeverity')} column="severity" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} align="center" />
+                    <th scope="col" className="px-3 py-3 text-start min-w-[140px]">{t('colIdentity')}</th>
+                    <th scope="col" className="px-3 py-3 text-center">{t('colTier')}</th>
+                    <SortHeader label={t('colRisk')} column="riskScore" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} align="center" />
+                    <th scope="col" className="px-3 py-3 text-center">{t('colStatus')}</th>
+                    <SortHeader label={t('detected')} column="detectedAt" sortBy={sortBy} sortOrder={sortOrder} onSort={handleSort} align="end" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--border-default)]">
@@ -591,69 +592,74 @@ export default function ResultsPage() {
                             type="checkbox"
                             checked={selectedRows.has(result.id)}
                             onChange={() => handleToggleRow(result.id)}
+                            aria-label={t('selectRow', { title: result.title })}
                             className="rounded border-[var(--border-default)]"
                           />
                         </td>
-                        <td className="px-3 py-3 text-micro text-[var(--text-tertiary)]">{rowNum}</td>
+                        <td className="px-3 py-3 text-micro text-[var(--text-secondary)]">{rowNum}</td>
                         <td className="px-3 py-3">
                           <div className="flex items-start gap-2">
-                            <Icon size={14} className="text-[var(--text-tertiary)] mt-0.5 flex-shrink-0" />
+                            <Icon size={14} className="text-[var(--text-secondary)] mt-0.5 flex-shrink-0" aria-hidden="true" />
                             <div className="min-w-0">
                               <p className="text-body font-medium text-[var(--text-primary)] truncate max-w-[350px]">
-                                {result.title}
+                                <Link href={result.sourceUrl} onClick={(e) => e.stopPropagation()} className="hover:underline">
+                                  {result.title}
+                                </Link>
                               </p>
                               {result.mitreTechnique && (
-                                <span className="text-micro font-mono text-[var(--text-tertiary)]">{result.mitreTechnique}</span>
+                                <span className="text-micro font-mono text-[var(--text-secondary)]"><bdi>{result.mitreTechnique}</bdi></span>
                               )}
                             </div>
                           </div>
                         </td>
                         <td className="px-3 py-3">
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-micro font-medium ${typeBadgeColor(result.findingType)}`}>
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-micro font-medium whitespace-nowrap ${typeBadgeColor(result.findingType)}`}>
                             {t(TABS.find(tab => tab.key === result.findingType)?.labelKey || 'allFindings')}
                           </span>
                         </td>
                         <td className="px-3 py-3 text-center">
-                          <span className={`inline-block px-2 py-0.5 rounded-full text-micro font-semibold ${severityColor(result.severity)}`}>
+                          <span className={`inline-block px-2 py-0.5 rounded-full text-micro font-semibold whitespace-nowrap ${severityColor(result.severity)}`}>
                             {tSev(result.severity)}
                           </span>
                         </td>
                         <td className="px-3 py-3">
                           {result.identityName ? (
                             <div className="flex items-center gap-2">
-                              <span className="text-body text-[var(--text-primary)] truncate max-w-[120px]">{result.identityName}</span>
+                              <span className="text-body text-[var(--text-primary)] truncate max-w-[120px]"><bdi>{result.identityName}</bdi></span>
                               {result.identityType && (
-                                <span className={`text-micro px-1.5 py-0.5 rounded ${
-                                  result.identityType === 'human'
-                                    ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400'
-                                    : 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400'
-                                }`}>
-                                  {result.identityType === 'human' ? 'H' : 'NHI'}
+                                <span className={`text-micro px-1.5 py-0.5 rounded whitespace-nowrap ${toneBadge(result.identityType === 'human' ? 'info' : 'nhi')}`}>
+                                  {label('identityType', result.identityType)}
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span className="text-micro text-[var(--text-tertiary)]">-</span>
+                            <span className="text-micro text-[var(--text-secondary)]">-</span>
                           )}
                         </td>
                         <td className="px-3 py-3 text-center">
                           {result.adTier ? (
-                            <span className={`text-micro px-1.5 py-0.5 rounded font-medium ${
-                              result.adTier === 'tier_0' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                              result.adTier === 'tier_1' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
-                              result.adTier === 'tier_2' ? 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' :
-                              'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
-                            }`}>
-                              {tierBadge(result.adTier, result.effectiveTier)}
-                            </span>
+                            result.effectiveTier && result.effectiveTier !== result.adTier ? (
+                              <span
+                                className={`inline-flex items-center gap-1 whitespace-nowrap text-micro px-1.5 py-0.5 rounded font-medium ${toneBadge('critical')}`}
+                                title={t('tierEscalation', { assigned: tTiers.has(result.adTier) ? tTiers(result.adTier) : result.adTier, effective: tTiers.has(result.effectiveTier) ? tTiers(result.effectiveTier) : result.effectiveTier })}
+                              >
+                                <span>{TIER_SHORT[result.adTier] ?? result.adTier}</span>
+                                <span className="inline-block rtl:-scale-x-100" aria-hidden="true">→</span>
+                                <span>{TIER_SHORT[result.effectiveTier] ?? result.effectiveTier}</span>
+                              </span>
+                            ) : (
+                              <span className={`text-micro px-1.5 py-0.5 rounded font-medium whitespace-nowrap ${toneBadge(tierTone(result.adTier))}`}>
+                                {tTiers.has(result.adTier) ? tTiers(result.adTier) : result.adTier}
+                              </span>
+                            )
                           ) : (
-                            <span className="text-micro text-[var(--text-tertiary)]">-</span>
+                            <span className="text-micro text-[var(--text-secondary)]">-</span>
                           )}
                         </td>
                         <td className="px-3 py-3 text-center">
                           {result.riskScore !== null ? (
                             <div className="flex items-center gap-2 justify-center">
-                              <div className="w-12 h-1.5 bg-[var(--bg-secondary)] rounded-full overflow-hidden">
+                              <div className="w-12 h-1.5 bg-[var(--bg-tertiary)] rounded-full overflow-hidden" aria-hidden="true">
                                 <div
                                   className={`h-full rounded-full ${riskBarColor(result.riskScore)}`}
                                   style={{ width: riskBarWidth(result.riskScore) }}
@@ -662,24 +668,25 @@ export default function ResultsPage() {
                               <span className="text-micro font-medium text-[var(--text-secondary)]">{result.riskScore}</span>
                             </div>
                           ) : (
-                            <span className="text-micro text-[var(--text-tertiary)]">-</span>
+                            <span className="text-micro text-[var(--text-secondary)]">-</span>
                           )}
                         </td>
                         <td className="px-3 py-3 text-center">
                           <div className="flex items-center gap-1.5 justify-center">
-                            <span className={`w-2 h-2 rounded-full ${statusDotColor(result.status)}`} />
-                            <span className="text-micro capitalize text-[var(--text-secondary)]">
-                              {result.status.replace(/_/g, ' ')}
+                            <span className={`w-2 h-2 rounded-full shrink-0 ${statusDotColor(result.status)}`} aria-hidden="true" />
+                            <span className="text-micro text-[var(--text-secondary)] whitespace-nowrap">
+                              {label('findingStatus', result.status)}
                             </span>
                           </div>
                         </td>
                         <td className="px-3 py-3 text-end">
-                          <span
-                            className="text-micro text-[var(--text-secondary)]"
-                            title={formatDateTime(result.detectedAt)}
+                          <time
+                            className="text-micro text-[var(--text-secondary)] whitespace-nowrap"
+                            dateTime={result.detectedAt}
+                            title={formatDateTime(result.detectedAt, locale)}
                           >
-                            {formatRelativeTime(result.detectedAt)}
-                          </span>
+                            {formatRelativeTime(result.detectedAt, locale)}
+                          </time>
                         </td>
                       </tr>
                     )
@@ -692,13 +699,14 @@ export default function ResultsPage() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-default)]">
                 <p className="text-body text-[var(--text-secondary)]">
-                  {tCommon('showing')} {(data.page - 1) * data.pageSize + 1}-{Math.min(data.page * data.pageSize, data.total)} {tCommon('of')} {data.total}
+                  {t('showingRange', { from: (data.page - 1) * data.pageSize + 1, to: Math.min(data.page * data.pageSize, data.total), total: data.total })}
                 </p>
                 <div className="flex gap-2">
                   <button
+                    type="button"
                     onClick={() => handlePageChange(Math.max(1, page - 1))}
                     disabled={page <= 1}
-                    className="px-3 py-1.5 text-body border border-[var(--border-default)] rounded-[var(--radius-badge)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--bg-secondary)]"
+                    className="px-3 py-1.5 text-body border border-[var(--border-default)] rounded-[var(--radius-badge)] text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--bg-secondary)]"
                   >
                     {tCommon('previous')}
                   </button>
@@ -717,11 +725,14 @@ export default function ResultsPage() {
                     return (
                       <button
                         key={pageNum}
+                        type="button"
                         onClick={() => handlePageChange(pageNum)}
+                        aria-current={page === pageNum ? 'page' : undefined}
+                        aria-label={t('goToPage', { page: pageNum })}
                         className={`px-3 py-1.5 text-body border rounded-[var(--radius-badge)] ${
                           page === pageNum
-                            ? 'bg-[var(--color-info)] text-white border-[var(--color-info)]'
-                            : 'border-[var(--border-default)] hover:bg-[var(--bg-secondary)]'
+                            ? 'text-white border-[var(--color-info)] bg-[color-mix(in_srgb,var(--color-info)_85%,black)]'
+                            : 'border-[var(--border-default)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
                         }`}
                       >
                         {pageNum}
@@ -729,9 +740,10 @@ export default function ResultsPage() {
                     )
                   })}
                   <button
+                    type="button"
                     onClick={() => handlePageChange(Math.min(totalPages, page + 1))}
                     disabled={page >= totalPages}
-                    className="px-3 py-1.5 text-body border border-[var(--border-default)] rounded-[var(--radius-badge)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--bg-secondary)]"
+                    className="px-3 py-1.5 text-body border border-[var(--border-default)] rounded-[var(--radius-badge)] text-[var(--text-primary)] disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--bg-secondary)]"
                   >
                     {tCommon('next')}
                   </button>
@@ -747,15 +759,33 @@ export default function ResultsPage() {
 
 // ── Sub Components ──
 
-function SummaryPill({ color, label, count }: { color: string; label: string; count: number }) {
-  const colorClasses: Record<string, string> = {
-    red: 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400',
-    orange: 'bg-orange-50 text-orange-700 dark:bg-orange-900/20 dark:text-orange-400',
-    amber: 'bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400',
-    green: 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-400',
-  }
+function SortHeader({ label, column, sortBy, sortOrder, onSort, align }: {
+  label: string
+  column: string
+  sortBy: string
+  sortOrder: string
+  onSort: (column: string) => void
+  align: 'center' | 'end'
+}) {
+  const active = sortBy === column
   return (
-    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${colorClasses[color] || ''}`}>
+    <th
+      scope="col"
+      aria-sort={active ? (sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}
+      className={`px-3 py-3 whitespace-nowrap ${align === 'center' ? 'text-center' : 'text-end'}`}
+    >
+      <button type="button" onClick={() => onSort(column)} className="inline-flex items-center gap-1 uppercase tracking-wider hover:text-[var(--text-primary)]">
+        {label}
+        {active && <span aria-hidden="true">{sortOrder === 'asc' ? '↑' : '↓'}</span>}
+      </button>
+    </th>
+  )
+}
+
+function SummaryPill({ color, label, count }: { color: string; label: string; count: number }) {
+  const tones: Record<string, Tone> = { red: 'critical', orange: 'high', amber: 'medium', green: 'low' }
+  return (
+    <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${toneBadge(tones[color] ?? 'neutral')}`}>
       <span className="text-micro font-bold">{count}</span>
       <span className="text-micro">{label}</span>
     </div>

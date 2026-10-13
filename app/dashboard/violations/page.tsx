@@ -1,14 +1,23 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useViolationList } from '@/lib/hooks/use-violations'
 import { MetricCard } from '@/components/ui/metric-card'
 import { RiskGauge } from '@/components/ui/risk-gauge'
 import { ViolationBreakdown } from '@/components/charts/violation-breakdown'
-import { ViolationFeed } from '@/components/dashboard/violation-feed'
+import { ViolationTable } from './violation-table'
+import { useEnumLabel } from '@/components/ui/enum-label'
+import { TONE_TEXT } from '@/components/ui/tone'
 import { formatRelativeTime } from '@/lib/utils/formatters'
 import Link from 'next/link'
+
+const VIOLATION_TYPES = [
+  'tier_breach', 'sod_conflict', 'excessive_privilege', 'dormant_access',
+  'orphaned_identity', 'missing_mfa', 'expired_certification', 'password_age',
+  'kerberoastable', 'asrep_roastable', 'unconstrained_delegation', 'constrained_delegation',
+  'reversible_encryption', 'password_not_required', 'password_never_expires', 'stale_privileged_account',
+] as const
 
 export default function ViolationsPage() {
   const [filters, setFilters] = useState<Record<string, string>>({})
@@ -16,6 +25,8 @@ export default function ViolationsPage() {
   const t = useTranslations('violations')
   const tSeverity = useTranslations('severity')
   const tCommon = useTranslations('common')
+  const locale = useLocale()
+  const label = useEnumLabel()
 
   const { data, isLoading, error } = useViolationList({ ...filters, page, pageSize: 25 })
 
@@ -49,7 +60,7 @@ export default function ViolationsPage() {
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
         <div className="bg-[var(--color-critical-bg)] border border-[var(--color-critical)] rounded-xl p-6">
-          <p className="font-medium" style={{ color: 'var(--color-critical)' }}>{t('failedToLoad')}</p>
+          <p className={`font-medium ${TONE_TEXT.critical}`}>{t('failedToLoad')}</p>
         </div>
       </div>
     )
@@ -84,11 +95,11 @@ export default function ViolationsPage() {
               <p className="text-xs text-[var(--text-secondary)]">{tCommon('open')}</p>
             </div>
             <div>
-              <p className="text-lg font-bold" style={{ color: 'var(--color-low)' }}>{summary.byStatus.remediated || 0}</p>
+              <p className={`text-lg font-bold ${TONE_TEXT.low}`}>{summary.byStatus.remediated || 0}</p>
               <p className="text-xs text-[var(--text-secondary)]">{tCommon('remediated')}</p>
             </div>
             <div>
-              <p className="text-lg font-bold" style={{ color: 'var(--color-info)' }}>{summary.byStatus.excepted || 0}</p>
+              <p className={`text-lg font-bold ${TONE_TEXT.info}`}>{summary.byStatus.excepted || 0}</p>
               <p className="text-xs text-[var(--text-secondary)]">{tCommon('excepted')}</p>
             </div>
           </div>
@@ -101,22 +112,19 @@ export default function ViolationsPage() {
           <select
             value={filters.violationType || ''}
             onChange={(e) => handleFilter('violationType', e.target.value)}
-            className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
+            aria-label={t('filterType')}
+            className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] text-[var(--text-primary)] max-w-full"
           >
             <option value="">{t('allTypes')}</option>
-            <option value="tier_breach">{t('tierBreach')}</option>
-            <option value="sod_conflict">{t('sodConflict')}</option>
-            <option value="excessive_privilege">{t('excessivePrivilege')}</option>
-            <option value="dormant_access">{t('dormantAccess')}</option>
-            <option value="orphaned_identity">{t('orphanedIdentity')}</option>
-            <option value="missing_mfa">{t('missingMfa')}</option>
-            <option value="expired_certification">{t('expiredCertification')}</option>
-            <option value="password_age">{t('passwordAge')}</option>
+            {VIOLATION_TYPES.map((type) => (
+              <option key={type} value={type}>{label('violationType', type)}</option>
+            ))}
           </select>
           <select
             value={filters.severity || ''}
             onChange={(e) => handleFilter('severity', e.target.value)}
-            className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
+            aria-label={t('filterSeverity')}
+            className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] text-[var(--text-primary)]"
           >
             <option value="">{tSeverity('allSeverities')}</option>
             <option value="critical">{tSeverity('critical')}</option>
@@ -127,37 +135,38 @@ export default function ViolationsPage() {
           <select
             value={filters.status || ''}
             onChange={(e) => handleFilter('status', e.target.value)}
-            className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
+            aria-label={t('filterStatus')}
+            className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] text-[var(--text-primary)]"
           >
-            <option value="">{tCommon('all')}</option>
+            <option value="">{t('allStatuses')}</option>
             <option value="open">{tCommon('open')}</option>
             <option value="acknowledged">{tCommon('acknowledged')}</option>
             <option value="remediated">{tCommon('remediated')}</option>
             <option value="excepted">{tCommon('excepted')}</option>
             <option value="false_positive">{tCommon('falsePositive')}</option>
           </select>
-          <span className="flex items-center text-sm text-[var(--text-secondary)]">
+          <span className="flex items-center text-sm text-[var(--text-secondary)]" role="status">
             {t('violationsCount', { count: data.total })}
           </span>
         </div>
 
-        <ViolationFeed violations={data.data} />
+        <ViolationTable violations={data.data} />
 
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-default)]">
-            <p className="text-sm text-[var(--text-secondary)]">{tCommon('page')} {page} {tCommon('of')} {totalPages}</p>
+            <p className="text-sm text-[var(--text-secondary)]">{t('pageOf', { page, total: totalPages })}</p>
             <div className="flex gap-2">
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page <= 1}
-                className="px-3 py-1.5 text-sm border border-[var(--border-default)] rounded-lg disabled:opacity-50 hover:bg-[var(--bg-secondary)]"
+                className="px-3 py-1.5 text-sm border border-[var(--border-default)] rounded-lg disabled:opacity-50 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]"
               >
                 {tCommon('previous')}
               </button>
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={page >= totalPages}
-                className="px-3 py-1.5 text-sm border border-[var(--border-default)] rounded-lg disabled:opacity-50 hover:bg-[var(--bg-secondary)]"
+                className="px-3 py-1.5 text-sm border border-[var(--border-default)] rounded-lg disabled:opacity-50 hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]"
               >
                 {tCommon('next')}
               </button>
@@ -170,26 +179,26 @@ export default function ViolationsPage() {
       {exceptions.length > 0 && (
         <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
           <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4">
-            {t('activeExceptions')} ({exceptions.length})
+            {t('activeExceptionsCount', { count: exceptions.length })}
           </h3>
           <div className="space-y-3">
             {exceptions.map((exc) => (
-              <div key={exc.id} className="flex items-center justify-between p-3 bg-[var(--color-info-bg)] rounded-lg">
-                <div>
+              <div key={exc.id} className="flex items-center justify-between gap-3 p-3 bg-[var(--color-info-bg)] rounded-lg">
+                <div className="min-w-0">
                   <Link
                     href={`/dashboard/identities/${exc.identityId}`}
-                    className="text-sm font-medium text-[var(--color-info)] hover:underline"
+                    className={`text-sm font-medium hover:underline ${TONE_TEXT.info}`}
                   >
-                    {exc.identityName}
+                    <bdi>{exc.identityName}</bdi>
                   </Link>
-                  <p className="text-xs text-[var(--text-secondary)] mt-0.5 capitalize">
-                    {exc.violationType.replace(/_/g, ' ')} — {exc.exceptionReason}
+                  <p className="text-xs text-[var(--text-primary)] mt-0.5">
+                    {label('violationType', exc.violationType)}{exc.exceptionReason ? <> — <bdi>{exc.exceptionReason}</bdi></> : null}
                   </p>
                 </div>
-                <div className="text-end">
-                  <p className="text-xs text-[var(--text-secondary)]">{t('expires')}</p>
+                <div className="text-end shrink-0">
+                  <p className="text-xs text-[var(--text-primary)]">{t('expires')}</p>
                   <p className="text-sm font-medium text-[var(--text-primary)]">
-                    {exc.exceptionExpiresAt ? formatRelativeTime(exc.exceptionExpiresAt) : tCommon('na')}
+                    {exc.exceptionExpiresAt ? formatRelativeTime(exc.exceptionExpiresAt, locale) : tCommon('na')}
                   </p>
                 </div>
               </div>

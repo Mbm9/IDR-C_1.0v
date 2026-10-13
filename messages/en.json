@@ -123,7 +123,7 @@
     "allTypes": "All Types",
     "allSubTypes": "All Sub-types",
     "explorer": "Identities",
-    "identitiesFound": "{count} identities found",
+    "identitiesFound": "{count, plural, one {# identity found} other {# identities found}}",
     "loadingIdentities": "Loading identities...",
     "failedToLoad": "Failed to load identities. Check your database connection.",
     "tierViolationsOnly": "Tier Violations Only",
@@ -133,7 +133,8 @@
     "identityNotFound": "Identity not found or access denied.",
     "deteriorating": "Deteriorating",
     "improving": "Improving",
-    "stable": "Stable"
+    "stable": "Stable",
+    "breadcrumb": "Breadcrumb"
   },
   "dashboard": {
     "title": "Overview",
@@ -149,7 +150,7 @@
     "failedToLoad": "Failed to load dashboard metrics",
     "checkConnection": "Check your database connection and try again.",
     "identitiesWithoutViolations": "Identities without tier violations",
-    "identitiesMonitored": "{count} identities monitored",
+    "identitiesMonitored": "{count, plural, one {# identity monitored} other {# identities monitored}}",
     "exportRiskSummary": "Export Risk Summary",
     "attackPaths": "Attack Paths",
     "adExposures": "AD Exposures",
@@ -158,8 +159,12 @@
     "hintOpenViolations": "open policy violations",
     "hintOpenFindings": "open findings",
     "hintCrossTier": "cross-tier access",
-    "hintOfIdentities": "of {count} identities",
-    "hintMeanRisk": "mean risk score"
+    "hintOfIdentities": "{count, plural, one {of # identity} other {of # identities}}",
+    "hintMeanRisk": "mean risk score",
+    "pendingAction": {
+      "certification": "Certifications Expired",
+      "violation": "Open Violations"
+    }
   },
   "exposures": {
     "title": "AD Exposures",
@@ -221,7 +226,15 @@
     "colAffected": "Affected",
     "colFirstSeen": "First Detected",
     "noIssues": "No issues match this filter",
-    "failedToLoad": "Failed to load issues"
+    "failedToLoad": "Failed to load issues",
+    "copy": "Copy",
+    "copied": "Copied",
+    "loading": "Loading issue…",
+    "close": "Close",
+    "affectedCount": "{count, plural, one {# affected} other {# affected}}",
+    "exposurePointsCount": "{count, plural, one {# exposure point} other {# exposure points}}",
+    "filterStatus": "Filter by status",
+    "filterSeverity": "Filter by severity"
   },
   "violations": {
     "title": "Policy Violations",
@@ -240,7 +253,20 @@
     "violationsRemediated": "Violations remediated",
     "activeExceptions": "Active Exceptions",
     "expires": "Expires",
-    "violationsCount": "{count} violations"
+    "violationsCount": "{count, plural, one {# violation} other {# violations}}",
+    "noViolations": "No violations found",
+    "colType": "Type",
+    "colSeverity": "Severity",
+    "colStatus": "Status",
+    "colIdentity": "Identity",
+    "colPolicy": "Policy",
+    "colDetected": "Detected",
+    "filterType": "Violation type",
+    "filterSeverity": "Severity",
+    "filterStatus": "Status",
+    "allStatuses": "All Statuses",
+    "pageOf": "Page {page} of {total}",
+    "activeExceptionsCount": "Active Exceptions ({count})"
   },
   "tiering": {
     "title": "AD Tiering Compliance",
@@ -257,10 +283,21 @@
     "effectiveTier": "Effective Tier",
     "riskScore": "Risk Score",
     "tier0Inventory": "Tier 0 Inventory",
-    "identitiesCount": "{count} identities",
-    "resourcesCount": "{count} resources",
+    "identitiesCount": "{count, plural, one {# identity} other {# identities}}",
+    "resourcesCount": "{count, plural, one {# resource} other {# resources}}",
     "unclassifiedIdentities": "Unclassified Identities",
-    "failedToLoad": "Failed to load tiering data"
+    "failedToLoad": "Failed to load tiering data",
+    "crossTierPathsCount": "Cross-Tier Access Paths ({count})",
+    "unclassifiedCount": "Unclassified Identities ({count})",
+    "heatmapAccesses": "Accesses {tier}",
+    "heatmapIdentityTier": "Identity tier",
+    "heatmapCellTitle": "{from} identities accessing {to} resources: {count}",
+    "heatmapViolation": "VIOLATION",
+    "heatmapCompliant": "Compliant",
+    "heatmapTierViolation": "Tier Violation",
+    "heatmapDownward": "Downward Access",
+    "listSeparator": ", ",
+    "percentOfTotal": "{pct}%"
   },
   "nhi": {
     "title": "Non-Human Identities",
@@ -291,7 +328,10 @@
     "identityCol": "Identity",
     "resource": "Resource",
     "lastUsed": "Last Used",
-    "entitlementsCount": "{count} entitlements"
+    "entitlementsCount": "{count, plural, one {# entitlement} other {# entitlements}}",
+    "overProvisionedCount": "Over-Provisioned Identities ({count})",
+    "certificationChartLabel": "Certification status: {summary}",
+    "permissionChartLabel": "Permission types: {summary}"
   },
   "certifications": {
     "title": "Access Certifications",
@@ -826,7 +866,32 @@
     "acknowledge": "Acknowledge",
     "resolve": "Resolve",
     "investigate": "Investigate",
-    "selected": "selected"
+    "selected": "selected",
+    "refresh": "Refresh",
+    "findingTypes": "Finding types",
+    "searchFindings": "Search findings",
+    "clearSearch": "Clear search",
+    "filterSeverity": "Severity",
+    "filterStatus": "Status",
+    "allStatuses": "All Statuses",
+    "filterTier": "Tier",
+    "sortBy": "Sort by",
+    "sortDetected": "Detection date",
+    "sortSeverity": "Severity",
+    "sortRiskScore": "Risk score",
+    "sortIdentity": "Identity",
+    "selectedCount": "{count, plural, one {# selected} other {# selected}}",
+    "failedToLoad": "Failed to load results",
+    "selectAll": "Select all findings on this page",
+    "selectRow": "Select finding: {title}",
+    "colSeverity": "Severity",
+    "colIdentity": "Identity",
+    "colTier": "Tier",
+    "colRisk": "Risk",
+    "colStatus": "Status",
+    "tierEscalation": "Assigned {assigned}, reaches {effective}",
+    "showingRange": "Showing {from}–{to} of {total}",
+    "goToPage": "Page {page}"
   },
   "gpo": {
     "title": "Group Policy Objects",
@@ -1110,5 +1175,435 @@
     "fallbackWin": "Report data collected successfully",
     "fallbackForecast": "AI forecast unavailable. Review the metrics below.",
     "fallbackRecommendation": "Enable an AI provider for the full report narrative"
+  },
+  "header": {
+    "roles": {
+      "viewer": "Viewer",
+      "analyst": "Analyst",
+      "iam_admin": "IAM Admin",
+      "ciso": "CISO",
+      "admin": "Admin"
+    },
+    "openSearch": "Search (⌘K)",
+    "darkMode": "Switch to dark mode",
+    "lightMode": "Switch to light mode",
+    "aiAssistant": "AI Assistant"
+  },
+  "sidebar": {
+    "tagline": "IAM Posture",
+    "mainNav": "Main navigation",
+    "expand": "Expand sidebar",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "dashboardShell": {
+    "demoBanner": "DEMO MODE — Using synthetic data. Connect your environment for real insights.",
+    "connectNow": "Connect Now",
+    "unexpectedError": "An unexpected error occurred."
+  },
+  "ui": {
+    "errorTitle": "Couldn’t load this data",
+    "errorDescription": "The request failed. Check your connection to the server and try again.",
+    "retry": "Retry",
+    "exportCsv": "Export CSV",
+    "highConfidence": "High confidence",
+    "estimated": "Estimated",
+    "lowConfidence": "Low confidence",
+    "riskLevel": {
+      "critical": "Critical Risk",
+      "high": "High Risk",
+      "medium": "Medium Risk",
+      "low": "Low Risk"
+    },
+    "riskTooltip": "Risk {score} — {level}",
+    "tierViolationBadge": "Tier violation: assigned {assigned}, reaches {effective}"
+  },
+  "charts": {
+    "noTrendData": "No trend data available",
+    "avgRisk": "Avg risk",
+    "riskTrendLabel": "Average risk score from {from} to {to}; latest {value}",
+    "noViolationData": "No violation data",
+    "count": "Count",
+    "violationBreakdownLabel": "{count, plural, one {# violation} other {# violations}} by type: {types}"
+  },
+  "identityTable": {
+    "caption": "Identities",
+    "noMatches": "No identities found matching your filters",
+    "colName": "Name",
+    "colType": "Type",
+    "colSubType": "Sub-type",
+    "colAdTier": "AD Tier",
+    "colRisk": "Risk",
+    "colVelocity": "Velocity",
+    "colQuality": "Quality",
+    "colStatus": "Status",
+    "colSource": "Source",
+    "colLastLogon": "Last Logon",
+    "tierViolation": "Tier violation",
+    "perDay": "{value}/day",
+    "deteriorating": "Deteriorating",
+    "improving": "Improving",
+    "stable": "Stable",
+    "unscored": "Not scored",
+    "qualityScore": "Quality: {score}/100",
+    "searchLabel": "Search identities",
+    "filtersLabel": "Identity filters",
+    "filterType": "Identity type",
+    "filterSubType": "Sub-type",
+    "filterTier": "AD tier",
+    "filterStatus": "Status",
+    "filterSource": "Source system",
+    "filterVelocity": "Risk trend",
+    "allVelocities": "All trends",
+    "pageOf": "Page {page} of {total}"
+  },
+  "identityDetail": {
+    "tabsLabel": "Identity details",
+    "tabs": {
+      "overview": "Overview",
+      "accounts": "Accounts",
+      "entitlements": "Entitlements",
+      "groups": "Groups",
+      "violations": "Violations",
+      "timeline": "Timeline",
+      "ai_insights": "AI Insights",
+      "blast_radius": "Blast Radius"
+    },
+    "fields": {
+      "displayName": "Display Name",
+      "upn": "UPN",
+      "samAccountName": "SAM Account Name",
+      "email": "Email",
+      "department": "Department",
+      "sourceSystem": "Source System",
+      "sourceId": "Source ID",
+      "lastLogon": "Last Logon",
+      "passwordLastSet": "Password Last Set",
+      "createdInSource": "Created in Source",
+      "expiry": "Expiry",
+      "created": "Created"
+    },
+    "tierOption": {
+      "tier_0": "Tier 0 – Identity Plane Control",
+      "tier_1": "Tier 1 – Server & Application Control",
+      "tier_2": "Tier 2 – Workstation & End-User",
+      "unclassified": "Unclassified"
+    },
+    "errorUpdateTier": "Failed to update tier",
+    "errorTriggerReview": "Failed to trigger review",
+    "errorDisable": "Failed to disable identity",
+    "tierViolation": "Tier violation",
+    "qualityScore": "Quality: {score}/100",
+    "improveData": "Improve data",
+    "department": "Department",
+    "email": "Email",
+    "manager": "Manager",
+    "owner": "Owner",
+    "lastLogon": "Last logon",
+    "source": "Source",
+    "riskScore": "Risk Score",
+    "triggerReview": "Trigger Review",
+    "updateTier": "Update Tier",
+    "certifyAll": "Certify All",
+    "disable": "Disable",
+    "updateTierTitle": "Update AD Tier",
+    "newTier": "New tier",
+    "rationale": "Rationale",
+    "rationalePlaceholder": "Explain why this tier change is needed…",
+    "triggerReviewTitle": "Trigger Access Review",
+    "triggerReviewBody": "This will initiate an access review for <strong>{name}</strong>. The identity’s manager will be notified and asked to review all entitlements.",
+    "certifyTitle": "Certify All Entitlements",
+    "certifyBody": "This will trigger a certification review for all entitlements belonging to <strong>{name}</strong>.",
+    "certifyCount": "{count, plural, one {# entitlement will be included in this certification campaign.} other {# entitlements will be included in this certification campaign.}}",
+    "disableTitle": "Disable Identity",
+    "disableConfirm": "Disable Identity",
+    "warning": "Warning",
+    "disableWarning": "Disabling this identity will revoke all active sessions and prevent future authentication. An IAM administrator can reverse this action.",
+    "disableReason": "Reason for disabling",
+    "disableReasonPlaceholder": "Provide a reason for disabling this identity…",
+    "noAccounts": "No accounts linked",
+    "colPlatform": "Platform",
+    "colAccountName": "Account Name",
+    "colType": "Type",
+    "colEnabled": "Enabled",
+    "colMfa": "MFA",
+    "colLastAuth": "Last Auth",
+    "yes": "Yes",
+    "no": "No",
+    "mfaEnabled": "Enabled",
+    "mfaDisabled": "Disabled",
+    "noEntitlements": "No entitlements assigned",
+    "colPermission": "Permission",
+    "colResource": "Resource",
+    "colTier": "Tier",
+    "colCertification": "Certification",
+    "colLastUsed": "Last Used",
+    "colRiskTags": "Risk Tags",
+    "noGroups": "No group memberships",
+    "colGroup": "Group",
+    "colMembership": "Membership",
+    "colPrivileged": "Privileged",
+    "noViolations": "No policy violations",
+    "colSeverity": "Severity",
+    "colStatus": "Status",
+    "colPolicy": "Policy",
+    "colDetected": "Detected",
+    "noActivity": "No activity recorded",
+    "byActor": "by <bdi>{name}</bdi>",
+    "analysisFailedStatus": "Analysis request failed ({status})",
+    "analysisComplete": "Analysis complete.",
+    "analysisFailed": "Failed to request AI analysis",
+    "riskSummary": "Risk Summary",
+    "riskLevel": "Risk Level",
+    "tierStatus": "Tier Status",
+    "violationFlag": "VIOLATION",
+    "openViolations": "Open Violations",
+    "riskFactors": "Risk Factors",
+    "noRiskFactors": "No significant risk factors detected.",
+    "aiAnalysis": "AI Analysis",
+    "analyzing": "Analyzing…",
+    "requestAnalysis": "Request AI Analysis",
+    "riskNarrative": "Risk Narrative",
+    "executiveSummary": "Executive Summary",
+    "recommendations": "Recommendations",
+    "noAnalysis": "No AI analysis available yet.",
+    "noAnalysisHint": "Select “Request AI Analysis” to generate insights for this identity.",
+    "analyzingProfile": "Analyzing identity risk profile…",
+    "ringDirect": "Direct",
+    "ringIndirect": "Indirect",
+    "ringTransitive": "Transitive",
+    "blastFailed": "Failed to compute blast radius",
+    "computingBlast": "Computing blast radius for <bdi>{name}</bdi>…",
+    "retry": "Retry",
+    "noBlastData": "No blast radius data",
+    "totalReachable": "Total Reachable",
+    "t0Reachable": "T0 Reachable",
+    "blastScore": "Blast Score",
+    "highestTier": "Highest Tier",
+    "factors": {
+      "tierViolation": {
+        "name": "Tier Violation",
+        "description": "Identity is classified as {assigned} but has access to {effective} resources"
+      },
+      "openViolations": {
+        "name": "Open Violations",
+        "description": "{count, plural, one {# unresolved policy violation} other {# unresolved policy violations}}"
+      },
+      "expiredCertifications": {
+        "name": "Expired Certifications",
+        "description": "{count, plural, one {# entitlement with expired certification} other {# entitlements with expired certification}}"
+      },
+      "unusedEntitlements": {
+        "name": "Unused Entitlements",
+        "description": "{count, plural, one {# entitlement never used — candidate for revocation} other {# entitlements never used — candidates for revocation}}"
+      },
+      "privilegedGroups": {
+        "name": "Privileged Group Membership",
+        "description": "{count, plural, one {Member of # privileged group} other {Member of # privileged groups}}"
+      },
+      "toxicCombinations": {
+        "name": "Toxic Combinations",
+        "description": "{count, plural, one {# entitlement flagged for toxic combination or SoD violation} other {# entitlements flagged for toxic combination or SoD violation}}"
+      },
+      "dormantIdentity": {
+        "name": "Dormant Identity",
+        "description": "Identity has not logged on recently but remains active"
+      },
+      "orphanedIdentity": {
+        "name": "Orphaned Identity",
+        "description": "Non-human identity with no valid owner"
+      }
+    }
+  },
+  "enumLabels": {
+    "sourceSystem": {
+      "active_directory": "Active Directory",
+      "azure_ad": "Azure AD",
+      "okta": "Okta",
+      "sailpoint": "SailPoint",
+      "cyberark": "CyberArk",
+      "broadcom_sso": "Broadcom SSO",
+      "broadcom_pam": "Broadcom PAM",
+      "sailpoint_iiq": "SailPoint IIQ",
+      "servicenow": "ServiceNow",
+      "microsoft_defender": "Microsoft Defender",
+      "sap_grc": "SAP GRC",
+      "hashicorp_vault": "HashiCorp Vault",
+      "splunk": "Splunk",
+      "beyondtrust": "BeyondTrust",
+      "digicert": "DigiCert",
+      "manual": "Manual",
+      "csv": "CSV Import"
+    },
+    "platform": {
+      "ad": "Active Directory",
+      "azure_ad": "Azure AD",
+      "okta": "Okta",
+      "sailpoint": "SailPoint",
+      "cyberark": "CyberArk",
+      "broadcom_sso": "Broadcom SSO",
+      "broadcom_pam": "Broadcom PAM",
+      "sailpoint_iiq": "SailPoint IIQ",
+      "servicenow": "ServiceNow",
+      "microsoft_defender": "Microsoft Defender",
+      "sap_grc": "SAP GRC",
+      "hashicorp_vault": "HashiCorp Vault",
+      "splunk": "Splunk",
+      "beyondtrust": "BeyondTrust",
+      "digicert": "DigiCert",
+      "aws_iam": "AWS IAM",
+      "gcp_iam": "GCP IAM"
+    },
+    "identityType": {
+      "human": "Human",
+      "non_human": "NHI"
+    },
+    "subType": {
+      "employee": "Employee",
+      "contractor": "Contractor",
+      "vendor": "Vendor",
+      "partner": "Partner",
+      "service_account": "Service Account",
+      "managed_identity": "Managed Identity",
+      "app_registration": "App Registration",
+      "api_key": "API Key",
+      "bot": "Bot",
+      "machine": "Machine",
+      "certificate": "Certificate"
+    },
+    "violationType": {
+      "tier_breach": "Tier Breach",
+      "sod_conflict": "SoD Conflict",
+      "excessive_privilege": "Excessive Privilege",
+      "dormant_access": "Dormant Access",
+      "orphaned_identity": "Orphaned Identity",
+      "missing_mfa": "Missing MFA",
+      "expired_certification": "Expired Certification",
+      "password_age": "Password Age",
+      "kerberoastable": "Kerberoastable",
+      "asrep_roastable": "AS-REP Roastable",
+      "unconstrained_delegation": "Unconstrained Delegation",
+      "constrained_delegation": "Constrained Delegation",
+      "reversible_encryption": "Reversible Encryption",
+      "password_not_required": "Password Not Required",
+      "password_never_expires": "Password Never Expires",
+      "stale_privileged_account": "Stale Privileged Account"
+    },
+    "findingStatus": {
+      "open": "Open",
+      "active": "Active",
+      "acknowledged": "Acknowledged",
+      "investigating": "Investigating",
+      "contained": "Contained",
+      "remediated": "Remediated",
+      "resolved": "Resolved",
+      "investigated": "Investigated",
+      "excepted": "Excepted",
+      "false_positive": "False Positive",
+      "dismissed": "Dismissed",
+      "confirmed": "Confirmed"
+    },
+    "accountType": {
+      "standard": "Standard",
+      "privileged": "Privileged",
+      "admin": "Admin",
+      "service": "Service",
+      "shared": "Shared",
+      "emergency": "Emergency"
+    },
+    "groupType": {
+      "security": "Security",
+      "distribution": "Distribution",
+      "dynamic": "Dynamic",
+      "role_based": "Role-based",
+      "privileged_access": "Privileged Access"
+    },
+    "membershipType": {
+      "direct": "Direct",
+      "nested": "Nested",
+      "dynamic": "Dynamic"
+    },
+    "permissionType": {
+      "role": "Role",
+      "group_membership": "Group Membership",
+      "direct_assignment": "Direct Assignment",
+      "inherited": "Inherited",
+      "delegated": "Delegated"
+    },
+    "certStatus": {
+      "pending": "Pending",
+      "certified": "Certified",
+      "revoked": "Revoked",
+      "expired": "Expired"
+    },
+    "actionType": {
+      "assess_identity": "Identity Assessed",
+      "certify_entitlement": "Entitlement Certified",
+      "revoke_access": "Access Revoked",
+      "approve_exception": "Exception Approved",
+      "escalate_risk": "Risk Escalated",
+      "trigger_review": "Review Triggered",
+      "update_tier": "Tier Updated",
+      "sync_source": "Source Synced",
+      "generate_recommendation": "Recommendation Generated",
+      "acknowledge_violation": "Violation Acknowledged",
+      "login_success": "Successful Sign-in",
+      "login_failed": "Failed Sign-in",
+      "change_role": "Role Changed",
+      "invite_user": "User Invited",
+      "manage_integration": "Integration Updated",
+      "manage_api_key": "API Key Updated"
+    },
+    "actionSource": {
+      "manual": "Manual",
+      "automated": "Automated",
+      "ai_recommended": "AI Recommended"
+    },
+    "resourceType": {
+      "server": "Server",
+      "application": "Application",
+      "database": "Database",
+      "file_share": "File Share",
+      "cloud_resource": "Cloud Resource",
+      "domain_controller": "Domain Controller",
+      "workstation": "Workstation",
+      "network_device": "Network Device",
+      "saas_app": "SaaS App"
+    },
+    "riskTag": {
+      "toxic_combination": "Toxic Combination",
+      "sod_violation": "SoD Violation",
+      "excessive_privilege": "Excessive Privilege",
+      "tier_violation": "Tier Violation"
+    },
+    "issueCategory": {
+      "identity": "Identity",
+      "certificate": "Certificates (AD CS)",
+      "gpo": "Group Policy",
+      "secret": "Secrets"
+    },
+    "certainty": {
+      "confirmed": "Confirmed",
+      "probable": "Probable",
+      "potential": "Potential"
+    },
+    "privilege": {
+      "any": "Any user",
+      "authenticated": "Authenticated user",
+      "admin": "Administrator"
+    },
+    "ease": {
+      "easy": "Easy",
+      "moderate": "Moderate",
+      "hard": "Hard"
+    },
+    "issueEvent": {
+      "first_detected": "First detected",
+      "risk_increased": "Risk increased",
+      "reappeared": "Reappeared",
+      "partially_remediated": "Partially remediated",
+      "fully_remediated": "Fully remediated",
+      "status_changed": "Status changed"
+    }
   }
 }

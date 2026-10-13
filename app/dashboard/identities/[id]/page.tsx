@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { useIdentityDetail } from '@/lib/hooks/use-identities'
 import { IdentityDetailHeader } from '@/components/dashboard/identity-detail-header'
 import { IdentityTabs } from '@/components/dashboard/identity-tabs'
+import { TONE_TEXT } from '@/components/ui/tone'
 
 export default function IdentityDetailPage() {
   const params = useParams()
@@ -17,13 +18,13 @@ export default function IdentityDetailPage() {
   return (
     <div className="space-y-6">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm">
+      <nav className="flex items-center gap-2 text-sm min-w-0" aria-label={t('breadcrumb')}>
         <Link href="/dashboard/identities" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
           {t('explorer')}
         </Link>
-        <span className="text-[var(--text-tertiary)]">/</span>
-        <span className="text-[var(--text-primary)] font-medium">
-          {data?.identity.displayName || tCommon('loading')}
+        <span className="text-[var(--text-secondary)]" aria-hidden="true">/</span>
+        <span className="text-[var(--text-primary)] font-medium truncate" aria-current="page">
+          {data ? <bdi>{data.identity.displayName}</bdi> : tCommon('loading')}
         </span>
       </nav>
 
@@ -41,11 +42,11 @@ export default function IdentityDetailPage() {
         </div>
       ) : error ? (
         <div className="bg-[var(--color-critical-bg)] border border-[var(--color-critical)] rounded-xl p-6">
-          <p className="font-medium" style={{ color: 'var(--color-critical)' }}>{t('failedToLoadIdentity')}</p>
+          <p className={`font-medium ${TONE_TEXT.critical}`}>{t('failedToLoadIdentity')}</p>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             {error instanceof Error ? error.message : t('identityNotFound')}
           </p>
-          <Link href="/dashboard/identities" className="text-[var(--color-info)] text-sm mt-2 inline-block hover:underline">
+          <Link href="/dashboard/identities" className={`text-sm mt-2 inline-block hover:underline ${TONE_TEXT.info}`}>
             {t('backToIdentities')}
           </Link>
         </div>

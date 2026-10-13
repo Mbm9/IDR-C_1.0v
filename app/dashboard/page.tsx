@@ -11,7 +11,7 @@ import { IdentityAvatar } from '@/components/ui/identity-avatar'
 import { RiskTrendChart } from '@/components/charts/risk-trend'
 import { IntegrationHealthStrip } from '@/components/dashboard/integration-health-strip'
 import { StatTileSkeleton, ChartSkeleton } from '@/components/ui/skeleton'
-import { getRiskLevel } from '@/lib/utils/constants'
+import { TONE_TEXT, toneBadge } from '@/components/ui/tone'
 import Link from 'next/link'
 import { AlertTriangle, Sun, ChevronDown, ChevronUp } from 'lucide-react'
 import { ExportPdfButton } from '@/components/dashboard/export-pdf-button'
@@ -45,51 +45,43 @@ function TodaysBriefing() {
     <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4" style={{ boxShadow: 'var(--shadow-card)' }}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <Sun size={16} style={{ color: 'var(--color-medium)' }} />
+          <Sun size={16} style={{ color: 'var(--color-medium)' }} aria-hidden="true" />
           <h3 className="text-caption font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
             {t('todaysBriefing')}
           </h3>
         </div>
         {headline && (
           <button
+            type="button"
             onClick={() => setExpanded(!expanded)}
-            className="text-micro text-[var(--color-info)] hover:underline flex items-center gap-1"
+            aria-expanded={expanded}
+            className={`text-micro hover:underline flex items-center gap-1 ${TONE_TEXT.info}`}
           >
             {expanded ? t('collapse') : t('viewFull')}
-            {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            {expanded ? <ChevronUp size={12} aria-hidden="true" /> : <ChevronDown size={12} aria-hidden="true" />}
           </button>
         )}
       </div>
 
       {!data || !isToday ? (
-        <p className="text-caption text-[var(--text-tertiary)]">{t('generatesAt7am')}</p>
+        <p className="text-caption text-[var(--text-secondary)]">{t('generatesAt7am')}</p>
       ) : (
         <>
           {headline && (
-            <p className="text-body text-[var(--text-primary)] mb-2">{headline}</p>
+            <p className="text-body text-[var(--text-primary)] mb-2"><bdi>{headline}</bdi></p>
           )}
           <div className="flex flex-wrap gap-2 mb-2">
             {highlights.slice(0, expanded ? highlights.length : 4).map((h, i) => (
-              <span
+              <bdi
                 key={i}
-                className="text-micro px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor:
-                    h.type === 'positive' ? 'var(--color-low-bg)'
-                    : h.type === 'negative' ? 'var(--color-critical-bg)'
-                    : 'var(--color-info-bg)',
-                  color:
-                    h.type === 'positive' ? 'var(--color-low)'
-                    : h.type === 'negative' ? 'var(--color-critical)'
-                    : 'var(--color-info)',
-                }}
+                className={`text-micro px-2 py-0.5 rounded-full ${toneBadge(h.type === 'positive' ? 'low' : h.type === 'negative' ? 'critical' : 'info')}`}
               >
                 {h.text}
-              </span>
+              </bdi>
             ))}
           </div>
           {expanded && data.narrative && (
-            <div className="mt-3 p-3 rounded-md bg-[var(--bg-secondary)] text-caption text-[var(--text-secondary)] whitespace-pre-line">
+            <div className="mt-3 p-3 rounded-md bg-[var(--bg-secondary)] text-caption text-[var(--text-secondary)] whitespace-pre-line" dir="auto">
               {data.narrative}
             </div>
           )}
@@ -176,20 +168,19 @@ export default function DashboardOverview() {
         <div className="lg:col-span-2 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-5" style={{ boxShadow: 'var(--shadow-card)' }}>
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-caption font-semibold text-[var(--text-secondary)] uppercase tracking-wider">{t('topRiskiest')}</h3>
-            <Link href="/dashboard/identities?sortBy=riskScore&sortOrder=desc" className="text-micro text-[var(--color-info)] hover:underline">
-              {tCommon('viewAll')} →
+            <Link href="/dashboard/identities?sortBy=riskScore&sortOrder=desc" className={`text-micro hover:underline ${TONE_TEXT.info}`}>
+              {tCommon('viewAll')} <span className="inline-block rtl:-scale-x-100" aria-hidden="true">→</span>
             </Link>
           </div>
           <div className="space-y-2">
             {data.topRiskyIdentities.map((identity: any, i: number) => {
-              const risk = getRiskLevel(identity.riskScore)
               return (
                 <Link
                   key={identity.id}
                   href={`/dashboard/identities/${identity.id}`}
                   className="flex items-center gap-3 p-2.5 rounded-md hover:bg-[var(--bg-secondary)] transition-colors"
                 >
-                  <span className="text-caption font-mono text-[var(--text-tertiary)] w-5">{i + 1}</span>
+                  <span className="text-caption font-mono text-[var(--text-secondary)] w-5 shrink-0">{i + 1}</span>
                   <IdentityAvatar
                     name={identity.displayName}
                     type={identity.type}
@@ -198,7 +189,7 @@ export default function DashboardOverview() {
                     size="sm"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="text-caption font-medium text-[var(--text-primary)] truncate">{identity.displayName}</p>
+                    <p className="text-caption font-medium text-[var(--text-primary)] truncate"><bdi>{identity.displayName}</bdi></p>
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <TierBadge tier={identity.adTier} effectiveTier={identity.tierViolation ? 'tier_0' : null} size="xs" />
                     </div>
@@ -229,10 +220,10 @@ export default function DashboardOverview() {
               }
               return (
                 <div key={level} className="rounded-md p-2.5 text-center" style={{ backgroundColor: colors[level].bg }}>
-                  <p className="text-heading font-semibold" style={{ color: colors[level].text }}>
+                  <p className={`text-heading font-semibold ${TONE_TEXT[level]}`}>
                     {data.riskDistribution?.[level] ?? 0}
                   </p>
-                  <p className="text-micro text-[var(--text-secondary)]">{tSeverity(level)}</p>
+                  <p className="text-micro text-[var(--text-primary)]">{tSeverity(level)}</p>
                 </div>
               )
             })}
@@ -250,14 +241,14 @@ export default function DashboardOverview() {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-md flex items-center justify-center" style={{ backgroundColor: action.count > 0 ? 'var(--color-high-bg)' : 'var(--color-low-bg)' }}>
-                    <AlertTriangle size={16} style={{ color: action.count > 0 ? 'var(--color-high)' : 'var(--color-low)' }} />
+                    <AlertTriangle size={16} style={{ color: action.count > 0 ? 'var(--color-high)' : 'var(--color-low)' }} aria-hidden="true" />
                   </div>
                   <div>
-                    <p className="text-body font-medium text-[var(--text-primary)]">{action.label}</p>
-                    <p className="text-micro text-[var(--text-tertiary)]">{tCommon('requiresAttention')}</p>
+                    <p className="text-body font-medium text-[var(--text-primary)]">{t.has(`pendingAction.${action.type}`) ? t(`pendingAction.${action.type}`) : action.label}</p>
+                    <p className="text-micro text-[var(--text-secondary)]">{tCommon('requiresAttention')}</p>
                   </div>
                 </div>
-                <span className="text-title font-semibold" style={{ color: action.count > 0 ? 'var(--color-high)' : 'var(--color-low)' }}>
+                <span className={`text-title font-semibold ${TONE_TEXT[action.count > 0 ? 'high' : 'low']}`}>
                   {action.count}
                 </span>
               </div>

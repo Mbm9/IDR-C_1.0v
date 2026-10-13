@@ -3,15 +3,19 @@
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { useTieringData } from '@/lib/hooks/use-tiering'
-import { TierPyramid } from '@/components/dashboard/tier-pyramid'
+import { TierPyramid } from './tier-pyramid'
 import { TierHeatmap } from '@/components/charts/tier-heatmap'
 import { MetricCard } from '@/components/ui/metric-card'
-import { AD_TIER_CONFIG, getRiskLevel } from '@/lib/utils/constants'
+import { useEnumLabel } from '@/components/ui/enum-label'
+import { TONE_TEXT, toneBadge, riskTone, tierTone } from '@/components/ui/tone'
 
 export default function TieringPage() {
   const { data, isLoading, error } = useTieringData()
   const t = useTranslations('tiering')
   const tIdentity = useTranslations('identity')
+  const tTiers = useTranslations('tiers')
+  const label = useEnumLabel()
+  const tierLabel = (tier: string | null | undefined) => tTiers(tier && ['tier_0', 'tier_1', 'tier_2'].includes(tier) ? tier : 'unclassified')
 
   if (isLoading) {
     return (
@@ -31,7 +35,7 @@ export default function TieringPage() {
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
         <div className="bg-[var(--color-critical-bg)] border border-[var(--color-critical)] rounded-xl p-6">
-          <p className="font-medium" style={{ color: 'var(--color-critical)' }}>{t('failedToLoad')}</p>
+          <p className={`font-medium ${TONE_TEXT.critical}`}>{t('failedToLoad')}</p>
         </div>
       </div>
     )
@@ -67,56 +71,48 @@ export default function TieringPage() {
       {data.crossTierIdentities.length > 0 && (
         <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
           <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4">
-            {t('crossTierPaths')} ({data.crossTierIdentities.length})
+            {t('crossTierPathsCount', { count: data.crossTierIdentities.length })}
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border-default)]">
-                  <th className="px-4 py-2 text-start text-xs font-medium text-[var(--text-secondary)]">{t('identityCol')}</th>
-                  <th className="px-4 py-2 text-start text-xs font-medium text-[var(--text-secondary)]">{t('typeCol')}</th>
-                  <th className="px-4 py-2 text-start text-xs font-medium text-[var(--text-secondary)]">{t('assignedTier')}</th>
-                  <th className="px-4 py-2 text-start text-xs font-medium text-[var(--text-secondary)]">{t('effectiveTier')}</th>
-                  <th className="px-4 py-2 text-start text-xs font-medium text-[var(--text-secondary)]">{t('riskScore')}</th>
+                  <th scope="col" className="px-4 py-2 text-start text-xs font-medium text-[var(--text-secondary)] whitespace-nowrap">{t('identityCol')}</th>
+                  <th scope="col" className="px-4 py-2 text-start text-xs font-medium text-[var(--text-secondary)] whitespace-nowrap">{t('typeCol')}</th>
+                  <th scope="col" className="px-4 py-2 text-start text-xs font-medium text-[var(--text-secondary)] whitespace-nowrap">{t('assignedTier')}</th>
+                  <th scope="col" className="px-4 py-2 text-start text-xs font-medium text-[var(--text-secondary)] whitespace-nowrap">{t('effectiveTier')}</th>
+                  <th scope="col" className="px-4 py-2 text-start text-xs font-medium text-[var(--text-secondary)] whitespace-nowrap">{t('riskScore')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-default)]">
                 {data.crossTierIdentities.map((identity) => {
-                  const tierConfig = AD_TIER_CONFIG[identity.adTier as keyof typeof AD_TIER_CONFIG]
-                  const effectiveConfig = identity.effectiveTier
-                    ? AD_TIER_CONFIG[identity.effectiveTier as keyof typeof AD_TIER_CONFIG]
-                    : null
-                  const risk = getRiskLevel(identity.riskScore)
-
                   return (
                     <tr key={identity.id} className="hover:bg-[var(--bg-secondary)]">
                       <td className="px-4 py-2">
                         <Link
                           href={`/dashboard/identities/${identity.id}`}
-                          className="font-medium text-[var(--color-info)] hover:underline"
+                          className={`font-medium hover:underline ${TONE_TEXT.info}`}
                         >
-                          {identity.displayName}
+                          <bdi>{identity.displayName}</bdi>
                         </Link>
                       </td>
-                      <td className="px-4 py-2 text-[var(--text-secondary)]">
+                      <td className="px-4 py-2 text-[var(--text-secondary)] whitespace-nowrap">
                         {identity.type === 'human' ? tIdentity('human') : tIdentity('non_human')}
                       </td>
                       <td className="px-4 py-2">
-                        <span className="text-xs px-2 py-1 rounded-full font-medium"
-                          style={{ color: tierConfig?.color, backgroundColor: tierConfig?.bgColor }}>
-                          {tierConfig?.label}
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${toneBadge(tierTone(identity.adTier))}`}>
+                          {tierLabel(identity.adTier)}
                         </span>
                       </td>
                       <td className="px-4 py-2">
-                        {effectiveConfig && (
-                          <span className="text-xs px-2 py-1 rounded-full font-medium"
-                            style={{ color: effectiveConfig.color, backgroundColor: effectiveConfig.bgColor }}>
-                            {effectiveConfig.label}
+                        {identity.effectiveTier && (
+                          <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${toneBadge(tierTone(identity.effectiveTier))}`}>
+                            {tierLabel(identity.effectiveTier)}
                           </span>
                         )}
                       </td>
                       <td className="px-4 py-2">
-                        <span className="font-semibold" style={{ color: risk.color }}>
+                        <span className={`font-semibold ${TONE_TEXT[riskTone(identity.riskScore)]}`}>
                           {identity.riskScore}
                         </span>
                       </td>
@@ -133,25 +129,25 @@ export default function TieringPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
           <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4">
-            {t('tier0Inventory')} ({t('identitiesCount', { count: data.tier0Identities.length })}, {t('resourcesCount', { count: data.tier0Resources.length })})
+            {t('tier0Inventory')} ({t('identitiesCount', { count: data.tier0Identities.length })}{t('listSeparator')}{t('resourcesCount', { count: data.tier0Resources.length })})
           </h3>
           <div className="space-y-2 max-h-64 overflow-y-auto">
             {data.tier0Identities.map((i) => (
               <Link
                 key={i.id}
                 href={`/dashboard/identities/${i.id}`}
-                className="flex items-center justify-between p-2 rounded hover:bg-[var(--bg-secondary)] text-sm"
+                className="flex items-center justify-between gap-2 p-2 rounded hover:bg-[var(--bg-secondary)] text-sm"
               >
-                <span className="font-medium text-[var(--text-primary)]">
-                  {i.displayName}
+                <span className="font-medium text-[var(--text-primary)] truncate">
+                  <bdi>{i.displayName}</bdi>
                 </span>
-                <span className="text-xs text-[var(--text-secondary)] capitalize">{i.subType.replace(/_/g, ' ')}</span>
+                <span className="text-xs text-[var(--text-secondary)] shrink-0">{label('subType', i.subType)}</span>
               </Link>
             ))}
             {data.tier0Resources.map((r) => (
-              <div key={r.id} className="flex items-center justify-between p-2 text-sm">
-                <span className="text-[var(--text-secondary)]">{r.name}</span>
-                <span className="text-xs text-[var(--text-secondary)] capitalize">{r.type.replace(/_/g, ' ')}</span>
+              <div key={r.id} className="flex items-center justify-between gap-2 p-2 text-sm">
+                <span className="text-[var(--text-secondary)] truncate"><bdi>{r.name}</bdi></span>
+                <span className="text-xs text-[var(--text-secondary)] shrink-0">{label('resourceType', r.type)}</span>
               </div>
             ))}
           </div>
@@ -160,19 +156,19 @@ export default function TieringPage() {
         {data.unclassifiedIdentities.length > 0 && (
           <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
             <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4">
-              {t('unclassifiedIdentities')} ({data.unclassifiedIdentities.length})
+              {t('unclassifiedCount', { count: data.unclassifiedIdentities.length })}
             </h3>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {data.unclassifiedIdentities.map((i) => (
                 <Link
                   key={i.id}
                   href={`/dashboard/identities/${i.id}`}
-                  className="flex items-center justify-between p-2 rounded hover:bg-[var(--bg-secondary)] text-sm"
+                  className="flex items-center justify-between gap-2 p-2 rounded hover:bg-[var(--bg-secondary)] text-sm"
                 >
-                  <span className="font-medium text-[var(--text-primary)]">
-                    {i.displayName}
+                  <span className="font-medium text-[var(--text-primary)] truncate">
+                    <bdi>{i.displayName}</bdi>
                   </span>
-                  <span className="text-xs text-[var(--text-secondary)]">{i.sourceSystem.replace(/_/g, ' ')}</span>
+                  <span className="text-xs text-[var(--text-secondary)] shrink-0">{label('sourceSystem', i.sourceSystem)}</span>
                 </Link>
               ))}
             </div>

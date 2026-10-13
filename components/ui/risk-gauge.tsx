@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 interface RiskGaugeProps {
   score: number
@@ -18,15 +19,17 @@ function getColor(score: number): string {
   return 'var(--color-low)'
 }
 
-function getLabel(score: number): string {
-  if (score >= 80) return 'Critical Risk'
-  if (score >= 60) return 'High Risk'
-  if (score >= 30) return 'Medium Risk'
-  return 'Low Risk'
+function getLevel(score: number): 'critical' | 'high' | 'medium' | 'low' {
+  if (score >= 80) return 'critical'
+  if (score >= 60) return 'high'
+  if (score >= 30) return 'medium'
+  return 'low'
 }
 
 export function RiskGauge({ score, size = 'md', label, animate = true }: RiskGaugeProps) {
+  const t = useTranslations('ui')
   const [animatedScore, setAnimatedScore] = useState(animate ? 0 : score)
+  const levelLabel = t(`riskLevel.${getLevel(score)}`)
 
   useEffect(() => {
     if (!animate) { setAnimatedScore(score); return }
@@ -47,9 +50,11 @@ export function RiskGauge({ score, size = 'md', label, animate = true }: RiskGau
   if (size === 'sm') {
     return (
       <div
-        className="inline-flex items-center justify-center rounded-full font-mono text-micro font-medium text-white"
-        style={{ width: 28, height: 28, backgroundColor: color }}
-        title={`Risk: ${score} — ${getLabel(score)}`}
+        className="inline-flex items-center justify-center rounded-full font-mono text-micro font-medium text-white shrink-0"
+        style={{ width: 28, height: 28, backgroundColor: `color-mix(in srgb, ${color} 75%, black)` }}
+        title={t('riskTooltip', { score, level: levelLabel })}
+        role="img"
+        aria-label={t('riskTooltip', { score, level: levelLabel })}
       >
         {score}
       </div>
@@ -64,7 +69,7 @@ export function RiskGauge({ score, size = 'md', label, animate = true }: RiskGau
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <svg width={dim} height={dim / 2 + 24} viewBox={`0 0 ${dim} ${dim / 2 + 24}`}>
+      <svg width={dim} height={dim / 2 + 24} viewBox={`0 0 ${dim} ${dim / 2 + 24}`} role="img" aria-label={t('riskTooltip', { score, level: label || levelLabel })}>
         {/* Track */}
         <path
           d={`M ${strokeWidth / 2} ${dim / 2} A ${radius} ${radius} 0 0 1 ${dim - strokeWidth / 2} ${dim / 2}`}
@@ -95,7 +100,7 @@ export function RiskGauge({ score, size = 'md', label, animate = true }: RiskGau
           {animatedScore}
         </text>
       </svg>
-      <p className="text-caption text-[var(--text-secondary)]">{label || getLabel(score)}</p>
+      <p className="text-caption text-[var(--text-secondary)] text-center">{label || levelLabel}</p>
     </div>
   )
 }

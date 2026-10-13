@@ -15,7 +15,7 @@ export const CHART = {
   medium: 'var(--color-medium)',
   low: 'var(--color-low)',
   grid: 'var(--border-default)',
-  axis: 'var(--text-tertiary)',
+  axis: 'var(--text-secondary)',
   human: 'var(--color-human)',
   nhi: 'var(--color-nhi)',
 } as const
@@ -26,7 +26,7 @@ export const SEVERITY_SERIES: Record<'critical' | 'high' | 'medium' | 'low', str
 
 // Common axis props — tabular figures, quiet ticks, no axis line.
 export const axisProps = {
-  tick: { fontSize: 11, fill: 'var(--text-tertiary)', style: { fontVariantNumeric: 'tabular-nums' } },
+  tick: { fontSize: 11, fill: 'var(--text-secondary)', style: { fontVariantNumeric: 'tabular-nums' } },
   tickLine: false,
   axisLine: false,
 } as const
@@ -52,21 +52,25 @@ export function AreaGradient({ id, color }: { id: string; color: string }) {
 }
 
 /** Token-styled tooltip. Pass a `format` to control each row's value/label. */
-export function ChartTooltip({ active, payload, label, format }: any) {
+export function ChartTooltip({ active, payload, label, labelFormatter, format }: any) {
   if (!active || !payload?.length) return null
+  // Charts may sit in a dir="ltr" frame; the tooltip text follows the page direction.
+  const dir = typeof document !== 'undefined' ? document.documentElement.dir || 'ltr' : 'ltr'
+  const shownLabel = label != null && labelFormatter ? labelFormatter(label, payload) : label
   return (
     <div
+      dir={dir}
       className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] px-3 py-2 text-xs"
       style={{ boxShadow: 'var(--shadow-dropdown)' }}
     >
-      {label != null && <p className="mb-1 font-medium text-[var(--text-primary)]">{label}</p>}
+      {shownLabel != null && <p className="mb-1 font-medium text-[var(--text-primary)]">{shownLabel}</p>}
       <div className="flex flex-col gap-1">
         {payload.map((p: any, i: number) => {
           const row = format ? format(p) : { name: p.name, value: p.value }
           if (!row) return null
           return (
             <div key={i} className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-[2px]" style={{ background: p.color || p.fill || 'var(--text-tertiary)' }} />
+              <span className="h-2 w-2 rounded-[2px]" style={{ background: p.color || p.fill || 'var(--text-tertiary)' }} aria-hidden="true" />
               <span className="text-[var(--text-secondary)]">{row.name}</span>
               <span className="ms-auto font-semibold tabular-nums text-[var(--text-primary)]">{row.value}</span>
             </div>

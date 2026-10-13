@@ -59,6 +59,7 @@ export function Sidebar() {
   const t = useTranslations('nav')
   const tSections = useTranslations('navSections')
   const tCommon = useTranslations('common')
+  const tSidebar = useTranslations('sidebar')
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
@@ -71,21 +72,21 @@ export function Sidebar() {
     <>
       <div className={`flex items-center ${showLabels ? 'px-5 py-5' : 'px-2 py-5 justify-center'}`}>
         <div className="w-8 h-8 rounded-lg bg-[var(--color-info)] flex items-center justify-center flex-shrink-0">
-          <Shield size={18} className="text-white" />
+          <Shield size={18} className="text-white" aria-hidden="true" />
         </div>
         {showLabels && (
           <div className="ms-3">
             <h1 className="text-body font-semibold text-white leading-tight">Identity Radar</h1>
-            <p className="text-micro text-slate-400">IAM Posture</p>
+            <p className="text-micro text-slate-400">{tSidebar('tagline')}</p>
           </div>
         )}
       </div>
 
-      <nav className="flex-1 px-2 space-y-5 overflow-y-auto">
+      <nav className="flex-1 px-2 space-y-5 overflow-y-auto" aria-label={tSidebar('mainNav')}>
         {NAV_SECTIONS.map((section) => (
-          <div key={section.labelKey}>
+          <div key={section.labelKey} role="group" aria-label={tSections(section.labelKey)}>
             {showLabels && (
-              <p className="px-3 mb-1 text-[10px] font-semibold text-slate-500 tracking-widest">
+              <p aria-hidden="true" className="px-3 mb-1 text-[10px] font-semibold text-slate-400 tracking-widest">
                 {tSections(section.labelKey)}
               </p>
             )}
@@ -99,6 +100,8 @@ export function Sidebar() {
                     href={item.href}
                     onClick={() => setMobileOpen(false)}
                     title={!showLabels ? t(item.labelKey) : undefined}
+                    aria-label={!showLabels ? t(item.labelKey) : undefined}
+                    aria-current={active ? 'page' : undefined}
                     className={`
                       flex items-center gap-3 rounded-md transition-colors relative
                       ${showLabels ? 'px-3 py-2' : 'px-0 py-2 justify-center'}
@@ -111,7 +114,7 @@ export function Sidebar() {
                     {active && (
                       <span className="absolute start-0 top-1/2 -translate-y-1/2 w-[3px] h-5 bg-[var(--color-info)] rounded-e" />
                     )}
-                    <Icon size={18} className="flex-shrink-0" />
+                    <Icon size={18} className="flex-shrink-0" aria-hidden="true" />
                     {showLabels && (
                       <span className="text-body font-medium truncate">{t(item.labelKey)}</span>
                     )}
@@ -127,10 +130,13 @@ export function Sidebar() {
       {showLabels !== undefined && (
         <div className="hidden lg:block px-2 py-3 border-t border-white/10">
           <button
+            type="button"
             onClick={() => setCollapsed(!collapsed)}
             className="flex items-center gap-3 px-3 py-2 w-full rounded-md text-slate-400 hover:bg-white/5 hover:text-slate-200 transition-colors"
+            aria-label={collapsed ? tSidebar('expand') : tCommon('collapse')}
+            aria-expanded={!collapsed}
           >
-            {collapsed ? <ChevronRight size={18} className="rtl:-scale-x-100" /> : <ChevronLeft size={18} className="rtl:-scale-x-100" />}
+            {collapsed ? <ChevronRight size={18} className="rtl:-scale-x-100" aria-hidden="true" /> : <ChevronLeft size={18} className="rtl:-scale-x-100" aria-hidden="true" />}
             {showLabels && <span className="text-caption">{tCommon('collapse')}</span>}
           </button>
         </div>
@@ -142,11 +148,13 @@ export function Sidebar() {
     <>
       {/* Mobile toggle */}
       <button
+        type="button"
         onClick={() => setMobileOpen(!mobileOpen)}
         className="lg:hidden fixed top-4 start-4 z-50 p-2 rounded-md bg-slate-900 text-white"
-        aria-label="Toggle menu"
+        aria-label={mobileOpen ? tSidebar('closeMenu') : tSidebar('openMenu')}
+        aria-expanded={mobileOpen}
       >
-        {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+        {mobileOpen ? <X size={20} aria-hidden="true" /> : <Menu size={20} aria-hidden="true" />}
       </button>
 
       {/* Mobile overlay */}
@@ -155,7 +163,7 @@ export function Sidebar() {
       )}
 
       {/* Mobile sidebar */}
-      <aside className={`lg:hidden fixed inset-y-0 start-0 z-40 w-60 bg-slate-900 flex flex-col transform transition-transform ${mobileOpen ? 'translate-x-0 rtl:-translate-x-0' : 'ltr:-translate-x-full rtl:translate-x-full'}`}>
+      <aside className={`lg:hidden fixed inset-y-0 start-0 z-40 w-60 bg-slate-900 flex flex-col transform transition-transform ${mobileOpen ? 'translate-x-0 rtl:-translate-x-0 visible' : 'ltr:-translate-x-full rtl:translate-x-full invisible'}`}>
         {navContent(true)}
       </aside>
 
