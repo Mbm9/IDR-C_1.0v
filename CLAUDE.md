@@ -144,6 +144,12 @@ OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:1.5b  # or qwen2.5:7b for better quality
 ANTHROPIC_API_KEY=           # only if AI_PROVIDER=anthropic
 
+# Security
+CRON_SECRET=<random>          # Bearer token the external scheduler sends to /api/cron/*
+CREDENTIALS_KEY=<64 hex>      # AES-256-GCM key for connector credentials; required to save credentials in production
+# RATE_LIMIT_API_PER_MIN=300  # per user (per IP when anonymous); AUTH=30 per IP for credential POSTs; AI=5 per user
+# APP_BIND_ADDRESS=127.0.0.1  # docker-compose: host interface for port 3000 (remote clients go through Caddy)
+
 # App
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 NEXT_PUBLIC_DEMO_MODE=false  # true shows demo credentials on login page

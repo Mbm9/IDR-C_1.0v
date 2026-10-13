@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
-import { notifications, webhookEndpoints } from '@/lib/db/schema'
+import { notifications, webhookEndpoints, users } from '@/lib/db/schema'
 import { eq, and, desc, count, SQL } from 'drizzle-orm'
 import { sendWebhook } from '@/lib/webhooks/sender'
+import { hasRole } from '@/lib/utils/rbac'
+import type { AppRole } from '@/lib/utils/rbac'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -51,11 +53,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const body = await req.json()
-  const { userId, type, title, message, severity, link, metadata } = body
+  // Notifications are fanned out to the org's webhooks (SIEM, chat), so only
+  // admins may create them by hand; system jobs insert directly.
+  if (!hasRole((session.user.appRole ?? 'viewer') as AppRole, 'admin')) {
+    return NextResponse.json({ error: 'Forbidden: admin role required' }, { status: 403 })
+  }
+
+  const body = await req.json().catch(() => null)
+  const { userId, type, title, message, severity, link, metadata } = body ?? {}
 
   if (!userId || !type || !title || !message) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+
+  // In-app links must stay on this origin.
+  if (link && (typeof link !== 'string' || !link.startsWith('/') || link.startsWith('//'))) {
+    return NextResponse.json({ error: 'link must be a relative path' }, { status: 400 })
+  }
+
+  const [recipient] = await db.select({ id: users.id })
+    .from(users)
+    .where(and(eq(users.id, userId), eq(users.orgId, session.user.orgId)))
+    .limit(1)
+  if (!recipient) {
+    return NextResponse.json({ error: 'Recipient not found in this organization' }, { status: 404 })
   }
 
   const [created] = await db.insert(notifications).values({

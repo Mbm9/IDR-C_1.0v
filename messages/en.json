@@ -130,7 +130,10 @@
     "searchPlaceholder": "Search by name, UPN, or email...",
     "backToIdentities": "Back to Identities",
     "failedToLoadIdentity": "Failed to load identity",
-    "identityNotFound": "Identity not found or access denied."
+    "identityNotFound": "Identity not found or access denied.",
+    "deteriorating": "Deteriorating",
+    "improving": "Improving",
+    "stable": "Stable"
   },
   "dashboard": {
     "title": "Overview",
@@ -145,7 +148,18 @@
     "integrationHealth": "Integration Health",
     "failedToLoad": "Failed to load dashboard metrics",
     "checkConnection": "Check your database connection and try again.",
-    "identitiesWithoutViolations": "Identities without tier violations"
+    "identitiesWithoutViolations": "Identities without tier violations",
+    "identitiesMonitored": "{count} identities monitored",
+    "exportRiskSummary": "Export Risk Summary",
+    "attackPaths": "Attack Paths",
+    "adExposures": "AD Exposures",
+    "avgRisk30d": "Avg Risk (30d)",
+    "hintAttackPaths": "escalation into Tier 0",
+    "hintOpenViolations": "open policy violations",
+    "hintOpenFindings": "open findings",
+    "hintCrossTier": "cross-tier access",
+    "hintOfIdentities": "of {count} identities",
+    "hintMeanRisk": "mean risk score"
   },
   "exposures": {
     "title": "AD Exposures",
@@ -477,7 +491,8 @@
     "deleteWebhook": "Delete webhook",
     "webhookEnabled": "Enabled",
     "webhookDisabled": "Disabled",
-    "noWebhooks": "No webhook endpoints configured yet"
+    "noWebhooks": "No webhook endpoints configured yet",
+    "automation": "Automation"
   },
   "login": {
     "title": "Identity Radar",
@@ -928,5 +943,11 @@
     "acknowledge": "Acknowledge",
     "certify": "Certify",
     "review": "Review"
+  },
+  "briefing": {
+    "todaysBriefing": "Today's Briefing",
+    "collapse": "Collapse",
+    "viewFull": "View full briefing",
+    "generatesAt7am": "A new briefing is generated every day at 7:00 AM"
   }
 }

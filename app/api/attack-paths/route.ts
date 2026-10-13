@@ -90,7 +90,9 @@ export async function POST(req: NextRequest) {
     const discoveredPaths: Array<{
       sourceIdentityId: string
       targetId: string
-      targetType: 'identity' | 'resource'
+      // Groups, GPOs and AD objects (synthetic `dn:` nodes) are valid targets but
+      // have no row in identities/resources; they live only in pathNodes.
+      targetType: 'identity' | 'resource' | 'other'
       pathNodes: any[]
       pathEdges: any[]
       pathLength: number
@@ -125,7 +127,7 @@ export async function POST(req: NextRequest) {
         discoveredPaths.push({
           sourceIdentityId: startId,
           targetId: lastNodeId,
-          targetType: targetMeta?.type === 'resource' ? 'resource' : 'identity',
+          targetType: targetMeta?.type === 'identity' ? 'identity' : targetMeta?.type === 'resource' ? 'resource' : 'other',
           pathNodes: p.path.map(nodeId => {
             const meta = graph.nodeMetadata.get(nodeId)
             return { id: nodeId, type: meta?.type || 'unknown', name: meta?.name || nodeId, tier: meta?.tier }

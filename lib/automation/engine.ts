@@ -3,7 +3,7 @@ import {
   automationRules, identities, actionLog, notifications,
   policyViolations, policies,
 } from '@/lib/db/schema'
-import { eq, and, sql, gte, lte, count } from 'drizzle-orm'
+import { eq, and, sql, gte, lte, count, inArray } from 'drizzle-orm'
 
 interface EvaluationResult {
   triggered: number
@@ -23,7 +23,7 @@ async function checkDataChange(rule: any, orgId: string): Promise<boolean> {
     .where(and(
       eq(actionLog.orgId, orgId),
       gte(actionLog.createdAt, rule.lastTriggeredAt),
-      sql`${actionLog.actionType} = ANY(${actionTypes})`,
+      inArray(actionLog.actionType, actionTypes),
     ))
 
   return Number(result?.count ?? 0) > 0
@@ -130,7 +130,7 @@ async function executeAction(rule: any, orgId: string): Promise<string> {
           .from(sql`users`)
           .where(and(
             sql`users.org_id = ${orgId}`,
-            sql`users.app_role = ANY(${targets})`,
+            inArray(sql`users.app_role`, targets),
           ))
 
         for (const user of targetUsers) {
@@ -215,7 +215,7 @@ async function executeAction(rule: any, orgId: string): Promise<string> {
           .from(sql`users`)
           .where(and(
             sql`users.org_id = ${orgId}`,
-            sql`users.app_role = ANY(${targets})`,
+            inArray(sql`users.app_role`, targets),
           ))
 
         for (const user of targetUsers) {

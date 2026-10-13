@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, use } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, Brain, Shield, Route, Zap, RefreshCw, ExternalLink } from 'lucide-react'
@@ -53,8 +53,10 @@ const TECHNIQUE_INFO: Record<string, { tools: string[]; description: string }> =
   ACLAbuse: { tools: [_d('Qmxvb2RIb3VuZA=='), _d('UG93ZXJWaWV3'), _d('Q2VydGlmeQ==')], description: 'Exploit misconfigured ACLs on AD objects.' },
 }
 
-export default function AttackPathDetailPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+// Next.js 14 passes route params as a plain object (the Promise form is Next 15);
+// calling React's use() on it threw React error #438 and crashed the page.
+export default function AttackPathDetailPage({ params }: { params: { id: string } }) {
+  const { id } = params
   const t = useTranslations('attackPaths')
   const tCommon = useTranslations('common')
   const [path, setPath] = useState<AttackPathDetail | null>(null)

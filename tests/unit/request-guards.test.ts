@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { validateContentType, validateRequestSize } from '@/lib/middleware/security'
-import { clientIp } from '@/lib/middleware/rate-limit'
+import { clientIp, getBucket, rateLimitKey } from '@/lib/middleware/rate-limit'
 import { verifyCronSecret } from '@/lib/auth/cron'
 
 function req(method: string, headers: Record<string, string> = {}) {
@@ -86,5 +86,25 @@ describe('verifyCronSecret', () => {
     vi.stubEnv('CRON_SECRET', '')
     vi.stubEnv('NODE_ENV', 'development')
     expect(verifyCronSecret(withAuth())).toBe(true)
+  })
+})
+
+describe('rate-limit buckets and keys', () => {
+  it('uses the strict auth bucket only for credential submissions', () => {
+    expect(getBucket('/api/auth/callback/credentials', 'POST')).toBe('auth')
+    expect(getBucket('/api/auth/signup', 'POST')).toBe('auth')
+    expect(getBucket('/api/auth/session', 'GET')).toBe('api')
+    expect(getBucket('/api/auth/csrf')).toBe('api')
+    expect(getBucket('/api/ai/analyze', 'POST')).toBe('ai')
+    expect(getBucket('/api/ai/chat/sessions', 'GET')).toBe('api')
+    expect(getBucket('/dashboard')).toBeNull()
+  })
+
+  it('keys authenticated traffic per user and login attempts per IP', () => {
+    const h = new Headers({ 'x-real-ip': '10.1.1.1' })
+    expect(rateLimitKey('api', h, 'u-1')).toBe('user:u-1')
+    expect(rateLimitKey('ai', h, 'u-1')).toBe('user:u-1')
+    expect(rateLimitKey('auth', h, 'u-1')).toBe('ip:10.1.1.1')
+    expect(rateLimitKey('api', h, null)).toBe('ip:10.1.1.1')
   })
 })

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { identities, entitlements, resources } from '@/lib/db/schema'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 
 const inputSchema = z.object({
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         })
         .from(resources)
         .innerJoin(entitlements, eq(entitlements.resourceId, resources.id))
-        .where(sql`${entitlements.identityId} = ANY(${nhiIds})`)
+        .where(inArray(entitlements.identityId, nhiIds))
     }
 
     // Deduplicate resources

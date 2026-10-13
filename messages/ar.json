@@ -130,7 +130,10 @@
     "searchPlaceholder": "بحث بالاسم أو UPN أو البريد الإلكتروني...",
     "backToIdentities": "العودة إلى الهويات",
     "failedToLoadIdentity": "فشل تحميل الهوية",
-    "identityNotFound": "الهوية غير موجودة أو الوصول مرفوض."
+    "identityNotFound": "الهوية غير موجودة أو الوصول مرفوض.",
+    "deteriorating": "متدهور",
+    "improving": "متحسن",
+    "stable": "مستقر"
   },
   "dashboard": {
     "title": "نظرة عامة",
@@ -145,7 +148,18 @@
     "integrationHealth": "صحة التكاملات",
     "failedToLoad": "فشل تحميل مقاييس لوحة التحكم",
     "checkConnection": "تحقق من اتصال قاعدة البيانات وحاول مرة أخرى.",
-    "identitiesWithoutViolations": "هويات بدون مخالفات تصنيف"
+    "identitiesWithoutViolations": "هويات بدون مخالفات تصنيف",
+    "identitiesMonitored": "{count} هوية تحت المراقبة",
+    "exportRiskSummary": "تصدير ملخص المخاطر",
+    "attackPaths": "مسارات الهجوم",
+    "adExposures": "تعرضات AD",
+    "avgRisk30d": "متوسط المخاطر (30 يومًا)",
+    "hintAttackPaths": "تصعيد إلى المستوى 0",
+    "hintOpenViolations": "مخالفات سياسات مفتوحة",
+    "hintOpenFindings": "نتائج مفتوحة",
+    "hintCrossTier": "وصول عبر المستويات",
+    "hintOfIdentities": "من أصل {count} هوية",
+    "hintMeanRisk": "متوسط درجة المخاطر"
   },
   "exposures": {
     "title": "تعرضات Active Directory",
@@ -477,7 +491,8 @@
     "dark": "داكن",
     "system": "النظام",
     "language": "اللغة",
-    "integrationsNote": "إدارة التكاملات من صفحة التكاملات."
+    "integrationsNote": "إدارة التكاملات من صفحة التكاملات.",
+    "automation": "الأتمتة"
   },
   "login": {
     "title": "رادار الهوية",
@@ -928,5 +943,11 @@
     "acknowledge": "إقرار",
     "certify": "اعتماد",
     "review": "مراجعة"
+  },
+  "briefing": {
+    "todaysBriefing": "إحاطة اليوم",
+    "collapse": "طي",
+    "viewFull": "عرض الإحاطة كاملة",
+    "generatesAt7am": "يتم إنشاء إحاطة جديدة يوميًا الساعة 7:00 صباحًا"
   }
 }

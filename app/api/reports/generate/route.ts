@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
-import { actionLog, identities, policyViolations, policies, organizations } from '@/lib/db/schema'
+import { actionLog, identities, users, policyViolations, policies, organizations } from '@/lib/db/schema'
 import { eq, and, desc, count, gte, lte, sql, SQL } from 'drizzle-orm'
 import ReactPDF from '@react-pdf/renderer'
 import {
@@ -45,10 +45,11 @@ export async function POST(req: NextRequest) {
           rationale: actionLog.rationale,
           source: actionLog.source,
           createdAt: actionLog.createdAt,
-          actorName: identities.displayName,
+          actorName: sql<string | null>`coalesce(${identities.displayName}, ${users.name}, ${users.email})`,
         })
         .from(actionLog)
         .leftJoin(identities, eq(actionLog.actorIdentityId, identities.id))
+        .leftJoin(users, eq(actionLog.actorIdentityId, users.id))
         .where(
           and(
             eq(actionLog.orgId, orgId),

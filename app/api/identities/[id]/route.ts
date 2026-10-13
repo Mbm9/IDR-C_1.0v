@@ -4,9 +4,9 @@ import { db } from '@/lib/db'
 import {
   identities, accounts, entitlements, resources,
   groupMemberships, groups, policyViolations, policies,
-  actionLog,
+  actionLog, users,
 } from '@/lib/db/schema'
-import { and, eq, desc } from 'drizzle-orm'
+import { and, eq, desc, sql } from 'drizzle-orm'
 
 export async function GET(
   req: NextRequest,
@@ -108,10 +108,11 @@ export async function GET(
         rationale: actionLog.rationale,
         source: actionLog.source,
         createdAt: actionLog.createdAt,
-        actorName: identities.displayName,
+        actorName: sql<string | null>`coalesce(${identities.displayName}, ${users.name}, ${users.email})`,
       })
       .from(actionLog)
       .leftJoin(identities, eq(actionLog.actorIdentityId, identities.id))
+      .leftJoin(users, eq(actionLog.actorIdentityId, users.id))
       .where(eq(actionLog.targetIdentityId, identityId))
       .orderBy(desc(actionLog.createdAt))
       .limit(50),

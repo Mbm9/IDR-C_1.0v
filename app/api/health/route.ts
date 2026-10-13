@@ -2,6 +2,10 @@ import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { sql } from 'drizzle-orm'
 
+// Never prerender: a health check must query the database on every request.
+// Without this, a build that can reach the database caches "healthy" forever.
+export const dynamic = 'force-dynamic'
+
 const APP_VERSION = process.env.npm_package_version || '1.0.0'
 const startTime = Date.now()
 

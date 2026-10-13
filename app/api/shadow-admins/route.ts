@@ -6,6 +6,8 @@ import {
   policyViolations, policies,
 } from '@/lib/db/schema'
 import { eq, and, sql, desc } from 'drizzle-orm'
+import { hasRole } from '@/lib/utils/rbac'
+import type { AppRole } from '@/lib/utils/rbac'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -75,6 +77,10 @@ export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.orgId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+  // Re-running the scan replaces stored findings, so it needs the triage role.
+  if (!hasRole((session.user.appRole ?? 'viewer') as AppRole, 'analyst')) {
+    return NextResponse.json({ error: 'Forbidden: analyst role required' }, { status: 403 })
   }
 
   const orgId = session.user.orgId

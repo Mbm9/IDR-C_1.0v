@@ -1,10 +1,10 @@
 /**
  * In-memory rate limiter for Next.js API routes.
  *
- * Buckets:
- *   - API routes:      100 req/min
- *   - Auth routes:      10 req/min
- *   - AI analysis:       5 req/min
+ * Buckets (per minute, configurable via RATE_LIMIT_*_PER_MIN):
+ *   - API routes:          300 per user (per IP when anonymous)
+ *   - Credential POSTs:     30 per IP
+ *   - AI routes:             5 per user
  *
  * Returns 429 with Retry-After header when limit is exceeded.
  * Uses a sliding window counter stored in a Map, with automatic
@@ -36,10 +36,19 @@ function cleanup() {
 
 export type RateLimitBucket = 'api' | 'auth' | 'ai'
 
+/** Positive integer from an env var, else the default. */
+function envLimit(name: string, fallback: number): number {
+  const n = parseInt(process.env[name] || '', 10)
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+
+// Per minute. A dashboard page issues ~10 API calls (plus React Query
+// refetches), so `api` must allow brisk navigation; `auth` guards credential
+// submissions only. Override with RATE_LIMIT_{API,AUTH,AI}_PER_MIN.
 const LIMITS: Record<RateLimitBucket, { maxRequests: number; windowMs: number }> = {
-  api: { maxRequests: 100, windowMs: 60_000 },
-  auth: { maxRequests: 30, windowMs: 60_000 },
-  ai: { maxRequests: 5, windowMs: 60_000 },
+  api: { maxRequests: envLimit('RATE_LIMIT_API_PER_MIN', 300), windowMs: 60_000 },
+  auth: { maxRequests: envLimit('RATE_LIMIT_AUTH_PER_MIN', 30), windowMs: 60_000 },
+  ai: { maxRequests: envLimit('RATE_LIMIT_AI_PER_MIN', 5), windowMs: 60_000 },
 }
 
 export interface RateLimitResult {
@@ -105,13 +114,30 @@ export function clientIp(headers: Headers): string {
 }
 
 /**
- * Determine the rate-limit bucket for a given pathname.
+ * Determine the rate-limit bucket for a request.
+ *
+ * Only credential submissions (POST to /api/auth/*: sign-in callback, signup,
+ * sign-out) use the strict `auth` bucket. Session/CSRF reads are issued by the
+ * client on every page load and focus, so counting them against the login
+ * limit throttled normal navigation after ~25 page views a minute. Likewise
+ * only non-GET requests under /api/ai/ (model calls) use the `ai` bucket.
  */
-export function getBucket(pathname: string): RateLimitBucket | null {
-  if (pathname.startsWith('/api/ai/')) return 'ai'
-  if (pathname.startsWith('/api/auth/')) return 'auth'
+export function getBucket(pathname: string, method = 'GET'): RateLimitBucket | null {
+  // Only model calls are expensive; listing chat sessions or plans is a cheap read.
+  if (pathname.startsWith('/api/ai/')) return method === 'GET' ? 'api' : 'ai'
+  if (pathname.startsWith('/api/auth/')) return method === 'POST' ? 'auth' : 'api'
   if (pathname.startsWith('/api/')) return 'api'
   return null
+}
+
+/**
+ * Rate-limit key: authenticated traffic is limited per user, so colleagues
+ * behind one NAT address do not share a budget; anonymous traffic and login
+ * attempts are limited per client IP.
+ */
+export function rateLimitKey(bucket: RateLimitBucket, headers: Headers, userId?: string | null): string {
+  if (userId && bucket !== 'auth') return `user:${userId}`
+  return `ip:${clientIp(headers)}`
 }
 
 /**

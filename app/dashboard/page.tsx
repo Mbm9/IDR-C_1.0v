@@ -144,19 +144,19 @@ export default function DashboardOverview() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h2 className="text-title text-[var(--text-primary)]">{t('title')}</h2>
-          <p className="text-caption text-[var(--text-secondary)] mt-0.5 tabular-nums">{data.totalIdentities} {t('totalIdentities').toLowerCase()} monitored</p>
+          <p className="text-caption text-[var(--text-secondary)] mt-0.5 tabular-nums">{t('identitiesMonitored', { count: data.totalIdentities })}</p>
         </div>
-        <ExportPdfButton reportType="risk_summary" label="Export Risk Summary" />
+        <ExportPdfButton reportType="risk_summary" label={t('exportRiskSummary')} />
       </div>
 
       {/* Attention band — security posture at a glance, ordered by urgency */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        <StatTile label="Attack Paths" value={data.attackPathsCount} severity={data.attackPathsCount > 0 ? 'critical' : 'low'} href="/dashboard/attack-paths" hint="escalation into Tier 0" />
-        <StatTile label={t('activeViolations')} value={data.activeViolations} severity={data.activeViolations > 0 ? 'critical' : 'low'} href="/dashboard/violations" hint="open policy violations" />
-        <StatTile label="AD Exposures" value={data.exposuresCount} severity={data.exposuresCount > 0 ? 'high' : 'low'} href="/dashboard/exposures" hint="open findings" />
-        <StatTile label={t('tierViolations')} value={data.tierViolations} severity={data.tierViolations > 0 ? 'high' : 'low'} href="/dashboard/tiering" hint="cross-tier access" />
-        <StatTile label={t('criticalRisk')} value={criticalRisk} severity={criticalRisk > 0 ? 'critical' : 'low'} href="/dashboard/identities" hint={`of ${data.totalIdentities} identities`} />
-        <StatTile label="Avg Risk (30d)" value={riskNow} spark={riskSeries} delta={riskDelta} higherIsBetter={false} severity={riskSev} href="/dashboard/identities" hint="mean risk score" />
+        <StatTile label={t('attackPaths')} value={data.attackPathsCount} severity={data.attackPathsCount > 0 ? 'critical' : 'low'} href="/dashboard/attack-paths" hint={t('hintAttackPaths')} />
+        <StatTile label={t('activeViolations')} value={data.activeViolations} severity={data.activeViolations > 0 ? 'critical' : 'low'} href="/dashboard/violations" hint={t('hintOpenViolations')} />
+        <StatTile label={t('adExposures')} value={data.exposuresCount} severity={data.exposuresCount > 0 ? 'high' : 'low'} href="/dashboard/exposures" hint={t('hintOpenFindings')} />
+        <StatTile label={t('tierViolations')} value={data.tierViolations} severity={data.tierViolations > 0 ? 'high' : 'low'} href="/dashboard/tiering" hint={t('hintCrossTier')} />
+        <StatTile label={t('criticalRisk')} value={criticalRisk} severity={criticalRisk > 0 ? 'critical' : 'low'} href="/dashboard/identities" hint={t('hintOfIdentities', { count: data.totalIdentities })} />
+        <StatTile label={t('avgRisk30d')} value={riskNow} spark={riskSeries} delta={riskDelta} higherIsBetter={false} severity={riskSev} href="/dashboard/identities" hint={t('hintMeanRisk')} />
       </div>
 
       {/* Low Data Quality Banner */}

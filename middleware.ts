@@ -1,6 +1,6 @@
 import { auth } from '@/lib/auth/config'
 import { NextResponse } from 'next/server'
-import { checkRateLimit, clientIp, getBucket, rateLimitResponse } from '@/lib/middleware/rate-limit'
+import { checkRateLimit, getBucket, rateLimitKey, rateLimitResponse } from '@/lib/middleware/rate-limit'
 import {
   applySecurityHeaders,
   handlePreflight,
@@ -20,11 +20,11 @@ export default auth((req) => {
   // ------------------------------------------------------------------
   // Rate limiting (API routes only)
   // ------------------------------------------------------------------
-  const bucket = getBucket(pathname)
+  const bucket = getBucket(pathname, req.method)
   if (bucket) {
-    const ip = clientIp(req.headers)
+    const key = rateLimitKey(bucket, req.headers, req.auth?.user?.id)
 
-    const result = checkRateLimit(ip, bucket)
+    const result = checkRateLimit(key, bucket)
     if (!result.allowed) {
       return rateLimitResponse(result)
     }

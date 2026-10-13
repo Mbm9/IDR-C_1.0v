@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { identities, entitlements, resources } from '@/lib/db/schema'
-import { eq, and, sql, desc } from 'drizzle-orm'
+import { eq, and, sql, desc, inArray } from 'drizzle-orm'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -65,7 +65,7 @@ export async function GET(req: NextRequest) {
           .from(entitlements)
           .innerJoin(resources, eq(entitlements.resourceId, resources.id))
           .where(and(
-            sql`${entitlements.identityId} = ANY(${nhiIds})`,
+            inArray(entitlements.identityId, nhiIds),
             sql`(${resources.adTier} = 'tier_0' OR ${resources.criticality} = 'critical')`,
           ))
 

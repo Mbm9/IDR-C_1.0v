@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
-import { identities, policyViolations, entitlements, integrationSources, identityThreats, attackPaths, shadowAdmins, exposureFindings } from '@/lib/db/schema'
-import { eq, and, count, desc, sql, avg } from 'drizzle-orm'
+import { identities, policyViolations, entitlements, integrationSources, identityThreats, attackPaths, shadowAdmins, exposureFindings, briefings } from '@/lib/db/schema'
+import { eq, and, count, desc, sql, avg, gte } from 'drizzle-orm'
 
 export async function GET() {
   const session = await auth()
@@ -145,15 +145,31 @@ export async function GET() {
     ? Math.round(((totalIdentities - tierViolations) / totalIdentities) * 100)
     : 100
 
-  // Generate synthetic trend data (in production, this comes from historical snapshots)
-  const trendData = Array.from({ length: 30 }, (_, i) => {
-    const date = new Date()
-    date.setDate(date.getDate() - (29 - i))
-    return {
-      date: date.toISOString().split('T')[0],
-      avgRiskScore: Math.round(25 + Math.random() * 20 + (i > 20 ? 5 : 0)),
-    }
-  })
+  // Risk trend from real history: the daily-briefing job snapshots the org's
+  // average risk score each day; today's point is the live average. Previously
+  // this series was Math.random() output presented as data.
+  const since = new Date()
+  since.setDate(since.getDate() - 29)
+  since.setHours(0, 0, 0, 0)
+  const [history, [liveAvg]] = await Promise.all([
+    db.select({
+      day: sql<string>`to_char(${briefings.generatedAt} at time zone 'UTC', 'YYYY-MM-DD')`,
+      avgRiskScore: sql<number | null>`(${briefings.metrics}->>'avgRiskScore')::numeric`,
+    })
+      .from(briefings)
+      .where(and(eq(briefings.orgId, orgId), gte(briefings.generatedAt, since)))
+      .orderBy(briefings.generatedAt),
+    db.select({ value: sql<number | null>`round(avg(${identities.riskScore}))` })
+      .from(identities)
+      .where(eq(identities.orgId, orgId)),
+  ])
+  const byDay = new Map<string, number>()
+  for (const h of history) {
+    if (h.avgRiskScore !== null) byDay.set(h.day, Math.round(Number(h.avgRiskScore))) // latest per day wins
+  }
+  byDay.set(new Date().toISOString().split('T')[0], Number(liveAvg?.value ?? 0))
+  const trendData = Array.from(byDay, ([date, avgRiskScore]) => ({ date, avgRiskScore }))
+    .sort((a, b) => a.date.localeCompare(b.date))
 
   return NextResponse.json({
     totalIdentities,

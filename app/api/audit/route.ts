@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
-import { actionLog, identities } from '@/lib/db/schema'
-import { eq, and, desc, count, SQL } from 'drizzle-orm'
+import { actionLog, identities, users } from '@/lib/db/schema'
+import { eq, and, desc, count, sql, SQL } from 'drizzle-orm'
 
 export async function GET(req: NextRequest) {
   const session = await auth()
@@ -30,10 +30,13 @@ export async function GET(req: NextRequest) {
       source: actionLog.source,
       payload: actionLog.payload,
       createdAt: actionLog.createdAt,
-      actorName: identities.displayName,
+      // Actions taken in the app record the signed-in user's id; seeded and
+      // connector-driven actions record an identity id. Resolve either.
+      actorName: sql<string | null>`coalesce(${identities.displayName}, ${users.name}, ${users.email})`,
     })
       .from(actionLog)
       .leftJoin(identities, eq(actionLog.actorIdentityId, identities.id))
+      .leftJoin(users, eq(actionLog.actorIdentityId, users.id))
       .where(where)
       .orderBy(desc(actionLog.createdAt))
       .limit(pageSize)
