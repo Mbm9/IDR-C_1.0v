@@ -2,24 +2,26 @@
 
 import { useState } from 'react'
 import { Check, AlertTriangle, HelpCircle, RotateCcw } from 'lucide-react'
+import { useFormatter, useTranslations } from 'next-intl'
 
+/** Target identity fields; labels are message keys under import.previewFields ('' = unmapped). */
 const TARGET_FIELDS = [
-  { value: '', label: '-- Unmapped --' },
-  { value: 'displayName', label: 'Display Name' },
-  { value: 'type', label: 'Identity Type' },
-  { value: 'subType', label: 'Sub Type' },
-  { value: 'upn', label: 'UPN' },
-  { value: 'samAccountName', label: 'SAM Account Name' },
-  { value: 'email', label: 'Email' },
-  { value: 'department', label: 'Department' },
-  { value: 'status', label: 'Status' },
-  { value: 'adTier', label: 'AD Tier' },
-  { value: 'sourceId', label: 'Source ID' },
-  { value: 'lastLogonAt', label: 'Last Logon' },
-  { value: 'passwordLastSetAt', label: 'Password Last Set' },
-  { value: 'createdInSourceAt', label: 'Created Date' },
-  { value: 'managerDn', label: 'Manager DN' },
-  { value: 'memberOf', label: 'Member Of' },
+  '',
+  'displayName',
+  'type',
+  'subType',
+  'upn',
+  'samAccountName',
+  'email',
+  'department',
+  'status',
+  'adTier',
+  'sourceId',
+  'lastLogonAt',
+  'passwordLastSetAt',
+  'createdInSourceAt',
+  'managerDn',
+  'memberOf',
 ] as const
 
 interface CSVMappingPreviewProps {
@@ -46,6 +48,8 @@ export function CSVMappingPreview({
   loading,
 }: CSVMappingPreviewProps) {
   const [mapping, setMapping] = useState<Record<string, string>>(initialMapping)
+  const t = useTranslations('import')
+  const format = useFormatter()
 
   const handleFieldChange = (sourceCol: string, targetField: string) => {
     setMapping(prev => {
@@ -67,18 +71,18 @@ export function CSVMappingPreview({
 
   const getConfidenceColor = (col: string): string => {
     const conf = confidence[col]
-    if (conf === undefined || !mapping[col]) return 'bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]'
-    if (conf >= 80) return 'bg-[var(--color-low-bg)] text-[var(--color-low)]'
-    if (conf >= 50) return 'bg-[var(--color-medium-bg)] text-[var(--color-medium)]'
-    return 'bg-[var(--color-high-bg)] text-[var(--color-high)]'
+    if (conf === undefined || !mapping[col]) return 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
+    if (conf >= 80) return 'bg-[var(--color-low-bg)] text-[var(--text-primary)]'
+    if (conf >= 50) return 'bg-[var(--color-medium-bg)] text-[var(--text-primary)]'
+    return 'bg-[var(--color-high-bg)] text-[var(--text-primary)]'
   }
 
   const getConfidenceIcon = (col: string) => {
     const conf = confidence[col]
-    if (conf === undefined || !mapping[col]) return <HelpCircle size={14} />
-    if (conf >= 80) return <Check size={14} />
-    if (conf >= 50) return <AlertTriangle size={14} />
-    return <AlertTriangle size={14} />
+    if (conf === undefined || !mapping[col]) return <HelpCircle size={14} aria-hidden="true" />
+    if (conf >= 80) return <Check size={14} style={{ color: 'var(--color-low)' }} aria-hidden="true" />
+    if (conf >= 50) return <AlertTriangle size={14} style={{ color: 'var(--color-medium)' }} aria-hidden="true" />
+    return <AlertTriangle size={14} style={{ color: 'var(--color-high)' }} aria-hidden="true" />
   }
 
   const getSampleValue = (colIndex: number): string => {
@@ -98,14 +102,14 @@ export function CSVMappingPreview({
     <div className="space-y-4">
       {/* Format detection badge */}
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="px-2.5 py-1 rounded-[var(--radius-badge)] text-caption font-medium bg-[var(--color-info-bg)] text-[var(--color-info)]">
+        <span className="px-2.5 py-1 rounded-[var(--radius-badge)] text-caption font-medium bg-[var(--color-info-bg)] text-[var(--text-primary)]" dir="ltr">
           {formatDetection.csvType.replace(/_/g, ' ').toUpperCase()}
         </span>
         <span className="px-2.5 py-1 rounded-[var(--radius-badge)] text-caption font-medium bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
-          Date format: {formatDetection.dateFormat.replace(/_/g, ' ')}
+          {t('dateFormat', { format: formatDetection.dateFormat.replace(/_/g, ' ') })}
         </span>
-        <span className="text-caption text-[var(--text-tertiary)]">
-          {mappedCount}/{headers.length} columns mapped
+        <span className="text-caption text-[var(--text-secondary)]">
+          {t('columnsMapped', { mapped: mappedCount, total: headers.length })}
         </span>
       </div>
 
@@ -115,29 +119,30 @@ export function CSVMappingPreview({
           <table className="w-full text-body">
             <thead>
               <tr className="bg-[var(--bg-tertiary)]">
-                <th className="text-start px-4 py-2.5 text-caption font-semibold text-[var(--text-secondary)]">Source Column</th>
-                <th className="text-start px-4 py-2.5 text-caption font-semibold text-[var(--text-secondary)]">Sample Value</th>
-                <th className="text-start px-4 py-2.5 text-caption font-semibold text-[var(--text-secondary)]">Target Field</th>
-                <th className="text-center px-4 py-2.5 text-caption font-semibold text-[var(--text-secondary)]">Confidence</th>
+                <th scope="col" className="text-start px-4 py-2.5 text-caption font-semibold text-[var(--text-secondary)]">{t('sourceColumn')}</th>
+                <th scope="col" className="text-start px-4 py-2.5 text-caption font-semibold text-[var(--text-secondary)]">{t('sampleValue')}</th>
+                <th scope="col" className="text-start px-4 py-2.5 text-caption font-semibold text-[var(--text-secondary)]">{t('targetField')}</th>
+                <th scope="col" className="text-center px-4 py-2.5 text-caption font-semibold text-[var(--text-secondary)]">{t('confidence')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[var(--border-default)]">
               {headers.map((header, idx) => (
                 <tr key={header} className="bg-[var(--bg-primary)] hover:bg-[var(--bg-secondary)] transition-colors">
                   <td className="px-4 py-2.5">
-                    <span className="font-mono text-caption text-[var(--text-primary)]">{header}</span>
+                    <span className="font-mono text-caption text-[var(--text-primary)]" dir="ltr">{header}</span>
                   </td>
                   <td className="px-4 py-2.5">
-                    <span className="text-caption text-[var(--text-tertiary)] font-mono">{getSampleValue(idx)}</span>
+                    <bdi className="text-caption text-[var(--text-secondary)] font-mono">{getSampleValue(idx)}</bdi>
                   </td>
                   <td className="px-4 py-2.5">
                     <select
                       value={mapping[header] || ''}
                       onChange={(e) => handleFieldChange(header, e.target.value)}
+                      aria-label={t('mapColumn', { column: header })}
                       className="w-full px-2 py-1.5 border border-[var(--border-default)] rounded-[var(--radius-input)] text-caption bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-info)] focus:border-transparent"
                     >
                       {TARGET_FIELDS.map(f => (
-                        <option key={f.value} value={f.value}>{f.label}</option>
+                        <option key={f} value={f}>{f ? t(`previewFields.${f}`) : t('unmappedOption')}</option>
                       ))}
                     </select>
                   </td>
@@ -145,11 +150,11 @@ export function CSVMappingPreview({
                     {mapping[header] ? (
                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption font-medium ${getConfidenceColor(header)}`}>
                         {getConfidenceIcon(header)}
-                        {confidence[header] !== undefined ? `${confidence[header]}%` : 'Manual'}
+                        {confidence[header] !== undefined ? format.number(confidence[header] / 100, { style: 'percent' }) : t('manualMapping')}
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full text-caption font-medium bg-[var(--bg-tertiary)] text-[var(--text-tertiary)]">
-                        Unmapped
+                      <span className="px-2 py-0.5 rounded-full text-caption font-medium bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
+                        {t('unmapped')}
                       </span>
                     )}
                   </td>
@@ -162,9 +167,9 @@ export function CSVMappingPreview({
 
       {/* Validation warning */}
       {!hasDisplayName && (
-        <div className="px-4 py-3 rounded-[var(--radius-card)] text-caption font-medium flex items-center gap-2" style={{ backgroundColor: 'var(--color-high-bg)', color: 'var(--color-high)' }}>
-          <AlertTriangle size={14} />
-          A &quot;Display Name&quot; mapping is required to import identities.
+        <div role="alert" className="px-4 py-3 rounded-[var(--radius-card)] text-caption font-medium flex items-center gap-2 border text-[var(--text-primary)]" style={{ backgroundColor: 'var(--color-high-bg)', borderColor: 'var(--color-high)' }}>
+          <AlertTriangle size={14} style={{ color: 'var(--color-high)' }} aria-hidden="true" />
+          {t('displayNameRequired')}
         </div>
       )}
 
@@ -174,8 +179,8 @@ export function CSVMappingPreview({
           onClick={onReset}
           className="inline-flex items-center gap-1.5 text-caption font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
         >
-          <RotateCcw size={14} />
-          Reset
+          <RotateCcw size={14} aria-hidden="true" />
+          {t('reset')}
         </button>
         <button
           onClick={() => onConfirm(mapping)}
@@ -183,11 +188,11 @@ export function CSVMappingPreview({
           className="inline-flex items-center gap-2 px-5 py-2 bg-[var(--color-info)] text-white rounded-[var(--radius-button)] text-body font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
         >
           {loading ? (
-            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" aria-hidden="true" />
           ) : (
-            <Check size={16} />
+            <Check size={16} aria-hidden="true" />
           )}
-          Confirm &amp; Import
+          {t('confirmMapping')}
         </button>
       </div>
     </div>

@@ -24,6 +24,7 @@ export function CommandPalette() {
   const router = useRouter()
   const tNav = useTranslations('nav')
   const tSearch = useTranslations('search')
+  const tTiers = useTranslations('tiers')
 
   const PAGES: SearchResult[] = [
     { id: 'dashboard', label: tNav('dashboard'), category: 'page', href: '/dashboard', icon: Shield },
@@ -73,7 +74,11 @@ export function CommandPalette() {
       const identityResults: SearchResult[] = data.data.map((i: any) => ({
         id: i.id,
         label: i.displayName,
-        description: `${i.type === 'human' ? 'Human' : 'NHI'} · ${i.adTier?.replace('_', ' ')} · Risk: ${i.riskScore}`,
+        description: tSearch('identityDescription', {
+          type: i.type === 'human' ? 'human' : 'nhi',
+          tier: ['tier_0', 'tier_1', 'tier_2', 'unclassified'].includes(i.adTier) ? tTiers(i.adTier) : (i.adTier ?? ''),
+          risk: i.riskScore ?? 0,
+        }),
         category: 'identity' as const,
         href: `/dashboard/identities/${i.id}`,
         icon: Users,
@@ -84,6 +89,7 @@ export function CommandPalette() {
       setResults(PAGES.filter(p => p.label.toLowerCase().includes(q.toLowerCase())))
     }
     setLoading(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -117,49 +123,59 @@ export function CommandPalette() {
 
   return (
     <div className="fixed inset-0 z-[100]">
-      <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} />
-      <div className="relative max-w-xl mx-auto mt-[15vh]">
+      <div className="absolute inset-0 bg-black/50" onClick={() => setOpen(false)} aria-hidden="true" />
+      <div className="relative max-w-xl mx-4 sm:mx-auto mt-[15vh]" role="dialog" aria-modal="true" aria-label={tSearch('dialogLabel')}>
         <div className="bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-xl overflow-hidden" style={{ boxShadow: 'var(--shadow-modal)' }}>
           {/* Search input */}
           <div className="flex items-center gap-3 px-4 border-b border-[var(--border-default)]">
-            <Search size={18} className="text-[var(--text-tertiary)] flex-shrink-0" />
+            <Search size={18} className="text-[var(--text-secondary)] flex-shrink-0" aria-hidden="true" />
             <input
               ref={inputRef}
+              role="combobox"
+              aria-expanded={results.length > 0}
+              aria-controls="command-palette-results"
+              aria-activedescendant={results[selectedIndex] ? `cmdk-${results[selectedIndex].category}-${results[selectedIndex].id}` : undefined}
+              aria-label={tSearch('placeholder')}
+              dir="auto"
               value={query}
               onChange={(e) => { setQuery(e.target.value); setSelectedIndex(0) }}
               onKeyDown={handleKeyDown}
               placeholder={tSearch('placeholder')}
-              className="flex-1 py-3.5 bg-transparent text-body text-[var(--text-primary)] outline-none placeholder:text-[var(--text-tertiary)]"
+              className="flex-1 py-3.5 bg-transparent text-body text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
             />
-            <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-micro text-[var(--text-tertiary)] bg-[var(--bg-tertiary)] rounded border border-[var(--border-default)]">
+            <kbd dir="ltr" className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-micro text-[var(--text-secondary)] bg-[var(--bg-tertiary)] rounded border border-[var(--border-default)]">
               ESC
             </kbd>
           </div>
 
           {/* Results */}
-          <div className="max-h-80 overflow-y-auto py-2">
+          <div className="max-h-80 overflow-y-auto py-2" id="command-palette-results" role="listbox" aria-label={tSearch('resultsLabel')}>
             {loading && (
-              <p className="px-4 py-2 text-caption text-[var(--text-tertiary)]">{tSearch('searching')}</p>
+              <p className="px-4 py-2 text-caption text-[var(--text-secondary)]" role="status">{tSearch('searching')}</p>
             )}
 
             {grouped.identity.length > 0 && (
               <div>
-                <p className="px-4 py-1 text-micro text-[var(--text-tertiary)] font-semibold tracking-wider">{tSearch('identitiesCategory')}</p>
+                <p className="px-4 py-1 text-micro text-[var(--text-secondary)] font-semibold tracking-wider" role="presentation">{tSearch('identitiesCategory')}</p>
                 {grouped.identity.map((result, i) => {
                   const globalIndex = i
                   return (
                     <button
                       key={result.id}
+                      id={`cmdk-identity-${result.id}`}
+                      role="option"
+                      aria-selected={selectedIndex === globalIndex}
+                      tabIndex={-1}
                       onClick={() => handleSelect(result)}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 text-start transition-colors ${
                         selectedIndex === globalIndex ? 'bg-[var(--bg-secondary)]' : 'hover:bg-[var(--bg-secondary)]'
                       }`}
                     >
-                      <Users size={16} className="text-[var(--color-human)] flex-shrink-0" />
+                      <Users size={16} className="text-[var(--color-human)] flex-shrink-0" aria-hidden="true" />
                       <div className="min-w-0">
-                        <p className="text-body font-medium text-[var(--text-primary)] truncate">{result.label}</p>
+                        <p className="text-body font-medium text-[var(--text-primary)] truncate"><bdi>{result.label}</bdi></p>
                         {result.description && (
-                          <p className="text-caption text-[var(--text-tertiary)] truncate">{result.description}</p>
+                          <p className="text-caption text-[var(--text-secondary)] truncate">{result.description}</p>
                         )}
                       </div>
                     </button>
@@ -170,19 +186,23 @@ export function CommandPalette() {
 
             {grouped.page.length > 0 && (
               <div>
-                <p className="px-4 py-1 text-micro text-[var(--text-tertiary)] font-semibold tracking-wider mt-1">{tSearch('pagesCategory')}</p>
+                <p className="px-4 py-1 text-micro text-[var(--text-secondary)] font-semibold tracking-wider mt-1" role="presentation">{tSearch('pagesCategory')}</p>
                 {grouped.page.map((result, i) => {
                   const globalIndex = grouped.identity.length + i
                   const Icon = result.icon || Shield
                   return (
                     <button
                       key={result.id}
+                      id={`cmdk-page-${result.id}`}
+                      role="option"
+                      aria-selected={selectedIndex === globalIndex}
+                      tabIndex={-1}
                       onClick={() => handleSelect(result)}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 text-start transition-colors ${
                         selectedIndex === globalIndex ? 'bg-[var(--bg-secondary)]' : 'hover:bg-[var(--bg-secondary)]'
                       }`}
                     >
-                      <Icon size={16} className="text-[var(--text-tertiary)] flex-shrink-0" />
+                      <Icon size={16} className="text-[var(--text-secondary)] flex-shrink-0" aria-hidden="true" />
                       <p className="text-body text-[var(--text-primary)]">{result.label}</p>
                     </button>
                   )
@@ -191,17 +211,17 @@ export function CommandPalette() {
             )}
 
             {!loading && results.length === 0 && (
-              <p className="px-4 py-8 text-center text-caption text-[var(--text-tertiary)]">
+              <p className="px-4 py-8 text-center text-caption text-[var(--text-secondary)]" role="status">
                 {tSearch('noResults', { query })}
               </p>
             )}
           </div>
 
           {/* Footer */}
-          <div className="px-4 py-2 border-t border-[var(--border-default)] flex gap-4 text-micro text-[var(--text-tertiary)]">
-            <span>↑↓ {tSearch('navigate')}</span>
-            <span>↵ {tSearch('select')}</span>
-            <span>esc {tSearch('close')}</span>
+          <div className="px-4 py-2 border-t border-[var(--border-default)] flex gap-4 text-micro text-[var(--text-secondary)]" aria-hidden="true">
+            <span><kbd dir="ltr">↑↓</kbd> {tSearch('navigate')}</span>
+            <span><kbd dir="ltr">↵</kbd> {tSearch('select')}</span>
+            <span><kbd dir="ltr">Esc</kbd> {tSearch('close')}</span>
           </div>
         </div>
       </div>

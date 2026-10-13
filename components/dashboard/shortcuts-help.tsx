@@ -66,24 +66,35 @@ export function ShortcutsHelp({ open, onClose }: ShortcutsHelpProps) {
     return () => document.removeEventListener('keydown', handleEsc)
   }, [open, onClose])
 
+  // Move focus into the dialog so keyboard and screen-reader users land on it
+  useEffect(() => {
+    if (open) panelRef.current?.focus()
+  }, [open])
+
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+    <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
       <div
         ref={panelRef}
-        className="relative w-full max-w-lg bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg overflow-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="shortcuts-help-title"
+        tabIndex={-1}
+        className="relative w-full max-w-lg focus:outline-none bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg overflow-hidden"
         style={{ boxShadow: 'var(--shadow-dropdown)' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-default)]">
-          <h3 className="text-heading font-semibold text-[var(--text-primary)]">{t('title')}</h3>
+          <h2 id="shortcuts-help-title" className="text-heading font-semibold text-[var(--text-primary)]">{t('title')}</h2>
           <button
             onClick={onClose}
-            className="p-1 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors"
+            aria-label={t('close')}
+            title={t('close')}
+            className="p-1 rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors"
           >
-            <X size={16} />
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
 
@@ -91,33 +102,33 @@ export function ShortcutsHelp({ open, onClose }: ShortcutsHelpProps) {
         <div className="px-5 py-4 max-h-[70vh] overflow-y-auto space-y-5">
           {SHORTCUT_SECTIONS.map((section) => (
             <div key={section.labelKey}>
-              <p className="text-micro font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-2">
+              <h3 className="text-micro font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
                 {t(section.labelKey)}
-              </p>
-              <div className="space-y-1.5">
+              </h3>
+              <dl className="space-y-1.5">
                 {section.shortcuts.map((shortcut) => (
                   <div
                     key={shortcut.labelKey}
                     className="flex items-center justify-between py-1"
                   >
-                    <span className="text-caption text-[var(--text-secondary)]">
+                    <dt className="text-caption text-[var(--text-primary)]">
                       {t(shortcut.labelKey)}
-                    </span>
-                    <div className="flex items-center gap-1">
+                    </dt>
+                    <dd className="flex items-center gap-1" dir="ltr">
                       {shortcut.keys.map((key, i) => (
                         <span key={i}>
                           {i > 0 && (
-                            <span className="text-micro text-[var(--text-tertiary)] mx-0.5">then</span>
+                            <span className="text-micro text-[var(--text-secondary)] mx-0.5">{t('then')}</span>
                           )}
-                          <kbd className="inline-flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-micro font-mono font-medium text-[var(--text-secondary)] bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded">
-                            {key}
+                          <kbd className="inline-flex items-center justify-center min-w-[24px] px-1.5 py-0.5 text-micro font-mono font-medium text-[var(--text-primary)] bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded">
+                            {key === 'Enter' ? t('keyEnter') : key === 'Space' ? t('keySpace') : key}
                           </kbd>
                         </span>
                       ))}
-                    </div>
+                    </dd>
                   </div>
                 ))}
-              </div>
+              </dl>
             </div>
           ))}
         </div>

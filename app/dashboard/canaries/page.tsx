@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
+import { ChevronDown, Lock } from 'lucide-react'
 import { MetricCard } from '@/components/ui/metric-card'
+import { useRoleHint } from '@/lib/hooks/use-role-hint'
 
 interface Canary {
   id: string
@@ -29,6 +31,10 @@ interface CreateCanaryForm {
 export default function CanariesPage() {
   const t = useTranslations('canaries')
   const tCommon = useTranslations('common')
+  const format = useFormatter()
+  const { can, hint } = useRoleHint()
+  const canManage = can('iam_admin')
+  const [createError, setCreateError] = useState<string | null>(null)
 
   const [canaries, setCanaries] = useState<Canary[]>([])
   const [stats, setStats] = useState({ total: 0, active: 0, triggeredEver: 0, triggered24h: 0 })
@@ -64,6 +70,7 @@ export default function CanariesPage() {
 
   const createCanary = useCallback(async () => {
     setCreating(true)
+    setCreateError(null)
     try {
       const res = await fetch('/api/canaries', {
         method: 'POST',
@@ -74,11 +81,16 @@ export default function CanariesPage() {
         setShowCreate(false)
         setForm({ canaryType: 'fake_admin', name: '', description: '', placementLocation: '', alertWebhookUrl: '' })
         await fetchData()
+      } else {
+        const body = await res.json().catch(() => ({}))
+        setCreateError(body.error || t('deployFailed'))
       }
+    } catch {
+      setCreateError(t('deployFailed'))
     } finally {
       setCreating(false)
     }
-  }, [form, fetchData])
+  }, [form, fetchData, t])
 
   const toggleCanary = useCallback(async (id: string, enabled: boolean) => {
     await fetch(`/api/canaries/${id}`, {
@@ -99,18 +111,26 @@ export default function CanariesPage() {
   }, [triggers])
 
   const canaryTypeIcons: Record<string, string> = {
-    fake_admin: '\uD83D\uDC51',
-    fake_service: '\u2699\uFE0F',
-    fake_gmsa: '\uD83D\uDD10',
-    fake_vpn: '\uD83C\uDF10',
-    fake_api_key: '\uD83D\uDD11',
+    fake_admin: '👑',
+    fake_service: '⚙️',
+    fake_gmsa: '🔐',
+    fake_vpn: '🌐',
+    fake_api_key: '🔑',
   }
+  const canaryTypeLabels: Record<string, string> = {
+    fake_admin: t('fakeAdmin'),
+    fake_service: t('fakeService'),
+    fake_gmsa: t('fakeGmsa'),
+    fake_vpn: t('fakeVpn'),
+    fake_api_key: t('fakeApiKey'),
+  }
+  const inputClass = 'w-full px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]'
 
   if (loading && canaries.length === 0) {
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4" role="status" aria-busy="true" aria-label={tCommon('loading')}>
           {[1, 2, 3, 4].map(i => (
             <div key={i} className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6 h-28 animate-pulse" />
           ))}
@@ -121,164 +141,200 @@ export default function CanariesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
         <button
           onClick={() => setShowCreate(true)}
-          className="px-4 py-2 bg-[var(--color-info)] text-white rounded-lg text-sm font-medium hover:opacity-90"
+          disabled={!canManage}
+          title={canManage ? undefined : hint('iam_admin')}
+          className="flex items-center gap-2 px-4 py-2 bg-[var(--color-info)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
         >
+          {!canManage && <Lock size={14} aria-hidden="true" />}
           {t('deployNew')}
         </button>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <MetricCard label={t('totalCanaries')} value={stats.total} color="blue" />
         <MetricCard label={t('activeCanaries')} value={stats.active} color="green" />
         <MetricCard label={t('triggeredEver')} value={stats.triggeredEver} color="orange" />
         <MetricCard label={t('triggered24h')} value={stats.triggered24h} color="red" />
       </div>
 
+      {createError && (
+        <p className="rounded-md border px-3 py-2 text-sm text-[var(--text-primary)]" style={{ borderColor: 'var(--color-critical)' }} role="alert"><bdi>{createError}</bdi></p>
+      )}
+
       {/* Create dialog */}
-      {showCreate && (
-        <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">{t('deployNew')}</h3>
+      {showCreate && canManage && (
+        <form
+          className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6"
+          style={{ boxShadow: 'var(--shadow-card)' }}
+          onSubmit={(e) => { e.preventDefault(); createCanary() }}
+          aria-labelledby="deploy-canary-title"
+        >
+          <h3 id="deploy-canary-title" className="text-lg font-semibold text-[var(--text-primary)] mb-4">{t('deployNew')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('canaryType')}</label>
+              <label htmlFor="canary-type" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('canaryType')}</label>
               <select
+                id="canary-type"
                 value={form.canaryType}
                 onChange={(e) => setForm(f => ({ ...f, canaryType: e.target.value }))}
-                className="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
+                className={inputClass}
               >
-                <option value="fake_admin">{t('fakeAdmin')}</option>
-                <option value="fake_service">{t('fakeService')}</option>
-                <option value="fake_gmsa">{t('fakeGmsa')}</option>
-                <option value="fake_vpn">{t('fakeVpn')}</option>
-                <option value="fake_api_key">{t('fakeApiKey')}</option>
+                {Object.entries(canaryTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('name')}</label>
+              <label htmlFor="canary-name" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('name')}</label>
               <input
+                id="canary-name"
+                dir="ltr"
                 value={form.name}
                 onChange={(e) => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder={t('namePlaceholder')}
-                className="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
+                className={inputClass}
               />
             </div>
             <div className="md:col-span-2">
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('description')}</label>
+              <label htmlFor="canary-description" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('description')}</label>
               <input
+                id="canary-description"
                 value={form.description}
                 onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
                 placeholder={t('descriptionPlaceholder')}
-                className="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('placement')}</label>
+              <label htmlFor="canary-placement" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('placement')}</label>
               <input
+                id="canary-placement"
+                dir="ltr"
                 value={form.placementLocation}
                 onChange={(e) => setForm(f => ({ ...f, placementLocation: e.target.value }))}
                 placeholder={t('placementPlaceholder')}
-                className="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('webhookUrl')}</label>
+              <label htmlFor="canary-webhook" className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('webhookUrl')}</label>
               <input
+                id="canary-webhook"
+                type="url"
+                dir="ltr"
                 value={form.alertWebhookUrl}
                 onChange={(e) => setForm(f => ({ ...f, alertWebhookUrl: e.target.value }))}
                 placeholder="https://..."
-                className="w-full px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
+                className={inputClass}
               />
             </div>
           </div>
           <div className="flex justify-end gap-2 mt-4">
-            <button onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm border border-[var(--border-default)] rounded-lg hover:bg-[var(--bg-secondary)]">
+            <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 text-sm border border-[var(--border-default)] rounded-lg hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]">
               {tCommon('cancel')}
             </button>
             <button
-              onClick={createCanary}
+              type="submit"
               disabled={creating || !form.name || !form.description || !form.placementLocation}
               className="px-4 py-2 bg-[var(--color-info)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
             >
               {creating ? tCommon('loading') : t('deploy')}
             </button>
           </div>
-        </div>
+        </form>
       )}
 
       {/* Canary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {canaries.map((canary) => (
-          <div
-            key={canary.id}
-            className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-5 cursor-pointer hover:border-[var(--color-info)] transition-colors"
-            style={{ boxShadow: 'var(--shadow-card)' }}
-            onClick={() => {
-              setExpandedId(expandedId === canary.id ? null : canary.id)
-              loadTriggers(canary.id)
-            }}
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">{canaryTypeIcons[canary.canaryType] || '?'}</span>
-                <div>
-                  <p className="text-sm font-semibold text-[var(--text-primary)]">{canary.identityName}</p>
-                  <p className="text-xs text-[var(--text-secondary)]">{canary.canaryType.replace(/_/g, ' ')}</p>
-                </div>
-              </div>
-              <button
-                onClick={(e) => { e.stopPropagation(); toggleCanary(canary.id, !canary.enabled) }}
-                className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                  canary.enabled
-                    ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                    : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                }`}
-              >
-                {canary.enabled ? t('enabled') : t('disabled')}
-              </button>
-            </div>
-            <p className="text-xs text-[var(--text-secondary)] mb-3">{canary.description}</p>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-bold text-[var(--text-primary)]">{canary.triggerCount}</p>
-                <p className="text-xs text-[var(--text-secondary)]">{t('triggers')}</p>
-              </div>
-              {canary.lastTriggeredAt && (
-                <div className="text-end">
-                  <p className="text-xs text-[var(--color-critical)] font-medium">{t('lastTriggered')}</p>
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    {new Date(canary.lastTriggeredAt).toLocaleDateString()}
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {expandedId === canary.id && (
-              <div className="mt-4 pt-4 border-t border-[var(--border-default)]">
-                <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">{t('placement')}: {canary.placementLocation}</p>
-                {(triggers[canary.id] || []).length > 0 ? (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-[var(--text-secondary)]">{t('recentTriggers')}</p>
-                    {(triggers[canary.id] || []).slice(0, 5).map((trig: any) => (
-                      <div key={trig.id} className="flex items-center justify-between text-xs bg-[var(--bg-secondary)] rounded p-2">
-                        <span className="text-[var(--text-primary)]">{trig.eventType}</span>
-                        <span className="text-[var(--text-secondary)]">{trig.sourceIp}</span>
-                        <span className="text-[var(--text-secondary)]">{new Date(trig.triggeredAt).toLocaleString()}</span>
-                      </div>
-                    ))}
+      <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {canaries.map((canary) => {
+          const expanded = expandedId === canary.id
+          return (
+            <li
+              key={canary.id}
+              className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-5 transition-colors"
+              style={{ boxShadow: 'var(--shadow-card)' }}
+            >
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-2xl" aria-hidden="true">{canaryTypeIcons[canary.canaryType] || '?'}</span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[var(--text-primary)] break-words"><bdi>{canary.identityName}</bdi></p>
+                    <p className="text-xs text-[var(--text-secondary)]">{canaryTypeLabels[canary.canaryType] ?? canary.canaryType}</p>
                   </div>
+                </div>
+                {canManage ? (
+                  <button
+                    role="switch"
+                    aria-checked={canary.enabled}
+                    aria-label={t('toggleCanary', { name: canary.identityName })}
+                    onClick={() => toggleCanary(canary.id, !canary.enabled)}
+                    className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border text-[var(--text-primary)]"
+                    style={{ borderColor: canary.enabled ? 'var(--color-low)' : 'var(--border-hover)' }}
+                  >
+                    {canary.enabled ? t('enabled') : t('disabled')}
+                  </button>
                 ) : (
-                  <p className="text-xs text-[var(--text-secondary)]">{t('noTriggers')}</p>
+                  <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium border text-[var(--text-primary)]"
+                    style={{ borderColor: canary.enabled ? 'var(--color-low)' : 'var(--border-hover)' }}>
+                    {canary.enabled ? t('enabled') : t('disabled')}
+                  </span>
                 )}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
+              <p className="text-xs text-[var(--text-secondary)] mb-3" dir="auto">{canary.description}</p>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-lg font-bold text-[var(--text-primary)]">{format.number(canary.triggerCount)}</p>
+                  <p className="text-xs text-[var(--text-secondary)]">{t('triggerCount', { count: canary.triggerCount })}</p>
+                </div>
+                {canary.lastTriggeredAt && (
+                  <div className="text-end">
+                    <p className="text-xs text-[var(--text-primary)] font-semibold">{t('lastTriggered')}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      {format.dateTime(new Date(canary.lastTriggeredAt), { dateStyle: 'medium' })}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  setExpandedId(expanded ? null : canary.id)
+                  loadTriggers(canary.id)
+                }}
+                aria-expanded={expanded}
+                aria-controls={`canary-details-${canary.id}`}
+                className="mt-3 flex items-center gap-1 text-xs font-medium text-[var(--text-primary)] underline-offset-2 hover:underline"
+              >
+                <ChevronDown size={14} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} aria-hidden="true" />
+                {expanded ? t('hideDetails') : t('showDetails')}
+              </button>
+
+              {expanded && (
+                <div id={`canary-details-${canary.id}`} className="mt-3 pt-3 border-t border-[var(--border-default)]">
+                  <p className="text-xs font-medium text-[var(--text-secondary)] mb-2">{t('placement')}: <bdi dir="ltr">{canary.placementLocation}</bdi></p>
+                  {(triggers[canary.id] || []).length > 0 ? (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-[var(--text-secondary)]">{t('recentTriggers')}</p>
+                      {(triggers[canary.id] || []).slice(0, 5).map((trig: any) => (
+                        <div key={trig.id} className="flex flex-wrap items-center justify-between gap-2 text-xs bg-[var(--bg-secondary)] rounded p-2">
+                          <bdi className="text-[var(--text-primary)]">{trig.eventType}</bdi>
+                          <span className="text-[var(--text-secondary)]" dir="ltr">{trig.sourceIp}</span>
+                          <span className="text-[var(--text-secondary)]">{format.dateTime(new Date(trig.triggeredAt), { dateStyle: 'medium', timeStyle: 'short' })}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-[var(--text-secondary)]">{t('noTriggers')}</p>
+                  )}
+                </div>
+              )}
+            </li>
+          )
+        })}
+      </ul>
 
       {canaries.length === 0 && !loading && (
         <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-8 text-center">

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { FileDown, Loader2 } from 'lucide-react'
+import { FileDown, Loader2, AlertTriangle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface ExportPdfButtonProps {
   reportType: 'audit_trail' | 'compliance_nca' | 'compliance_sama' | 'compliance_pdpl' | 'risk_summary'
@@ -13,15 +14,18 @@ interface ExportPdfButtonProps {
 
 export function ExportPdfButton({
   reportType,
-  label = 'Export PDF',
+  label,
   dateRange,
   className = '',
   variant = 'secondary',
 }: ExportPdfButtonProps) {
   const [loading, setLoading] = useState(false)
+  const [failed, setFailed] = useState(false)
+  const t = useTranslations('exportButtons')
 
   const handleExport = async () => {
     setLoading(true)
+    setFailed(false)
     try {
       const res = await fetch('/api/reports/generate', {
         method: 'POST',
@@ -44,6 +48,8 @@ export function ExportPdfButton({
       URL.revokeObjectURL(url)
     } catch (error) {
       console.error('PDF export failed:', error)
+      setFailed(true)
+      setTimeout(() => setFailed(false), 4000)
     } finally {
       setLoading(false)
     }
@@ -52,16 +58,21 @@ export function ExportPdfButton({
   const baseStyles = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-[var(--radius-button)] text-caption font-medium transition-colors disabled:opacity-50'
   const variantStyles = variant === 'primary'
     ? 'bg-[var(--color-info)] text-white hover:opacity-90'
-    : 'border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'
+    : 'border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
 
   return (
     <button
       onClick={handleExport}
       disabled={loading}
+      aria-busy={loading}
       className={`${baseStyles} ${variantStyles} ${className}`}
     >
-      {loading ? <Loader2 size={14} className="animate-spin" /> : <FileDown size={14} />}
-      {label}
+      {loading
+        ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
+        : failed
+          ? <AlertTriangle size={14} style={{ color: 'var(--color-critical)' }} aria-hidden="true" />
+          : <FileDown size={14} aria-hidden="true" />}
+      <span aria-live="polite">{loading ? t('generating') : failed ? t('pdfFailed') : (label ?? t('exportPdf'))}</span>
     </button>
   )
 }

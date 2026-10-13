@@ -50,9 +50,10 @@ export default function ReportsPage() {
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-4 p-4 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]" style={{ boxShadow: 'var(--shadow-card)' }}>
         <div className="flex items-center gap-2">
-          <Calendar size={16} className="text-[var(--text-tertiary)]" />
-          <label className="text-caption text-[var(--text-secondary)]">{t('period')}</label>
+          <Calendar size={16} className="text-[var(--text-secondary)]" aria-hidden="true" />
+          <label htmlFor="report-period" className="text-caption text-[var(--text-secondary)]">{t('period')}</label>
           <select
+            id="report-period"
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
             className="px-3 py-1.5 border border-[var(--border-default)] rounded-[var(--radius-input)] text-caption bg-[var(--bg-primary)] text-[var(--text-primary)]"
@@ -68,7 +69,7 @@ export default function ReportsPage() {
           disabled={generating || isLoading}
           className="flex items-center gap-2 px-4 py-2 bg-[var(--color-info)] text-white rounded-[var(--radius-button)] text-body font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
-          {(generating || isLoading) ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />}
+          {(generating || isLoading) ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <FileText size={14} aria-hidden="true" />}
           {(generating || isLoading) ? t('generating') : t('generateReport')}
         </button>
 
@@ -77,7 +78,7 @@ export default function ReportsPage() {
             onClick={handlePrint}
             className="flex items-center gap-2 px-4 py-2 border border-[var(--border-default)] rounded-[var(--radius-button)] text-body font-medium text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-colors"
           >
-            <Printer size={14} />
+            <Printer size={14} aria-hidden="true" />
             {t('printPdf')}
           </button>
         )}
@@ -86,7 +87,9 @@ export default function ReportsPage() {
       {/* Report Preview */}
       {data?.html ? (
         <div
-          className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-white overflow-hidden"
+          dir="ltr"
+          lang="en"
+          className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-white text-slate-900 overflow-hidden"
           style={{ boxShadow: 'var(--shadow-card)' }}
         >
           <div
@@ -96,9 +99,9 @@ export default function ReportsPage() {
         </div>
       ) : (
         <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-12 text-center" style={{ boxShadow: 'var(--shadow-card)' }}>
-          <FileText size={40} className="mx-auto mb-3 text-[var(--text-tertiary)] opacity-40" />
-          <p className="text-body text-[var(--text-secondary)]">{t('noReport')}</p>
-          <p className="text-caption text-[var(--text-tertiary)] mt-1">{t('noReportHint')}</p>
+          <FileText size={40} className="mx-auto mb-3 text-[var(--text-tertiary)] opacity-40" aria-hidden="true" />
+          <p className="text-body text-[var(--text-primary)]">{t('noReport')}</p>
+          <p className="text-caption text-[var(--text-secondary)] mt-1">{t('noReportHint')}</p>
         </div>
       )}
     </div>

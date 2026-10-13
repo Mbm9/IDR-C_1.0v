@@ -11,6 +11,8 @@ export const integrationSources = pgTable('integration_sources', {
   syncStatus: syncStatusEnum('sync_status').notNull().default('disconnected'),
   lastSyncAt: timestamp('last_sync_at', { withTimezone: true }),
   lastSyncRecordCount: integer('last_sync_record_count').default(0),
+  /** Short, credential-free reason for the last failed sync; null after a successful sync. */
+  lastSyncError: text('last_sync_error'),
   syncFrequencyMinutes: integer('sync_frequency_minutes').notNull().default(360),
   orgId: uuid('org_id').notNull().references(() => organizations.id),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useId, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 
 interface ActionDialogProps {
   isOpen: boolean
@@ -19,11 +20,14 @@ export function ActionDialog({
   title,
   children,
   onConfirm,
-  confirmLabel = 'Confirm',
+  confirmLabel,
   confirmVariant = 'default',
   loading = false,
 }: ActionDialogProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const titleId = useId()
+  const t = useTranslations('actionDialog')
 
   useEffect(() => {
     if (!isOpen) return
@@ -31,6 +35,7 @@ export function ActionDialog({
       if (e.key === 'Escape') onClose()
     }
     document.addEventListener('keydown', handler)
+    dialogRef.current?.focus()
     return () => document.removeEventListener('keydown', handler)
   }, [isOpen, onClose])
 
@@ -45,11 +50,18 @@ export function ActionDialog({
       }}
     >
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" aria-hidden="true" />
 
       {/* Dialog */}
-      <div className="relative bg-white rounded-xl shadow-xl border border-slate-200 w-full max-w-md mx-4 p-6">
-        <h2 className="text-lg font-semibold text-slate-900 mb-4">{title}</h2>
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="relative bg-[var(--bg-primary)] text-[var(--text-primary)] rounded-xl shadow-xl border border-[var(--border-default)] w-full max-w-md mx-4 p-6 focus:outline-none"
+      >
+        <h2 id={titleId} className="text-lg font-semibold text-[var(--text-primary)] mb-4">{title}</h2>
 
         <div className="space-y-4">
           {children}
@@ -60,9 +72,9 @@ export function ActionDialog({
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-[var(--text-primary)] bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-50"
           >
-            Cancel
+            {t('cancel')}
           </button>
           <button
             type="button"
@@ -74,7 +86,7 @@ export function ActionDialog({
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
-            {loading ? 'Processing...' : confirmLabel}
+            {loading ? t('processing') : (confirmLabel ?? t('confirm'))}
           </button>
         </div>
       </div>

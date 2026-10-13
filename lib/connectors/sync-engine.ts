@@ -29,6 +29,7 @@ import type {
   SyncProgressCallback,
 } from './base'
 import { createConnectorAsync } from './factory'
+import { summarizeSyncError, summarizeRecordErrors } from './sync-error'
 
 // ---------- Public types ----------
 
@@ -219,7 +220,13 @@ export async function executeSync(options: SyncOptions): Promise<SyncReport> {
 
     // 9. Update integration source metadata
     const totalRecords = identitiesUpserted + groupsUpserted + entitlementsUpserted
-    await updateIntegrationStatus(integrationId, 'connected', totalRecords)
+    // Record-level failures (or a failed extraction phase) keep the sync
+    // "connected" but leave a short note; a clean run clears the last error.
+    // (upsert errors are already in allErrors; extraction failures only live in the phase reports)
+    const phaseErrors = phases
+      .filter(p => p.phase.startsWith('extract'))
+      .flatMap(p => p.errors.map(e => `${p.phase}: ${e}`))
+    await updateIntegrationStatus(integrationId, 'connected', totalRecords, summarizeRecordErrors([...phaseErrors, ...allErrors]))
 
     const completedAt = new Date()
     notify({
@@ -245,7 +252,7 @@ export async function executeSync(options: SyncOptions): Promise<SyncReport> {
   } catch (e: any) {
     // Mark integration as errored
     if (!dryRun) {
-      await updateIntegrationStatus(integrationId, 'error').catch(() => {})
+      await updateIntegrationStatus(integrationId, 'error', undefined, summarizeSyncError(e)).catch(() => {})
     }
     throw new Error(`Sync failed for ${config.type}: ${e.message}`)
   }
@@ -550,13 +557,19 @@ async function updateIntegrationStatus(
   integrationId: string,
   status: 'connected' | 'syncing' | 'error' | 'disconnected',
   recordCount?: number,
+  /** Credential-free failure reason (see summarizeSyncError); cleared on success. */
+  errorMessage?: string | null,
 ): Promise<void> {
   try {
-    const updateData: any = {
+    const updateData: Partial<typeof integrationSources.$inferInsert> = {
       syncStatus: status,
     }
     if (status === 'connected') {
       updateData.lastSyncAt = new Date()
+      updateData.lastSyncError = errorMessage ?? null
+    }
+    if (status === 'error') {
+      updateData.lastSyncError = errorMessage || 'Unknown error'
     }
     if (recordCount !== undefined) {
       updateData.lastSyncRecordCount = recordCount

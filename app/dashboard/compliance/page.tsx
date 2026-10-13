@@ -1,10 +1,9 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import {
-  Shield, ShieldCheck, ShieldAlert, ShieldX, AlertTriangle,
-  CheckCircle2, XCircle, MinusCircle, FileText, Download,
+  Shield, AlertTriangle, CheckCircle2, XCircle, MinusCircle, Download,
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -37,44 +36,60 @@ interface FrameworkResult {
 }
 
 const STATUS_CONFIG = {
-  compliant: { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10', label: 'Compliant' },
-  partial: { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-500/10', label: 'Partial' },
-  non_compliant: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', label: 'Non-Compliant' },
-  not_assessed: { icon: MinusCircle, color: 'text-[var(--text-tertiary)]', bg: 'bg-[var(--bg-tertiary)]', label: 'Not Assessed' },
+  compliant: { icon: CheckCircle2, color: 'var(--color-low)' },
+  partial: { icon: AlertTriangle, color: 'var(--color-medium)' },
+  non_compliant: { icon: XCircle, color: 'var(--color-critical)' },
+  not_assessed: { icon: MinusCircle, color: 'var(--text-secondary)' },
+} as const
+
+const CATEGORY_KEYS: Record<string, string> = {
+  'Access Control': 'accessControl',
+  'Asset Management': 'assetManagement',
+  'Audit': 'audit',
+  'Data Governance': 'dataGovernance',
+  'Identity & Access Management': 'iam',
+  'Incident Response': 'incidentResponse',
+  'Risk Management': 'riskManagement',
+  'Security Monitoring': 'securityMonitoring',
+  'Security Operations': 'securityOperations',
+  'Third-Party Risk': 'thirdPartyRisk',
+}
+const FRAMEWORK_KEYS = ['NCA_ECC', 'SAMA_CSF', 'PDPL']
+
+function scoreColor(score: number) {
+  return score >= 80 ? 'var(--color-low)' : score >= 50 ? 'var(--color-medium)' : 'var(--color-critical)'
 }
 
-function ScoreGauge({ score, name }: { score: number; name: string }) {
-  const color = score >= 80 ? 'text-emerald-500' : score >= 50 ? 'text-amber-500' : 'text-red-500'
-  const bgColor = score >= 80 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-red-500'
-
+function ScoreGauge({ score, label }: { score: number; label: string }) {
+  const format = useFormatter()
   return (
-    <div className="flex flex-col items-center gap-2">
-      <div className="relative w-24 h-24">
-        <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90">
-          <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border-primary)" strokeWidth="8" />
-          <circle
-            cx="50" cy="50" r="42" fill="none"
-            className={bgColor.replace('bg-', 'stroke-')}
-            strokeWidth="8"
-            strokeLinecap="round"
-            strokeDasharray={`${score * 2.64} ${264 - score * 2.64}`}
-          />
-        </svg>
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className={`text-2xl font-bold ${color}`}>{score}%</span>
-        </div>
+    <div className="relative w-24 h-24 shrink-0" role="img" aria-label={label}>
+      <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90" aria-hidden="true">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border-default)" strokeWidth="8" />
+        <circle
+          cx="50" cy="50" r="42" fill="none"
+          stroke={scoreColor(score)}
+          strokeWidth="8"
+          strokeLinecap="round"
+          strokeDasharray={`${score * 2.64} ${264 - score * 2.64}`}
+        />
+      </svg>
+      <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+        <span className="text-2xl font-bold text-[var(--text-primary)]">{format.number(score / 100, { style: 'percent' })}</span>
       </div>
-      <span className="text-sm font-medium text-[var(--text-secondary)]">{name}</span>
     </div>
   )
 }
 
 export default function CompliancePage() {
-  const t = useTranslations()
+  const t = useTranslations('compliance')
+  const tCommon = useTranslations('common')
+  const format = useFormatter()
   const [selectedFramework, setSelectedFramework] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ['compliance'],
     queryFn: async () => {
       const res = await fetch('/api/compliance')
@@ -85,6 +100,7 @@ export default function CompliancePage() {
 
   const handleDownloadReport = async (frameworkKey: string) => {
     setGenerating(true)
+    setDownloadError(null)
     try {
       const res = await fetch('/api/reports/generate', {
         method: 'POST',
@@ -99,6 +115,8 @@ export default function CompliancePage() {
       a.download = `compliance-${frameworkKey.toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`
       a.click()
       URL.revokeObjectURL(url)
+    } catch {
+      setDownloadError(t('downloadFailed'))
     } finally {
       setGenerating(false)
     }
@@ -109,11 +127,14 @@ export default function CompliancePage() {
     ? frameworks.find(f => f.key === selectedFramework)
     : null
 
+  const fullName = (fw: FrameworkResult) => FRAMEWORK_KEYS.includes(fw.key) ? t(`frameworks.${fw.key}`) : fw.fullName
+  const categoryLabel = (c: string) => CATEGORY_KEYS[c] ? t(`categories.${CATEGORY_KEYS[c]}`) : c
+
   if (isLoading) {
     return (
       <div className="space-y-6 animate-fade-in">
-        <h2 className="text-title text-[var(--text-primary)]">Compliance</h2>
-        <div className="grid grid-cols-3 gap-4">
+        <h2 className="text-title text-[var(--text-primary)]">{t('title')}</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4" role="status" aria-busy="true" aria-label={tCommon('loading')}>
           {[1, 2, 3].map(i => (
             <div key={i} className="h-48 rounded-xl bg-[var(--bg-secondary)] animate-pulse" />
           ))}
@@ -122,81 +143,104 @@ export default function CompliancePage() {
     )
   }
 
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-title text-[var(--text-primary)]">{t('title')}</h2>
+        <p className="text-sm text-[var(--text-primary)]" role="alert">
+          {tCommon('error')} <button onClick={() => refetch()} className="underline">{tCommon('tryAgain')}</button>
+        </p>
+      </div>
+    )
+  }
+
+  const metrics = data?.metrics
+  const mfaPct = metrics && metrics.mfaTotal > 0 ? metrics.mfaEnabled / metrics.mfaTotal : null
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-title text-[var(--text-primary)]">
-            <Shield className="inline-block w-6 h-6 me-2 text-[var(--accent)]" />
-            Saudi Regulatory Compliance
+          <h2 className="text-title text-[var(--text-primary)] flex items-center gap-2">
+            <Shield className="w-6 h-6 text-[var(--color-info)]" aria-hidden="true" />
+            {t('title')}
           </h2>
-          <p className="text-sm text-[var(--text-tertiary)] mt-1">
-            NCA ECC, SAMA CSF, and PDPL compliance posture based on real-time identity data
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            {t('subtitle')}
           </p>
         </div>
         {data?.assessedAt && (
-          <span className="text-xs text-[var(--text-tertiary)]">
-            Assessed: {new Date(data.assessedAt).toLocaleString()}
+          <span className="text-xs text-[var(--text-secondary)]">
+            {t('assessedAt', { date: format.dateTime(new Date(data.assessedAt), { dateStyle: 'medium', timeStyle: 'short' }) })}
           </span>
         )}
       </div>
 
       {/* Framework Score Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {frameworks.map(fw => (
-          <button
-            key={fw.key}
-            onClick={() => setSelectedFramework(selectedFramework === fw.key ? null : fw.key)}
-            className={`p-6 rounded-xl border text-start transition-all ${
-              selectedFramework === fw.key
-                ? 'border-[var(--accent)] bg-[var(--accent)]/5'
-                : 'border-[var(--border-primary)] bg-[var(--bg-secondary)] hover:border-[var(--accent)]/50'
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h3 className="font-semibold text-[var(--text-primary)]">{fw.name}</h3>
-                <p className="text-xs text-[var(--text-tertiary)] mt-1">{fw.fullName}</p>
-                <p className="text-xs text-[var(--text-tertiary)]">Version: {fw.version}</p>
+        {frameworks.map(fw => {
+          const selected = selectedFramework === fw.key
+          return (
+            <button
+              key={fw.key}
+              onClick={() => setSelectedFramework(selected ? null : fw.key)}
+              aria-expanded={selected}
+              aria-controls="framework-detail"
+              className={`p-6 rounded-xl border text-start transition-all ${
+                selected
+                  ? 'border-[var(--color-info)] bg-[var(--color-info-bg)]'
+                  : 'border-[var(--border-default)] bg-[var(--bg-secondary)] hover:border-[var(--border-hover)]'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-[var(--text-primary)]" dir="ltr">{fw.name}</h3>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">{fullName(fw)}</p>
+                  <p className="text-xs text-[var(--text-secondary)]">{t('version', { version: fw.version })}</p>
+                </div>
+                <ScoreGauge score={fw.score} label={t('scoreLabel', { name: fw.name, percent: format.number(fw.score / 100, { style: 'percent' }) })} />
               </div>
-              <ScoreGauge score={fw.score} name="" />
-            </div>
 
-            <div className="flex gap-3 mt-4 text-xs">
-              <span className="flex items-center gap-1 text-emerald-500">
-                <CheckCircle2 className="w-3 h-3" /> {fw.summary.compliant}
-              </span>
-              <span className="flex items-center gap-1 text-amber-500">
-                <AlertTriangle className="w-3 h-3" /> {fw.summary.partial}
-              </span>
-              <span className="flex items-center gap-1 text-red-500">
-                <XCircle className="w-3 h-3" /> {fw.summary.nonCompliant}
-              </span>
-              <span className="flex items-center gap-1 text-[var(--text-tertiary)]">
-                <MinusCircle className="w-3 h-3" /> {fw.summary.notAssessed}
-              </span>
-            </div>
-          </button>
-        ))}
+              <ul className="flex flex-wrap gap-3 mt-4 text-xs text-[var(--text-primary)]">
+                {([
+                  ['compliant', fw.summary.compliant],
+                  ['partial', fw.summary.partial],
+                  ['non_compliant', fw.summary.nonCompliant],
+                  ['not_assessed', fw.summary.notAssessed],
+                ] as const).map(([status, count]) => {
+                  const Icon = STATUS_CONFIG[status].icon
+                  return (
+                    <li key={status} className="flex items-center gap-1" title={t(`status.${status}`)}>
+                      <Icon className="w-3 h-3" style={{ color: STATUS_CONFIG[status].color }} aria-hidden="true" />
+                      <span className="sr-only">{t(`status.${status}`)}:</span> {count}
+                    </li>
+                  )
+                })}
+              </ul>
+            </button>
+          )
+        })}
       </div>
 
       {/* Expanded Framework Detail */}
       {activeFramework && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="space-y-4" id="framework-detail">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h3 className="text-lg font-semibold text-[var(--text-primary)]">
-              {activeFramework.fullName} — Control Details
+              {t('controlDetails', { framework: fullName(activeFramework) })}
             </h3>
             <button
               onClick={() => handleDownloadReport(activeFramework.key)}
               disabled={generating}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-info)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
             >
-              <Download className="w-4 h-4" />
-              {generating ? 'Generating...' : 'Download PDF Report'}
+              <Download className="w-4 h-4" aria-hidden="true" />
+              {generating ? t('generating') : t('downloadPdf')}
             </button>
           </div>
+          {downloadError && <p className="text-sm text-[var(--text-primary)] rounded-md border px-3 py-2" style={{ borderColor: 'var(--color-critical)' }} role="alert">{downloadError}</p>}
+          <p className="text-xs text-[var(--text-secondary)]">{t('controlTextNote')}</p>
 
           {/* Group by category */}
           {Object.entries(
@@ -205,85 +249,93 @@ export default function CompliancePage() {
               return acc
             }, {})
           ).map(([category, controls]) => (
-            <div key={category}>
+            <section key={category} aria-label={categoryLabel(category)}>
               <h4 className="text-sm font-semibold text-[var(--text-secondary)] mb-2 uppercase tracking-wide">
-                {category}
+                {categoryLabel(category)}
               </h4>
-              <div className="space-y-2">
+              <ul className="space-y-2">
                 {controls.map(control => {
                   const cfg = STATUS_CONFIG[control.status]
                   const Icon = cfg.icon
                   return (
-                    <div
+                    <li
                       key={control.id}
-                      className="flex items-start gap-3 p-4 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)]"
+                      className="flex items-start gap-3 p-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)]"
                     >
-                      <div className={`p-1.5 rounded-lg ${cfg.bg}`}>
-                        <Icon className={`w-4 h-4 ${cfg.color}`} />
+                      <div className="p-1.5 rounded-lg bg-[var(--bg-tertiary)]">
+                        <Icon className="w-4 h-4" style={{ color: cfg.color }} aria-hidden="true" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-mono text-[var(--text-tertiary)]">{control.id}</span>
-                          <span className="font-medium text-sm text-[var(--text-primary)]">{control.name}</span>
-                          <span className={`text-xs px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
-                            {cfg.label}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-xs font-mono text-[var(--text-secondary)]" dir="ltr">{control.id}</span>
+                          <span className="font-medium text-sm text-[var(--text-primary)]" lang="en" dir="ltr">{control.name}</span>
+                          <span className="text-xs px-2 py-0.5 rounded-full border text-[var(--text-primary)]" style={{ borderColor: cfg.color }}>
+                            {t(`status.${control.status}`)}
                           </span>
                         </div>
-                        <p className="text-xs text-[var(--text-tertiary)] mt-1">{control.description}</p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1" lang="en" dir="ltr">{control.description}</p>
                         <div className="flex flex-wrap gap-1 mt-2">
                           {control.coveredBy.map(feature => (
                             <span
                               key={feature}
-                              className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)]"
+                              lang="en"
+                              className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
                             >
                               {feature}
                             </span>
                           ))}
                         </div>
                         {Object.entries(control.relatedViolationCounts).some(([, v]) => v > 0) && (
-                          <div className="flex gap-2 mt-2">
+                          <div className="flex flex-wrap gap-2 mt-2">
                             {Object.entries(control.relatedViolationCounts)
                               .filter(([, v]) => v > 0)
                               .map(([type, count]) => (
-                                <span key={type} className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-500">
-                                  {type.replace(/_/g, ' ')}: {count}
+                                <span key={type} className="text-[11px] px-2 py-0.5 rounded-full border text-[var(--text-primary)]" style={{ borderColor: 'var(--color-critical)' }}>
+                                  <bdi dir="ltr">{type.replace(/_/g, ' ')}</bdi>: {format.number(count)}
                                 </span>
                               ))}
                           </div>
                         )}
                       </div>
-                    </div>
+                    </li>
                   )
                 })}
-              </div>
-            </div>
+              </ul>
+            </section>
           ))}
         </div>
       )}
 
       {/* System Metrics Summary */}
-      {data?.metrics && (
-        <div className="p-4 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)]">
-          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">System Metrics (Compliance Inputs)</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+      {metrics && (
+        <div className="p-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-secondary)]">
+          <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">{t('metricsTitle')}</h3>
+          <dl className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
             {[
-              { label: 'Total Identities', value: data.metrics.totalIdentities },
-              { label: 'Tier Violations', value: data.metrics.tierViolations, warn: true },
-              { label: 'Orphaned NHIs', value: data.metrics.orphanedNhis, warn: true },
-              { label: 'Dormant Identities', value: data.metrics.dormantIdentities, warn: true },
-              { label: 'MFA Coverage', value: data.metrics.mfaTotal > 0 ? `${Math.round((data.metrics.mfaEnabled / data.metrics.mfaTotal) * 100)}%` : 'N/A' },
-              { label: 'Cert Overdue', value: data.metrics.certOverdue, warn: true },
-              { label: 'Audit Entries', value: data.metrics.auditEntries.toLocaleString() },
-              { label: 'Open Violations', value: Object.values(data.metrics.violations as Record<string, number>).reduce((a: number, b: number) => a + b, 0) },
+              { key: 'totalIdentities', value: metrics.totalIdentities },
+              { key: 'tierViolations', value: metrics.tierViolations, warn: true },
+              { key: 'orphanedNhis', value: metrics.orphanedNhis, warn: true },
+              { key: 'dormantIdentities', value: metrics.dormantIdentities, warn: true },
+              { key: 'mfaCoverage', value: mfaPct },
+              { key: 'certOverdue', value: metrics.certOverdue, warn: true },
+              { key: 'auditEntries', value: metrics.auditEntries },
+              { key: 'openViolations', value: Object.values(metrics.violations as Record<string, number>).reduce((a: number, b: number) => a + b, 0) },
             ].map(m => (
-              <div key={m.label}>
-                <div className={`text-xl font-bold ${m.warn && typeof m.value === 'number' && m.value > 0 ? 'text-amber-500' : 'text-[var(--text-primary)]'}`}>
-                  {m.value}
-                </div>
-                <div className="text-xs text-[var(--text-tertiary)]">{m.label}</div>
+              <div key={m.key} className="flex flex-col-reverse">
+                <dt className="text-xs text-[var(--text-secondary)]">{t(`metrics.${m.key}`)}</dt>
+                <dd className="text-xl font-bold text-[var(--text-primary)] flex items-center justify-center gap-1.5">
+                  {m.warn && typeof m.value === 'number' && m.value > 0 && (
+                    <AlertTriangle className="w-4 h-4" style={{ color: 'var(--color-medium)' }} aria-hidden="true" />
+                  )}
+                  {m.value == null
+                    ? tCommon('na')
+                    : m.key === 'mfaCoverage'
+                      ? format.number(m.value as number, { style: 'percent' })
+                      : format.number(m.value as number)}
+                </dd>
               </div>
             ))}
-          </div>
+          </dl>
         </div>
       )}
     </div>

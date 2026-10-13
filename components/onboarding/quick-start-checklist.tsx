@@ -9,6 +9,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface OnboardingStatus {
   hasOrganization: boolean
@@ -21,48 +22,43 @@ interface OnboardingStatus {
 
 const DISMISS_KEY = 'idr-quickstart-dismissed'
 
+// Step labels: quickStart.steps.<key>; CTA labels: quickStart.cta.<cta>
 const STEPS = [
   {
     key: 'account' as const,
-    label: 'Create your account',
     alwaysComplete: true,
     href: null,
     cta: null,
   },
   {
     key: 'hasOrganization' as const,
-    label: 'Set organization name',
     alwaysComplete: false,
     href: '/dashboard/settings',
-    cta: 'Configure',
+    cta: 'configure',
   },
   {
     key: 'hasIntegration' as const,
-    label: 'Connect a data source',
     alwaysComplete: false,
     href: '/dashboard/integrations',
-    cta: 'Connect',
+    cta: 'connect',
   },
   {
     key: 'hasTierViolations' as const,
-    label: 'Review tier violations',
     alwaysComplete: false,
     href: '/dashboard/tiering',
-    cta: 'Review',
+    cta: 'review',
   },
   {
     key: 'hasAIPlan' as const,
-    label: 'Run AI analysis',
     alwaysComplete: false,
     href: '/dashboard/ai',
-    cta: 'Analyze',
+    cta: 'analyze',
   },
   {
     key: 'hasTeamMembers' as const,
-    label: 'Invite a team member',
     alwaysComplete: false,
     href: '/dashboard/settings',
-    cta: 'Invite',
+    cta: 'invite',
   },
 ] as const
 
@@ -70,9 +66,11 @@ export function QuickStartChecklist() {
   const [status, setStatus] = useState<OnboardingStatus | null>(null)
   const [dismissed, setDismissed] = useState(true) // default hidden until loaded
   const [loading, setLoading] = useState(true)
+  const t = useTranslations('quickStart')
 
   useEffect(() => {
-    const wasDismissed = localStorage.getItem(DISMISS_KEY) === 'true'
+    let wasDismissed = false
+    try { wasDismissed = localStorage.getItem(DISMISS_KEY) === 'true' } catch { /* storage unavailable */ }
     setDismissed(wasDismissed)
     if (wasDismissed) {
       setLoading(false)
@@ -104,34 +102,35 @@ export function QuickStartChecklist() {
   const progress = Math.round((completedCount / STEPS.length) * 100)
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISS_KEY, 'true')
+    try { localStorage.setItem(DISMISS_KEY, 'true') } catch { /* storage unavailable */ }
     setDismissed(true)
   }
 
   return (
     <div className="px-4 lg:px-6 pt-3">
-      <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 shadow-sm">
+      <section aria-labelledby="quick-start-title" className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4 shadow-sm">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h3 className="text-body font-semibold text-[var(--text-primary)]">
-              Quick Start
-            </h3>
-            <p className="text-caption text-[var(--text-tertiary)]">
-              {completedCount}/{STEPS.length} steps complete
+            <h2 id="quick-start-title" className="text-body font-semibold text-[var(--text-primary)]">
+              {t('title')}
+            </h2>
+            <p className="text-caption text-[var(--text-secondary)]">
+              {t('progress', { done: completedCount, total: STEPS.length })}
             </p>
           </div>
           <button
             onClick={handleDismiss}
-            className="p-1 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] hover:text-[var(--text-secondary)] transition-colors"
-            aria-label="Dismiss quick start"
+            className="p-1 rounded hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+            aria-label={t('dismiss')}
+            title={t('dismiss')}
           >
-            <X size={16} />
+            <X size={16} aria-hidden="true" />
           </button>
         </div>
 
         {/* Progress bar */}
-        <div className="w-full h-1.5 rounded-full bg-[var(--bg-tertiary)] mb-4">
+        <div className="w-full h-1.5 rounded-full bg-[var(--bg-tertiary)] mb-4" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label={t('title')}>
           <div
             className="h-full rounded-full bg-[var(--color-info)] transition-all duration-500"
             style={{ width: `${progress}%` }}
@@ -139,15 +138,15 @@ export function QuickStartChecklist() {
         </div>
 
         {/* Steps */}
-        <div className="space-y-1.5">
+        <ul className="space-y-1.5">
           {STEPS.map((step) => {
             const done = isComplete(step)
             return (
-              <div
+              <li
                 key={step.key}
                 className={`flex items-center justify-between rounded-md px-3 py-2 transition-colors ${
                   done
-                    ? 'bg-[var(--bg-secondary)] text-[var(--text-tertiary)]'
+                    ? 'bg-[var(--bg-secondary)] text-[var(--text-secondary)]'
                     : 'bg-[var(--bg-primary)]'
                 }`}
               >
@@ -156,38 +155,41 @@ export function QuickStartChecklist() {
                     <CheckCircle2
                       size={18}
                       className="text-[var(--color-low)] flex-shrink-0"
+                      aria-hidden="true"
                     />
                   ) : (
                     <Circle
                       size={18}
-                      className="text-[var(--text-tertiary)] flex-shrink-0"
+                      className="text-[var(--text-secondary)] flex-shrink-0"
+                      aria-hidden="true"
                     />
                   )}
                   <span
                     className={`text-body ${
                       done
-                        ? 'line-through text-[var(--text-tertiary)]'
+                        ? 'line-through text-[var(--text-secondary)]'
                         : 'text-[var(--text-primary)]'
                     }`}
                   >
-                    {step.label}
+                    {done && <span className="sr-only">{t('done')}: </span>}
+                    {t(`steps.${step.key}`)}
                   </span>
                 </div>
 
                 {!done && step.href && (
                   <Link
                     href={step.href}
-                    className="inline-flex items-center gap-1 text-caption font-medium text-[var(--color-info)] hover:underline"
+                    className="inline-flex items-center gap-1 text-caption font-medium text-[var(--text-primary)] underline-offset-2 hover:underline"
                   >
-                    {step.cta}
-                    <ChevronRight size={14} />
+                    {step.cta && t(`cta.${step.cta}`)}
+                    <ChevronRight size={14} className="rtl:-scale-x-100" aria-hidden="true" />
                   </Link>
                 )}
-              </div>
+              </li>
             )
           })}
-        </div>
-      </div>
+        </ul>
+      </section>
     </div>
   )
 }

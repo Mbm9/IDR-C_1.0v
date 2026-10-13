@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback, KeyboardEvent } from 'react'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import {
   X, Send, MessageSquare, Plus, Trash2, ChevronDown, Loader2, Brain,
 } from 'lucide-react'
@@ -31,6 +31,7 @@ interface AiChatPanelProps {
 
 export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
   const t = useTranslations('aiChat')
+  const format = useFormatter()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -62,7 +63,8 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
       const res = await fetch('/api/ai/chat/sessions')
       if (res.ok) {
         const data = await res.json()
-        setSessions(data)
+        // API returns { sessions: [...] }; accept a bare array too
+        setSessions(Array.isArray(data) ? data : data.sessions || [])
       }
     } catch {
       // silent
@@ -73,8 +75,9 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
     try {
       const res = await fetch(`/api/ai/chat/sessions/${id}`)
       if (res.ok) {
-        const data = await res.json()
-        setSessionId(data.id)
+        const body = await res.json()
+        const data = body.session ?? body
+        setSessionId(data.id ?? id)
         setMessages(data.messages || [])
         setShowSessions(false)
 
@@ -165,7 +168,7 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
     } catch {
       const errorMsg: ChatMessage = {
         role: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        content: t('errorReply'),
         timestamp: new Date().toISOString(),
       }
       setMessages(prev => [...prev, errorMsg])
@@ -184,41 +187,44 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
   if (!open) return null
 
   const suggestedQueries = [
-    'Who has Domain Admin access but hasn\'t logged in?',
-    'Show me all tier violations',
-    'How many orphaned service accounts?',
-    'What are the top risks right now?',
+    t('suggestions.domainAdminsInactive'),
+    t('suggestions.tierViolations'),
+    t('suggestions.orphanedServiceAccounts'),
+    t('suggestions.topRisks'),
   ]
 
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/20 lg:bg-transparent" onClick={onClose} />
+      <div className="fixed inset-0 z-40 bg-black/20 lg:bg-transparent" onClick={onClose} aria-hidden="true" />
 
       {/* Panel */}
-      <div className="fixed inset-y-0 end-0 z-50 w-full sm:w-[450px] bg-[var(--bg-primary)] border-s border-[var(--border-default)] flex flex-col" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
+      <div role="dialog" aria-modal="false" aria-labelledby="ai-chat-panel-title" onKeyDown={(e) => { if (e.key === 'Escape') onClose() }} className="fixed inset-y-0 end-0 z-50 w-full sm:w-[450px] bg-[var(--bg-primary)] border-s border-[var(--border-default)] flex flex-col" style={{ boxShadow: 'var(--shadow-dropdown)' }}>
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-default)]">
           <div className="flex items-center gap-2">
-            <Brain size={18} className="text-[var(--color-info)]" />
-            <h3 className="text-body font-semibold text-[var(--text-primary)]">{t('title')}</h3>
+            <Brain size={18} className="text-[var(--color-info)]" aria-hidden="true" />
+            <h3 id="ai-chat-panel-title" className="text-body font-semibold text-[var(--text-primary)]">{t('title')}</h3>
           </div>
           <div className="flex items-center gap-1">
             <button
               onClick={startNewChat}
-              className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors"
+              className="p-1.5 rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors"
               title={t('newChat')}
+              aria-label={t('newChat')}
             >
-              <Plus size={16} />
+              <Plus size={16} aria-hidden="true" />
             </button>
             <div className="relative">
               <button
                 onClick={() => setShowSessions(!showSessions)}
-                className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors"
+                className="p-1.5 rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors"
                 title={t('sessions')}
+                aria-label={t('sessions')}
+                aria-expanded={showSessions}
               >
-                <MessageSquare size={16} />
-                <ChevronDown size={10} className="absolute bottom-0.5 end-0.5" />
+                <MessageSquare size={16} aria-hidden="true" />
+                <ChevronDown size={10} className="absolute bottom-0.5 end-0.5" aria-hidden="true" />
               </button>
               {showSessions && (
                 <>
@@ -229,28 +235,28 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
                     </div>
                     <div className="max-h-60 overflow-y-auto">
                       {sessions.length === 0 ? (
-                        <p className="px-3 py-4 text-caption text-[var(--text-tertiary)] text-center">{t('noSessions')}</p>
+                        <p className="px-3 py-4 text-caption text-[var(--text-secondary)] text-center">{t('noSessions')}</p>
                       ) : (
                         sessions.map(s => (
-                          <button
+                          <div
                             key={s.id}
-                            onClick={() => loadSession(s.id)}
-                            className={`w-full flex items-center justify-between px-3 py-2 text-start hover:bg-[var(--bg-secondary)] transition-colors ${sessionId === s.id ? 'bg-[var(--bg-secondary)]' : ''}`}
+                            className={`w-full flex items-center justify-between px-3 py-2 hover:bg-[var(--bg-secondary)] transition-colors ${sessionId === s.id ? 'bg-[var(--bg-secondary)]' : ''}`}
                           >
-                            <div className="flex-1 min-w-0">
-                              <p className="text-caption text-[var(--text-primary)] truncate">{s.title}</p>
-                              <p className="text-micro text-[var(--text-tertiary)]">
-                                {new Date(s.updatedAt).toLocaleDateString()}
+                            <button onClick={() => loadSession(s.id)} className="flex-1 min-w-0 text-start">
+                              <p className="text-caption text-[var(--text-primary)] truncate" dir="auto">{s.title}</p>
+                              <p className="text-micro text-[var(--text-secondary)]">
+                                {s.updatedAt ? format.dateTime(new Date(s.updatedAt), { dateStyle: 'medium' }) : ''}
                               </p>
-                            </div>
+                            </button>
                             <button
                               onClick={(e) => deleteSession(s.id, e)}
-                              className="p-1 rounded text-[var(--text-tertiary)] hover:text-[var(--color-critical)] transition-colors ms-2 flex-shrink-0"
+                              className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--color-critical)] transition-colors ms-2 flex-shrink-0"
                               title={t('deleteSession')}
+                              aria-label={t('deleteSessionNamed', { title: s.title })}
                             >
-                              <Trash2 size={12} />
+                              <Trash2 size={12} aria-hidden="true" />
                             </button>
-                          </button>
+                          </div>
                         ))
                       )}
                     </div>
@@ -260,25 +266,27 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors"
+              className="p-1.5 rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors"
+              aria-label={t('close')}
+              title={t('close')}
             >
-              <X size={16} />
+              <X size={16} aria-hidden="true" />
             </button>
           </div>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" role="log" aria-live="polite" aria-label={t('conversation')} tabIndex={0}>
           {messages.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <Brain size={40} className="text-[var(--color-info)] opacity-40 mb-3" />
+              <Brain size={40} className="text-[var(--color-info)] opacity-40 mb-3" aria-hidden="true" />
               <p className="text-body font-medium text-[var(--text-secondary)] mb-4">{t('suggestedQueries')}</p>
               <div className="space-y-2 w-full">
                 {suggestedQueries.map((q) => (
                   <button
                     key={q}
                     onClick={() => sendMessage(q)}
-                    className="w-full text-start px-3 py-2.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-secondary)] text-caption text-[var(--text-secondary)] hover:border-[var(--color-info)] hover:text-[var(--color-info)] transition-colors"
+                    className="w-full text-start px-3 py-2.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-secondary)] text-caption text-[var(--text-primary)] hover:border-[var(--color-info)] transition-colors"
                   >
                     {q}
                   </button>
@@ -299,7 +307,8 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
                     : 'bg-[var(--bg-secondary)] border border-[var(--border-default)] text-[var(--text-primary)]'
                 }`}
               >
-                <div className="text-caption whitespace-pre-wrap break-words">{msg.content}</div>
+                <span className="sr-only">{msg.role === 'user' ? t('you') : t('assistant')}: </span>
+                <div className="text-caption whitespace-pre-wrap break-words" dir="auto">{msg.content}</div>
 
                 {/* Inline data cards for assistant messages */}
                 {msg.role === 'assistant' && msg.metadata?.queryResults && (
@@ -314,7 +323,7 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
           {loading && (
             <div className="flex justify-start">
               <div className="bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-lg px-4 py-3 flex items-center gap-2">
-                <Loader2 size={14} className="animate-spin text-[var(--color-info)]" />
+                <Loader2 size={14} className="animate-spin text-[var(--color-info)]" aria-hidden="true" />
                 <span className="text-caption text-[var(--text-secondary)]">{t('thinking')}</span>
               </div>
             </div>
@@ -328,13 +337,14 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
           <div className="px-4 pb-2 space-y-2">
             {latestMeta.suggestedActions && latestMeta.suggestedActions.length > 0 && (
               <div>
-                <p className="text-micro text-[var(--text-tertiary)] mb-1">{t('suggestedActions')}</p>
+                <p className="text-micro text-[var(--text-secondary)] mb-1">{t('suggestedActions')}</p>
                 <div className="flex flex-wrap gap-1">
                   {latestMeta.suggestedActions.map((action) => (
                     <button
                       key={action}
                       onClick={() => sendMessage(action)}
-                      className="text-micro px-2 py-1 rounded-full border border-[var(--color-info)] text-[var(--color-info)] hover:bg-[var(--color-info)] hover:text-white transition-colors"
+                      dir="auto"
+                      className="text-micro px-2 py-1 rounded-full border border-[var(--color-info)] text-[var(--text-primary)] hover:bg-[var(--color-info)] hover:text-white transition-colors"
                     >
                       {action}
                     </button>
@@ -344,13 +354,14 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
             )}
             {latestMeta.followUpQuestions && latestMeta.followUpQuestions.length > 0 && (
               <div>
-                <p className="text-micro text-[var(--text-tertiary)] mb-1">{t('followUp')}</p>
+                <p className="text-micro text-[var(--text-secondary)] mb-1">{t('followUp')}</p>
                 <div className="flex flex-wrap gap-1">
                   {latestMeta.followUpQuestions.map((q) => (
                     <button
                       key={q}
                       onClick={() => sendMessage(q)}
-                      className="text-micro px-2 py-1 rounded-full border border-[var(--border-default)] text-[var(--text-secondary)] hover:border-[var(--border-hover)] hover:text-[var(--text-primary)] transition-colors"
+                      dir="auto"
+                      className="text-micro px-2 py-1 rounded-full border border-[var(--border-default)] text-[var(--text-primary)] hover:border-[var(--border-hover)] transition-colors"
                     >
                       {q}
                     </button>
@@ -364,23 +375,28 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
         {/* Input */}
         <div className="border-t border-[var(--border-default)] px-4 py-3">
           <div className="flex items-end gap-2">
+            <label htmlFor="ai-chat-panel-input" className="sr-only">{t('inputLabel')}</label>
             <textarea
+              id="ai-chat-panel-input"
+              dir="auto"
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder={t('placeholder')}
               rows={1}
-              className="flex-1 resize-none rounded-md border border-[var(--border-default)] bg-[var(--bg-secondary)] text-caption text-[var(--text-primary)] placeholder:text-[var(--text-tertiary)] px-3 py-2 focus:outline-none focus:border-[var(--color-info)] transition-colors max-h-24"
+              className="flex-1 resize-none rounded-md border border-[var(--border-default)] bg-[var(--bg-secondary)] text-caption text-[var(--text-primary)] placeholder:text-[var(--text-secondary)] px-3 py-2 focus:outline-none focus:border-[var(--color-info)] transition-colors max-h-24"
               style={{ minHeight: '38px' }}
               disabled={loading}
             />
             <button
               onClick={() => sendMessage()}
               disabled={!input.trim() || loading}
+              aria-label={t('send')}
+              title={t('send')}
               className="p-2.5 rounded-md bg-[var(--color-info)] text-white hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
             >
-              <Send size={14} />
+              <Send size={14} className="rtl:-scale-x-100" aria-hidden="true" />
             </button>
           </div>
         </div>

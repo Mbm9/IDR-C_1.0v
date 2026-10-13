@@ -1,4 +1,8 @@
+'use client'
+
 import { Cloud, Server, Shield, Compass, Key, Database } from 'lucide-react'
+import { useFormatter, useTranslations } from 'next-intl'
+import { integrationBrandName } from '@/lib/connectors/brand-names'
 
 interface IntegrationStatusCardProps {
   integration: {
@@ -9,6 +13,7 @@ interface IntegrationStatusCardProps {
     lastSyncAt: string | null
     lastSyncRecordCount: number
     syncFrequencyMinutes: number
+    lastSyncError?: string | null
   }
   onSync?: (id: string) => void
 }
@@ -23,22 +28,11 @@ const SOURCE_ICONS: Record<string, typeof Server> = {
   sso_provider: Shield,
 }
 
-const STATUS_CONFIG: Record<string, { color: string; label: string; pulse?: boolean }> = {
-  connected: { color: 'var(--color-low)', label: 'Connected' },
-  syncing: { color: 'var(--color-info)', label: 'Syncing', pulse: true },
-  error: { color: 'var(--color-critical)', label: 'Error' },
-  disconnected: { color: 'var(--text-tertiary)', label: 'Disconnected' },
-}
-
-function timeAgo(date: string | null): string {
-  if (!date) return 'Never'
-  const diff = Date.now() - new Date(date).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
+const STATUS_CONFIG: Record<string, { color: string; pulse?: boolean }> = {
+  connected: { color: 'var(--color-low)' },
+  syncing: { color: 'var(--color-info)', pulse: true },
+  error: { color: 'var(--color-critical)' },
+  disconnected: { color: 'var(--text-tertiary)' },
 }
 
 function isStale(lastSync: string | null, frequency: number): boolean {
@@ -48,9 +42,19 @@ function isStale(lastSync: string | null, frequency: number): boolean {
 }
 
 export function IntegrationStatusCard({ integration, onSync }: IntegrationStatusCardProps) {
+  const t = useTranslations('integrations')
+  const tCommon = useTranslations('common')
+  const format = useFormatter()
   const Icon = SOURCE_ICONS[integration.type] || Database
-  const status = STATUS_CONFIG[integration.syncStatus] || STATUS_CONFIG.disconnected
+  const statusKey = integration.syncStatus in STATUS_CONFIG ? integration.syncStatus : 'disconnected'
+  const status = STATUS_CONFIG[statusKey]
   const stale = isStale(integration.lastSyncAt, integration.syncFrequencyMinutes)
+  const lastSync = integration.lastSyncAt
+    ? format.relativeTime(new Date(integration.lastSyncAt), Date.now())
+    : tCommon('never')
+  const frequency = integration.syncFrequencyMinutes % 60 === 0
+    ? t('everyHours', { count: integration.syncFrequencyMinutes / 60 })
+    : t('everyMinutes', { count: integration.syncFrequencyMinutes })
 
   return (
     <div
@@ -60,49 +64,56 @@ export function IntegrationStatusCard({ integration, onSync }: IntegrationStatus
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-lg bg-[var(--bg-tertiary)] flex items-center justify-center">
-            <Icon size={20} className="text-[var(--text-secondary)]" />
+            <Icon size={20} className="text-[var(--text-secondary)]" aria-hidden="true" />
           </div>
           <div>
-            <h3 className="text-body font-medium text-[var(--text-primary)]">{integration.name}</h3>
-            <p className="text-caption text-[var(--text-tertiary)] capitalize">{integration.type.replace(/_/g, ' ')}</p>
+            <h3 className="text-body font-medium text-[var(--text-primary)]"><bdi>{integration.name}</bdi></h3>
+            <p className="text-caption text-[var(--text-secondary)]"><bdi>{integrationBrandName(integration.type)}</bdi></p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
           <span
             className={`w-2.5 h-2.5 rounded-full ${status.pulse ? 'animate-pulse-dot' : ''}`}
             style={{ backgroundColor: status.color }}
+            aria-hidden="true"
           />
-          <span className="text-micro font-medium" style={{ color: status.color }}>{status.label}</span>
+          <span className="text-micro font-medium text-[var(--text-primary)]">{t(`statuses.${statusKey as 'connected'}`)}</span>
         </div>
       </div>
 
-      {stale && integration.syncStatus !== 'disconnected' && (
-        <div className="mb-3 px-3 py-2 rounded-[var(--radius-badge)] text-micro font-medium" style={{ backgroundColor: 'var(--color-medium-bg)', color: 'var(--color-medium)' }}>
-          Sync is overdue — last synced {timeAgo(integration.lastSyncAt)}
+      {statusKey === 'error' && (
+        <p className="mb-3 text-micro text-[var(--text-primary)] break-words" dir="auto">
+          {integration.lastSyncError ? <bdi>{integration.lastSyncError}</bdi> : t('errorUnknown')}
+        </p>
+      )}
+
+      {stale && statusKey !== 'disconnected' && (
+        <div className="mb-3 px-3 py-2 rounded-[var(--radius-badge)] text-micro font-medium" style={{ backgroundColor: 'var(--color-medium-bg)', color: 'var(--text-primary)' }}>
+          {t('statusCard.overdue', { time: lastSync })}
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 text-caption">
+      <dl className="grid grid-cols-2 gap-3 text-caption">
         <div>
-          <p className="text-[var(--text-tertiary)]">Last Sync</p>
-          <p className="text-[var(--text-primary)] font-medium">{timeAgo(integration.lastSyncAt)}</p>
+          <dt className="text-[var(--text-secondary)]">{t('lastSync')}</dt>
+          <dd className="text-[var(--text-primary)] font-medium">{lastSync}</dd>
         </div>
         <div>
-          <p className="text-[var(--text-tertiary)]">Records</p>
-          <p className="text-[var(--text-primary)] font-medium">{integration.lastSyncRecordCount.toLocaleString()}</p>
+          <dt className="text-[var(--text-secondary)]">{t('records')}</dt>
+          <dd className="text-[var(--text-primary)] font-medium">{format.number(integration.lastSyncRecordCount)}</dd>
         </div>
         <div>
-          <p className="text-[var(--text-tertiary)]">Frequency</p>
-          <p className="text-[var(--text-primary)] font-medium">Every {integration.syncFrequencyMinutes}m</p>
+          <dt className="text-[var(--text-secondary)]">{t('frequency')}</dt>
+          <dd className="text-[var(--text-primary)] font-medium">{frequency}</dd>
         </div>
-      </div>
+      </dl>
 
       {onSync && (
         <button
           onClick={() => onSync(integration.id)}
-          className="mt-4 w-full py-2 text-micro font-medium rounded-[var(--radius-button)] bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-[var(--border-default)] transition-colors"
+          className="mt-4 w-full py-2 text-micro font-medium rounded-[var(--radius-button)] bg-[var(--bg-tertiary)] text-[var(--text-primary)] hover:bg-[var(--border-default)] transition-colors"
         >
-          Sync Now
+          {t('statusCard.syncNow')}
         </button>
       )}
     </div>

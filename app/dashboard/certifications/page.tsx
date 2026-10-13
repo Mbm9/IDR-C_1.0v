@@ -1,10 +1,8 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 import { MetricCard } from '@/components/ui/metric-card'
-import { formatRelativeTime } from '@/lib/utils/formatters'
-import Link from 'next/link'
 
 export default function CertificationsPage() {
   const { data, isLoading } = useQuery({
@@ -16,6 +14,7 @@ export default function CertificationsPage() {
     },
   })
   const t = useTranslations('certifications')
+  const format = useFormatter()
 
   if (isLoading || !data) {
     return (
@@ -33,7 +32,7 @@ export default function CertificationsPage() {
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <MetricCard label={t('certified')} value={cert.certified || 0} color="green" />
         <MetricCard label={t('pending')} value={cert.pending || 0} color="blue" />
         <MetricCard label={t('expired')} value={cert.expired || 0} color={cert.expired > 0 ? 'red' : 'green'} />
@@ -43,9 +42,9 @@ export default function CertificationsPage() {
       {/* Certification progress */}
       <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
         <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4">{t('certificationProgress')}</h3>
-        <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-4 overflow-hidden">
+        <div className="w-full bg-[var(--bg-tertiary)] rounded-full h-4 overflow-hidden" role="img" aria-label={t('progressLabel', { percent: format.number(total > 0 ? Number(cert.certified || 0) / total : 0, { style: 'percent' }) })}>
           {total > 0 && (
-            <div className="h-full flex">
+            <div className="h-full flex" aria-hidden="true">
               <div className="bg-green-500 h-full" style={{ width: `${(Number(cert.certified || 0) / total) * 100}%` }} />
               <div className="bg-yellow-500 h-full" style={{ width: `${(Number(cert.pending || 0) / total) * 100}%` }} />
               <div className="bg-red-500 h-full" style={{ width: `${(Number(cert.expired || 0) / total) * 100}%` }} />
@@ -53,17 +52,24 @@ export default function CertificationsPage() {
             </div>
           )}
         </div>
-        <div className="flex gap-6 mt-3 text-xs text-[var(--text-secondary)]">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-green-500" /> {t('certified')} ({total > 0 ? Math.round((Number(cert.certified || 0) / total) * 100) : 0}%)</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-yellow-500" /> {t('pending')} ({total > 0 ? Math.round((Number(cert.pending || 0) / total) * 100) : 0}%)</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-red-500" /> {t('expired')} ({total > 0 ? Math.round((Number(cert.expired || 0) / total) * 100) : 0}%)</span>
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-slate-400" /> {t('revoked')} ({total > 0 ? Math.round((Number(cert.revoked || 0) / total) * 100) : 0}%)</span>
-        </div>
+        <ul className="flex flex-wrap gap-x-6 gap-y-2 mt-3 text-xs text-[var(--text-secondary)]">
+          {([
+            ['certified', 'bg-green-500'],
+            ['pending', 'bg-yellow-500'],
+            ['expired', 'bg-red-500'],
+            ['revoked', 'bg-slate-400'],
+          ] as const).map(([key, color]) => (
+            <li key={key} className="flex items-center gap-1">
+              <span className={`w-2 h-2 rounded ${color}`} aria-hidden="true" />
+              {t('legendItem', { label: t(key), percent: format.number(total > 0 ? Number(cert[key] || 0) / total : 0, { style: 'percent' }) })}
+            </li>
+          ))}
+        </ul>
       </div>
 
       <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
         <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-2">{t('certificationCampaigns')}</h3>
-        <p className="text-sm text-[var(--text-tertiary)]">{t('campaignNote')}</p>
+        <p className="text-sm text-[var(--text-secondary)]">{t('campaignNote')}</p>
       </div>
     </div>
   )

@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Upload, CheckCircle, AlertCircle, Loader2, Download, Zap, Users, Shield, Key, FileText, Copy } from 'lucide-react'
+import { Upload, CheckCircle, AlertCircle, Loader2, Download, Zap, Users, Shield, Key, FileText, Copy, Lock } from 'lucide-react'
 import Link from 'next/link'
+import { useFormatter, useTranslations } from 'next-intl'
+import { useRoleHint } from '@/lib/hooks/use-role-hint'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -26,35 +28,36 @@ interface FileUpload {
   error: string
 }
 
+/** Target identity fields; labels are message keys under import.fields (empty value = skip). */
 const TARGET_FIELDS = [
-  { value: '', label: '— Skip —' },
-  { value: 'displayName', label: 'Display Name' },
-  { value: 'samAccountName', label: 'sAMAccountName' },
-  { value: 'upn', label: 'User Principal Name (UPN)' },
-  { value: 'email', label: 'Email' },
-  { value: 'department', label: 'Department' },
-  { value: 'type', label: 'Type (human/non_human)' },
-  { value: 'subType', label: 'Sub Type' },
-  { value: 'status', label: 'Status' },
-  { value: 'adTier', label: 'AD Tier' },
-  { value: 'manager', label: 'Manager' },
-  { value: 'memberOf', label: 'Group Memberships' },
-  { value: 'lastLogon', label: 'Last Logon' },
-  { value: 'passwordLastSet', label: 'Password Last Set' },
-  { value: 'whenCreated', label: 'Created Date' },
-  { value: 'userAccountControl', label: 'User Account Control' },
-  { value: 'distinguishedName', label: 'Distinguished Name' },
-  { value: 'description', label: 'Description' },
-  { value: 'title', label: 'Job Title' },
-  { value: 'sourceId', label: 'Source ID' },
-  { value: 'name', label: 'Group Name' },
-  { value: 'members', label: 'Group Members' },
-  { value: 'groupScope', label: 'Group Scope' },
-  { value: 'groupCategory', label: 'Group Category' },
-  { value: 'permissionName', label: 'Permission / Role' },
-  { value: 'resourceName', label: 'Resource Name' },
-  { value: 'permissionScope', label: 'Permission Scope' },
-]
+  '',
+  'displayName',
+  'samAccountName',
+  'upn',
+  'email',
+  'department',
+  'type',
+  'subType',
+  'status',
+  'adTier',
+  'manager',
+  'memberOf',
+  'lastLogon',
+  'passwordLastSet',
+  'whenCreated',
+  'userAccountControl',
+  'distinguishedName',
+  'description',
+  'title',
+  'sourceId',
+  'name',
+  'members',
+  'groupScope',
+  'groupCategory',
+  'permissionName',
+  'resourceName',
+  'permissionScope',
+] as const
 
 /* ------------------------------------------------------------------ */
 /*  PowerShell Commands                                                */
@@ -108,34 +111,32 @@ Get-GPO -All | ForEach-Object {
 const DATA_TYPES = [
   {
     key: 'users' as const,
-    label: 'Users & Service Accounts',
     icon: Users,
-    description: 'All AD user objects including service accounts, admin accounts, and standard users',
     fileName: 'ir-users.csv',
     required: true,
-    unlocks: ['Identity inventory', 'Human vs NHI classification', 'Dormancy detection', 'Department mapping', 'Manager hierarchy'],
+    unlocks: ['inventory', 'classification', 'dormancy', 'departments', 'managers'],
   },
   {
     key: 'groups' as const,
-    label: 'Groups & Memberships',
     icon: Shield,
-    description: 'All security and distribution groups with their member lists',
     fileName: 'ir-groups.csv',
     required: true,
-    unlocks: ['AD Tiering (Tier 0/1/2)', 'Tier violation detection', 'Privileged group analysis', 'Nested group resolution', 'Attack path discovery'],
+    unlocks: ['tiering', 'tierViolations', 'privilegedGroups', 'nestedGroups', 'attackPaths'],
   },
   {
     key: 'permissions' as const,
-    label: 'GPO Permissions & Delegations',
     icon: Key,
-    description: 'Group Policy permissions and delegated access rights',
     fileName: 'ir-permissions.csv',
     required: false,
-    unlocks: ['GPO risk detection', 'Shadow admin detection', 'Delegation analysis', 'Attack path enrichment'],
+    unlocks: ['gpoRisks', 'shadowAdmins', 'delegations', 'attackPathEnrichment'],
   },
 ]
 
 export default function ImportPage() {
+  const t = useTranslations('import')
+  const format = useFormatter()
+  const { can, hint, roleName, loading: roleLoading } = useRoleHint()
+  const canImport = can('iam_admin')
   const [uploads, setUploads] = useState<Record<string, FileUpload>>({
     users: { file: null, content: '', status: 'idle', mappings: [], detectedFormat: '', rowCount: 0, importedCount: 0, error: '' },
     groups: { file: null, content: '', status: 'idle', mappings: [], detectedFormat: '', rowCount: 0, importedCount: 0, error: '' },
@@ -149,7 +150,7 @@ export default function ImportPage() {
   const anyImporting = Object.values(uploads).some(u => u.status === 'importing' || u.status === 'detecting')
 
   function copyCommand(key: string) {
-    navigator.clipboard.writeText(PS_COMMANDS[key as keyof typeof PS_COMMANDS])
+    navigator.clipboard?.writeText(PS_COMMANDS[key as keyof typeof PS_COMMANDS]).catch(() => {})
     setCopied(key)
     setTimeout(() => setCopied(''), 2000)
   }
@@ -161,7 +162,7 @@ export default function ImportPage() {
     const text = await f.text()
     const lines = text.split('\n').filter(l => l.trim())
     if (lines.length < 2) {
-      setUploads(prev => ({ ...prev, [key]: { ...prev[key], file: f, error: 'CSV must have a header row and at least one data row.', status: 'error' } }))
+      setUploads(prev => ({ ...prev, [key]: { ...prev[key], file: f, error: t('errors.tooFewRows'), status: 'error' } }))
       return
     }
 
@@ -207,7 +208,7 @@ export default function ImportPage() {
       }))
       setUploads(prev => ({
         ...prev,
-        [key]: { ...prev[key], status: 'mapped', mappings, detectedFormat: 'Unknown', rowCount: lines.length - 1 },
+        [key]: { ...prev[key], status: 'mapped', mappings, detectedFormat: '', rowCount: lines.length - 1 },
       }))
     }
   }
@@ -241,8 +242,8 @@ export default function ImportPage() {
       })
 
       if (!res.ok) {
-        const data = await res.json().catch(() => ({ error: 'Import failed' }))
-        throw new Error(data.error || 'Import failed')
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || t('errors.importFailed'))
       }
 
       const data = await res.json()
@@ -251,7 +252,7 @@ export default function ImportPage() {
         [key]: { ...prev[key], status: 'done', importedCount: data.identities || data.recordCount || upload.rowCount, error: '' },
       }))
     } catch (err: any) {
-      setUploads(prev => ({ ...prev, [key]: { ...prev[key], status: 'mapped', error: err.message } }))
+      setUploads(prev => ({ ...prev, [key]: { ...prev[key], status: 'mapped', error: err.message || t('errors.importFailed') } }))
     }
   }
 
@@ -259,7 +260,10 @@ export default function ImportPage() {
     setUploads(prev => ({ ...prev, users: { ...prev.users, status: 'importing' }, groups: { ...prev.groups, status: 'importing' } }))
     try {
       const res = await fetch('/api/import/demo', { method: 'POST' })
-      if (!res.ok) throw new Error('Failed')
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || t('errors.demoFailed'))
+      }
       const data = await res.json()
       setUploads(prev => ({
         ...prev,
@@ -270,39 +274,53 @@ export default function ImportPage() {
     } catch (err: any) {
       setUploads(prev => ({
         ...prev,
-        users: { ...prev.users, status: 'error', error: err.message },
+        users: { ...prev.users, status: 'error', error: err.message || t('errors.demoFailed') },
         groups: { ...prev.groups, status: 'idle' },
       }))
     }
   }
 
+  function openPicker(key: string) {
+    if (canImport) fileRefs.current[key]?.click()
+  }
+
+  const tabs = [
+    { id: 'export' as const, label: t('steps.export'), icon: Download },
+    { id: 'import' as const, label: t('steps.upload'), icon: Upload },
+    { id: 'review' as const, label: t('steps.review'), icon: CheckCircle },
+  ]
+
   return (
     <div className="space-y-6 max-w-5xl">
       <div>
-        <h2 className="text-title text-[var(--text-primary)]">Import AD Snapshot</h2>
+        <h2 className="text-title text-[var(--text-primary)]">{t('title')}</h2>
         <p className="text-caption text-[var(--text-secondary)] mt-1">
-          Export data from Active Directory using 3 PowerShell commands, then upload the CSV files.
-          Identity Radar uses AI to auto-detect columns and build the full identity model.
+          {t('intro')}
         </p>
       </div>
 
+      {!roleLoading && !canImport && (
+        <div className="flex items-start gap-2 rounded-lg border px-4 py-3 text-xs text-[var(--text-primary)]" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-secondary)' }} role="note">
+          <Lock className="w-4 h-4 shrink-0 text-[var(--text-secondary)]" aria-hidden="true" />
+          <span>{t('readOnly', { role: roleName('iam_admin') })}</span>
+        </div>
+      )}
+
       {/* Tabs */}
-      <div className="flex gap-1 border-b" style={{ borderColor: 'var(--border-default)' }}>
-        {[
-          { id: 'export' as const, label: 'Step 1: Export from AD', icon: Download },
-          { id: 'import' as const, label: 'Step 2: Upload Files', icon: Upload },
-          { id: 'review' as const, label: 'Step 3: Review & Analyze', icon: CheckCircle },
-        ].map(tab => (
+      <div className="flex gap-1 border-b overflow-x-auto" style={{ borderColor: 'var(--border-default)' }} role="tablist" aria-label={t('stepsLabel')}>
+        {tabs.map(tab => (
           <button
             key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors -mb-px ${
+            className={`flex shrink-0 items-center gap-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-colors -mb-px ${
               activeTab === tab.id
-                ? 'border-[var(--color-info)] text-[var(--color-info)]'
-                : 'border-transparent text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]'
+                ? 'border-[var(--color-info)] text-[var(--text-primary)]'
+                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
-            <tab.icon className="w-3.5 h-3.5" />
+            <tab.icon className="w-3.5 h-3.5" aria-hidden="true" />
             {tab.label}
           </button>
         ))}
@@ -311,77 +329,89 @@ export default function ImportPage() {
       {/* Tab 1: Export Instructions */}
       {activeTab === 'export' && (
         <div className="space-y-4">
-          <div className="rounded-lg p-4" style={{ backgroundColor: 'var(--color-info-bg)', borderLeft: '3px solid var(--color-info)' }}>
-            <p className="text-xs text-[var(--text-secondary)]">
-              Run these commands on a <strong>Domain Controller</strong> as a <strong>Domain Admin</strong>.
-              Each command creates a CSV file that you'll upload in Step 2.
+          <div className="rounded-lg p-4 border-s-[3px]" style={{ backgroundColor: 'var(--color-info-bg)', borderColor: 'var(--color-info)' }}>
+            <p className="text-xs text-[var(--text-primary)]">
+              {t.rich('exportIntro', { strong: (chunks) => <strong>{chunks}</strong> })}
             </p>
           </div>
 
           {DATA_TYPES.map((dt, i) => (
             <div key={dt.key} className="rounded-lg border p-4" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-primary)' }}>
-              <div className="flex items-start justify-between mb-3">
+              <div className="flex items-start justify-between gap-3 mb-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                    <dt.icon className="w-4 h-4 text-[var(--text-secondary)]" />
+                  <div className="w-8 h-8 shrink-0 rounded-lg flex items-center justify-center" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+                    <dt.icon className="w-4 h-4 text-[var(--text-secondary)]" aria-hidden="true" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
-                      Command {i + 1}: {dt.label}
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)] flex flex-wrap items-center gap-2">
+                      {t('commandHeading', { number: i + 1, label: t(`dataTypes.${dt.key}.label`) })}
                       {dt.required ? (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: 'var(--color-critical-bg)', color: 'var(--color-critical)' }}>Required</span>
+                        <span className="text-[11px] px-1.5 py-0.5 rounded font-semibold border" style={{ borderColor: 'var(--color-critical)', color: 'var(--text-primary)' }}>{t('required')}</span>
                       ) : (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-tertiary)' }}>Optional</span>
+                        <span className="text-[11px] px-1.5 py-0.5 rounded font-medium" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>{t('optional')}</span>
                       )}
                     </h3>
-                    <p className="text-xs text-[var(--text-tertiary)]">{dt.description}</p>
+                    <p className="text-xs text-[var(--text-secondary)]">{t(`dataTypes.${dt.key}.description`)}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => copyCommand(dt.key)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors"
-                  style={{ backgroundColor: 'var(--bg-secondary)', color: copied === dt.key ? 'var(--color-success)' : 'var(--text-secondary)' }}
+                  aria-label={t('copyCommand', { number: i + 1 })}
+                  className="flex shrink-0 items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium transition-colors text-[var(--text-primary)]"
+                  style={{ backgroundColor: 'var(--bg-secondary)' }}
                 >
-                  {copied === dt.key ? <CheckCircle className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                  {copied === dt.key ? 'Copied!' : 'Copy'}
+                  {copied === dt.key ? <CheckCircle className="w-3.5 h-3.5" style={{ color: 'var(--color-success)' }} aria-hidden="true" /> : <Copy className="w-3.5 h-3.5" aria-hidden="true" />}
+                  <span aria-live="polite">{copied === dt.key ? t('copied') : t('copy')}</span>
                 </button>
               </div>
 
-              <pre className="text-[11px] font-mono p-3 rounded-md overflow-x-auto leading-relaxed" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
+              <pre dir="ltr" tabIndex={0} aria-label={t('commandHeading', { number: i + 1, label: t(`dataTypes.${dt.key}.label`) })} className="text-[11px] font-mono p-3 rounded-md overflow-x-auto leading-relaxed text-start" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-primary)' }}>
                 {PS_COMMANDS[dt.key as keyof typeof PS_COMMANDS]}
               </pre>
 
               <div className="mt-3 flex flex-wrap gap-2">
-                <span className="text-[10px] font-medium text-[var(--text-tertiary)] uppercase tracking-wider">Unlocks:</span>
+                <span className="text-[11px] font-medium text-[var(--text-secondary)] uppercase tracking-wider">{t('unlocksLabel')}</span>
                 {dt.unlocks.map(u => (
-                  <span key={u} className="text-[10px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
-                    {u}
+                  <span key={u} className="text-[11px] px-2 py-0.5 rounded-full" style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-primary)' }}>
+                    {t(`unlocks.${u}`)}
                   </span>
                 ))}
               </div>
 
-              <p className="text-[10px] text-[var(--text-tertiary)] mt-2">
-                Output file: <code className="font-mono">C:\{dt.fileName}</code>
+              <p className="text-[11px] text-[var(--text-secondary)] mt-2">
+                {t('outputFile')} <code className="font-mono" dir="ltr">C:\{dt.fileName}</code>
               </p>
             </div>
           ))}
 
-          <div className="flex justify-between items-center pt-2">
-            <button
-              onClick={handleLoadDemo}
-              disabled={anyImporting}
-              className="flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50"
-              style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}
-            >
-              <Zap className="w-3.5 h-3.5" />
-              Skip — Load Demo Data Instead
-            </button>
+          <div className="flex flex-wrap justify-between items-center gap-3 pt-2">
+            {canImport ? (
+              <button
+                onClick={handleLoadDemo}
+                disabled={anyImporting}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg transition-colors disabled:opacity-50 text-[var(--text-primary)]"
+                style={{ backgroundColor: 'var(--bg-secondary)' }}
+              >
+                <Zap className="w-3.5 h-3.5" aria-hidden="true" />
+                {t('loadDemo')}
+              </button>
+            ) : (
+              <button
+                disabled
+                title={hint('iam_admin')}
+                className="flex items-center gap-2 px-4 py-2 text-xs font-medium rounded-lg opacity-60 cursor-not-allowed text-[var(--text-primary)]"
+                style={{ backgroundColor: 'var(--bg-secondary)' }}
+              >
+                <Lock className="w-3.5 h-3.5" aria-hidden="true" />
+                {t('loadDemo')}
+              </button>
+            )}
             <button
               onClick={() => setActiveTab('import')}
               className="px-6 py-2.5 text-sm font-medium text-white rounded-lg"
               style={{ backgroundColor: 'var(--color-info)' }}
             >
-              I have the CSV files →
+              {t('haveFiles')} <span aria-hidden="true" className="rtl:inline-block rtl:-scale-x-100">→</span>
             </button>
           </div>
         </div>
@@ -392,41 +422,48 @@ export default function ImportPage() {
         <div className="space-y-4">
           {DATA_TYPES.map(dt => {
             const upload = uploads[dt.key]
+            const label = t(`dataTypes.${dt.key}.label`)
             return (
               <div key={dt.key} className="rounded-lg border p-4" style={{ borderColor: upload.status === 'done' ? 'var(--color-success)' : upload.status === 'error' ? 'var(--color-critical)' : 'var(--border-default)', backgroundColor: 'var(--bg-primary)' }}>
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between gap-3 mb-3">
                   <div className="flex items-center gap-3">
-                    <dt.icon className="w-5 h-5 text-[var(--text-secondary)]" />
+                    <dt.icon className="w-5 h-5 text-[var(--text-secondary)]" aria-hidden="true" />
                     <div>
-                      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{dt.label}</h3>
-                      <p className="text-[10px] text-[var(--text-tertiary)]">{dt.fileName}</p>
+                      <h3 className="text-sm font-semibold text-[var(--text-primary)]">{label}</h3>
+                      <p className="text-[11px] text-[var(--text-secondary)]" dir="ltr">{dt.fileName}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    {upload.status === 'done' && <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--color-success)' }}><CheckCircle className="w-4 h-4" /> {upload.importedCount} imported</span>}
-                    {upload.status === 'detecting' && <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-info)' }}><Loader2 className="w-4 h-4 animate-spin" /> Detecting...</span>}
-                    {upload.status === 'importing' && <span className="flex items-center gap-1 text-xs" style={{ color: 'var(--color-info)' }}><Loader2 className="w-4 h-4 animate-spin" /> Importing...</span>}
-                    {!dt.required && upload.status === 'idle' && <span className="text-[10px] text-[var(--text-tertiary)]">Optional</span>}
+                  <div className="flex items-center gap-2" aria-live="polite">
+                    {upload.status === 'done' && <span className="flex items-center gap-1 text-xs font-medium text-[var(--text-primary)]"><CheckCircle className="w-4 h-4" style={{ color: 'var(--color-success)' }} aria-hidden="true" /> {t('importedCount', { count: upload.importedCount })}</span>}
+                    {upload.status === 'detecting' && <span className="flex items-center gap-1 text-xs text-[var(--text-primary)]"><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> {t('detecting')}</span>}
+                    {upload.status === 'importing' && <span className="flex items-center gap-1 text-xs text-[var(--text-primary)]"><Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" /> {t('importing')}</span>}
+                    {!dt.required && upload.status === 'idle' && <span className="text-[11px] text-[var(--text-secondary)]">{t('optional')}</span>}
                   </div>
                 </div>
 
                 {upload.error && (
-                  <div className="flex items-start gap-2 p-2 rounded mb-3 text-xs" style={{ backgroundColor: 'var(--color-critical-bg)', color: 'var(--color-critical)' }}>
-                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                    {upload.error}
+                  <div role="alert" className="flex items-start gap-2 p-2 rounded mb-3 text-xs border text-[var(--text-primary)]" style={{ borderColor: 'var(--color-critical)', backgroundColor: 'var(--color-critical-bg)' }}>
+                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: 'var(--color-critical)' }} aria-hidden="true" />
+                    <bdi>{upload.error}</bdi>
                   </div>
                 )}
 
                 {upload.status === 'idle' || upload.status === 'error' ? (
                   <div
-                    className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors hover:border-[var(--color-info)]"
+                    role={canImport ? 'button' : undefined}
+                    tabIndex={canImport ? 0 : undefined}
+                    aria-disabled={canImport ? undefined : true}
+                    title={canImport ? undefined : hint('iam_admin')}
+                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${canImport ? 'cursor-pointer hover:border-[var(--color-info)]' : 'cursor-not-allowed opacity-60'}`}
                     style={{ borderColor: 'var(--border-default)' }}
-                    onClick={() => fileRefs.current[dt.key]?.click()}
-                    onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-info)' }}
+                    onClick={() => openPicker(dt.key)}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(dt.key) } }}
+                    onDragOver={e => { if (!canImport) return; e.preventDefault(); e.currentTarget.style.borderColor = 'var(--color-info)' }}
                     onDragLeave={e => { e.currentTarget.style.borderColor = 'var(--border-default)' }}
                     onDrop={e => {
                       e.preventDefault()
                       e.currentTarget.style.borderColor = 'var(--border-default)'
+                      if (!canImport) return
                       const f = e.dataTransfer.files[0]
                       if (f && fileRefs.current[dt.key]) {
                         const dtr = new DataTransfer()
@@ -441,42 +478,55 @@ export default function ImportPage() {
                       type="file"
                       accept=".csv,.txt"
                       className="hidden"
+                      aria-label={label}
+                      tabIndex={-1}
+                      disabled={!canImport}
                       onChange={e => handleFileSelect(dt.key, e)}
                     />
-                    <Upload className="w-6 h-6 mx-auto mb-2 text-[var(--text-tertiary)]" />
-                    <p className="text-xs text-[var(--text-secondary)]">Drop <code className="font-mono">{dt.fileName}</code> here or click to browse</p>
+                    <Upload className="w-6 h-6 mx-auto mb-2 text-[var(--text-secondary)]" aria-hidden="true" />
+                    <p className="text-xs text-[var(--text-secondary)]">
+                      {canImport
+                        ? t.rich('dropHere', { file: dt.fileName, code: (chunks) => <code className="font-mono" dir="ltr">{chunks}</code> })
+                        : hint('iam_admin')}
+                    </p>
                   </div>
                 ) : upload.status === 'mapped' ? (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between text-xs text-[var(--text-secondary)]">
-                      <span>Detected: <strong>{upload.detectedFormat}</strong> — {upload.rowCount} rows</span>
-                      <button onClick={() => setUploads(prev => ({ ...prev, [dt.key]: { ...prev[dt.key], status: 'idle', file: null, content: '', mappings: [] } }))} className="text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
-                        Remove
+                    <div className="flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
+                      <span>
+                        {upload.detectedFormat
+                          ? t.rich('detectedSummary', { format: upload.detectedFormat, count: upload.rowCount, strong: (chunks) => <strong><bdi>{chunks}</bdi></strong> })
+                          : t('rowsOnly', { count: upload.rowCount })}
+                      </span>
+                      <button onClick={() => setUploads(prev => ({ ...prev, [dt.key]: { ...prev[dt.key], status: 'idle', file: null, content: '', mappings: [] } }))} className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] underline">
+                        {t('removeFile')}
                       </button>
                     </div>
-                    <div className="rounded border overflow-hidden" style={{ borderColor: 'var(--border-default)' }}>
+                    <div className="rounded border overflow-x-auto" style={{ borderColor: 'var(--border-default)' }}>
                       <table className="w-full text-[11px]">
                         <thead>
                           <tr style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                            <th className="px-2 py-1.5 text-start font-semibold text-[var(--text-tertiary)]">Column</th>
-                            <th className="px-2 py-1.5 text-start font-semibold text-[var(--text-tertiary)]">Sample</th>
-                            <th className="px-2 py-1.5 text-start font-semibold text-[var(--text-tertiary)]">Maps To</th>
+                            <th scope="col" className="px-2 py-1.5 text-start font-semibold text-[var(--text-secondary)]">{t('column')}</th>
+                            <th scope="col" className="px-2 py-1.5 text-start font-semibold text-[var(--text-secondary)]">{t('sample')}</th>
+                            <th scope="col" className="px-2 py-1.5 text-start font-semibold text-[var(--text-secondary)]">{t('mapsTo')}</th>
                           </tr>
                         </thead>
                         <tbody>
                           {upload.mappings.map((m, i) => (
                             <tr key={i} className="border-t" style={{ borderColor: 'var(--border-default)' }}>
-                              <td className="px-2 py-1 font-mono text-[var(--text-primary)]">{m.sourceColumn}</td>
-                              <td className="px-2 py-1 text-[var(--text-tertiary)] max-w-[150px] truncate">{m.sampleValue}</td>
+                              <td className="px-2 py-1 font-mono text-[var(--text-primary)]" dir="ltr">{m.sourceColumn}</td>
+                              <td className="px-2 py-1 text-[var(--text-secondary)] max-w-[150px] truncate"><bdi>{m.sampleValue}</bdi></td>
                               <td className="px-2 py-1">
                                 <select
                                   value={m.targetField}
                                   onChange={e => handleMappingChange(dt.key, i, e.target.value)}
+                                  aria-label={t('mapColumn', { column: m.sourceColumn })}
+                                  disabled={!canImport}
                                   className="w-full px-1 py-0.5 rounded text-[11px] border"
                                   style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-primary)', color: 'var(--text-primary)' }}
                                 >
                                   {TARGET_FIELDS.map(f => (
-                                    <option key={f.value} value={f.value}>{f.label}</option>
+                                    <option key={f} value={f}>{f ? t(`fields.${f}`) : t('skipField')}</option>
                                   ))}
                                 </select>
                               </td>
@@ -487,11 +537,12 @@ export default function ImportPage() {
                     </div>
                     <button
                       onClick={() => handleImport(dt.key)}
-                      disabled={!upload.mappings.some(m => m.targetField)}
+                      disabled={!canImport || !upload.mappings.some(m => m.targetField)}
+                      title={canImport ? undefined : hint('iam_admin')}
                       className="w-full py-2 text-xs font-medium text-white rounded-lg disabled:opacity-50"
                       style={{ backgroundColor: 'var(--color-info)' }}
                     >
-                      Import {upload.rowCount} Records
+                      {t('importRecords', { count: upload.rowCount })}
                     </button>
                   </div>
                 ) : null}
@@ -499,9 +550,9 @@ export default function ImportPage() {
             )
           })}
 
-          <div className="flex justify-between items-center pt-2">
-            <button onClick={() => setActiveTab('export')} className="text-xs text-[var(--text-tertiary)] hover:text-[var(--text-secondary)]">
-              ← Back to export instructions
+          <div className="flex flex-wrap justify-between items-center gap-3 pt-2">
+            <button onClick={() => setActiveTab('export')} className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+              <span aria-hidden="true" className="rtl:inline-block rtl:-scale-x-100">←</span> {t('backToExport')}
             </button>
             {(uploads.users.status === 'done' || uploads.groups.status === 'done') && (
               <button
@@ -509,7 +560,7 @@ export default function ImportPage() {
                 className="px-6 py-2.5 text-sm font-medium text-white rounded-lg"
                 style={{ backgroundColor: 'var(--color-info)' }}
               >
-                Review Results →
+                {t('reviewResults')} <span aria-hidden="true" className="rtl:inline-block rtl:-scale-x-100">→</span>
               </button>
             )}
           </div>
@@ -519,22 +570,23 @@ export default function ImportPage() {
       {/* Tab 3: Review */}
       {activeTab === 'review' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {DATA_TYPES.map(dt => {
               const upload = uploads[dt.key]
+              const label = t(`dataTypes.${dt.key}.label`)
               return (
                 <div key={dt.key} className="rounded-lg border p-4 text-center" style={{ borderColor: upload.status === 'done' ? 'var(--color-success)' : 'var(--border-default)', backgroundColor: 'var(--bg-primary)' }}>
                   {upload.status === 'done' ? (
                     <>
-                      <CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--color-success)' }} />
-                      <p className="text-2xl font-bold text-[var(--text-primary)]">{upload.importedCount}</p>
-                      <p className="text-xs text-[var(--text-secondary)]">{dt.label}</p>
+                      <CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: 'var(--color-success)' }} aria-hidden="true" />
+                      <p className="text-2xl font-bold text-[var(--text-primary)]">{format.number(upload.importedCount)}</p>
+                      <p className="text-xs text-[var(--text-secondary)]">{label}</p>
                     </>
                   ) : (
                     <>
-                      <FileText className="w-8 h-8 mx-auto mb-2 text-[var(--text-tertiary)]" />
-                      <p className="text-sm font-medium text-[var(--text-tertiary)]">Not imported</p>
-                      <p className="text-xs text-[var(--text-tertiary)]">{dt.label}</p>
+                      <FileText className="w-8 h-8 mx-auto mb-2 text-[var(--text-secondary)]" aria-hidden="true" />
+                      <p className="text-sm font-medium text-[var(--text-secondary)]">{t('notImported')}</p>
+                      <p className="text-xs text-[var(--text-secondary)]">{label}</p>
                     </>
                   )}
                 </div>
@@ -543,45 +595,44 @@ export default function ImportPage() {
           </div>
 
           {allDone && (
-            <div className="rounded-lg p-4" style={{ backgroundColor: 'var(--color-success-bg)', borderLeft: '3px solid var(--color-success)' }}>
-              <p className="text-sm font-semibold" style={{ color: 'var(--color-success)' }}>Import Complete!</p>
+            <div className="rounded-lg p-4 border-s-[3px]" style={{ backgroundColor: 'var(--color-success-bg)', borderColor: 'var(--color-success)' }} role="status">
+              <p className="text-sm font-semibold text-[var(--text-primary)]">{t('importComplete')}</p>
               <p className="text-xs text-[var(--text-secondary)] mt-1">
-                Identity Radar is now computing AD tier classifications, detecting tier violations,
-                calculating risk scores, and identifying policy violations. Check the dashboard.
+                {t('importCompleteDesc')}
               </p>
             </div>
           )}
 
           <div className="space-y-2">
-            <h3 className="text-sm font-semibold text-[var(--text-primary)]">What happens next</h3>
+            <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('whatNext')}</h3>
             <ul className="space-y-1.5">
               {[
-                { done: uploads.users.status === 'done', text: 'Identity inventory populated — human and NHI identities classified' },
-                { done: uploads.groups.status === 'done', text: 'AD Tiering computed — Tier 0, 1, 2 assigned based on group memberships' },
-                { done: uploads.groups.status === 'done', text: 'Tier violations detected — identities accessing higher tiers than assigned' },
-                { done: uploads.users.status === 'done', text: 'Risk scores calculated — 0-100 score per identity based on 7 factors' },
-                { done: uploads.users.status === 'done', text: 'Dormant accounts flagged — no logon in 90+ days' },
-                { done: uploads.permissions.status === 'done', text: 'GPO risks analyzed — dangerous permissions on sensitive OUs' },
-                { done: uploads.permissions.status === 'done', text: 'Shadow admins detected — admin-equivalent access outside admin groups' },
-              ].map((item, i) => (
-                <li key={i} className="flex items-start gap-2 text-xs">
+                { done: uploads.users.status === 'done', key: 'inventory' },
+                { done: uploads.groups.status === 'done', key: 'tiering' },
+                { done: uploads.groups.status === 'done', key: 'tierViolations' },
+                { done: uploads.users.status === 'done', key: 'riskScores' },
+                { done: uploads.users.status === 'done', key: 'dormant' },
+                { done: uploads.permissions.status === 'done', key: 'gpoRisks' },
+                { done: uploads.permissions.status === 'done', key: 'shadowAdmins' },
+              ].map((item) => (
+                <li key={item.key} className="flex items-start gap-2 text-xs">
                   {item.done ? (
-                    <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--color-success)' }} />
+                    <CheckCircle className="w-4 h-4 shrink-0 mt-0.5" style={{ color: 'var(--color-success)' }} aria-hidden="true" />
                   ) : (
-                    <div className="w-4 h-4 shrink-0 mt-0.5 rounded-full border" style={{ borderColor: 'var(--border-default)' }} />
+                    <div className="w-4 h-4 shrink-0 mt-0.5 rounded-full border" style={{ borderColor: 'var(--border-default)' }} aria-hidden="true" />
                   )}
-                  <span style={{ color: item.done ? 'var(--text-primary)' : 'var(--text-tertiary)' }}>{item.text}</span>
+                  <span style={{ color: item.done ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{t(`nextSteps.${item.key}`)}</span>
                 </li>
               ))}
             </ul>
           </div>
 
           <div className="flex gap-3 pt-2">
-            <button onClick={() => setActiveTab('import')} className="flex-1 py-2.5 text-sm font-medium rounded-lg" style={{ backgroundColor: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
-              Import More Data
+            <button onClick={() => setActiveTab('import')} className="flex-1 py-2.5 text-sm font-medium rounded-lg text-[var(--text-primary)]" style={{ backgroundColor: 'var(--bg-secondary)' }}>
+              {t('importMore')}
             </button>
             <Link href="/dashboard" className="flex-1 py-2.5 text-sm font-medium text-white rounded-lg text-center" style={{ backgroundColor: 'var(--color-info)' }}>
-              View Dashboard →
+              {t('viewDashboard')} <span aria-hidden="true" className="rtl:inline-block rtl:-scale-x-100">→</span>
             </Link>
           </div>
         </div>

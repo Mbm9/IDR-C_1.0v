@@ -2,19 +2,44 @@
 
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
-import { SYNC_STATUS_CONFIG } from '@/lib/utils/constants'
-import { formatRelativeTime, formatDateTime } from '@/lib/utils/formatters'
-import { IntegrationWizard } from '@/components/dashboard/integration-wizard'
+import { useFormatter, useTranslations } from 'next-intl'
+import { AlertTriangle, Plus, RefreshCw, Settings2 } from 'lucide-react'
+import { IntegrationWizard, type ExistingIntegration } from '@/components/dashboard/integration-wizard'
+import { integrationBrandName } from '@/lib/connectors/brand-names'
+import { useRoleHint } from '@/lib/hooks/use-role-hint'
+
+interface IntegrationSource {
+  id: string
+  name: string
+  type: string
+  syncStatus: 'connected' | 'syncing' | 'error' | 'disconnected'
+  lastSyncAt: string | null
+  lastSyncRecordCount: number | null
+  lastSyncError: string | null
+  syncFrequencyMinutes: number
+  hasCredentials: boolean
+}
+
+const STATUS_COLORS: Record<IntegrationSource['syncStatus'], string> = {
+  connected: 'var(--color-low)',
+  syncing: 'var(--color-info)',
+  error: 'var(--color-critical)',
+  disconnected: 'var(--text-tertiary)',
+}
 
 export default function IntegrationsPage() {
   const queryClient = useQueryClient()
   const [syncingIds, setSyncingIds] = useState<Set<string>>(new Set())
+  const [syncErrors, setSyncErrors] = useState<Record<string, string>>({})
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [editing, setEditing] = useState<ExistingIntegration | null>(null)
   const t = useTranslations('integrations')
   const tCommon = useTranslations('common')
+  const format = useFormatter()
+  const { can, hint, roleName } = useRoleHint()
+  const canManage = can('iam_admin')
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery<{ sources: IntegrationSource[] }>({
     queryKey: ['integrations'],
     queryFn: async () => {
       const res = await fetch('/api/integrations')
@@ -23,24 +48,28 @@ export default function IntegrationsPage() {
     },
   })
 
-  async function handleSync(source: { id: string; type: string; name: string }) {
+  async function handleSync(source: Pick<IntegrationSource, 'id' | 'type'>) {
     setSyncingIds(prev => new Set(prev).add(source.id))
+    setSyncErrors(prev => {
+      const next = { ...prev }
+      delete next[source.id]
+      return next
+    })
     try {
       const res = await fetch(`/api/sync/${source.type}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ integrationId: source.id }),
       })
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: 'Sync failed' }))
-        throw new Error(err.error || 'Sync failed')
+      if (!res.ok && res.status !== 500) {
+        // 500 = the sync ran and failed; the reason is stored on the source and shown on the card.
+        const err = await res.json().catch(() => ({}))
+        setSyncErrors(prev => ({ ...prev, [source.id]: err.error || t('syncRequestFailed') }))
       }
-
-      await queryClient.invalidateQueries({ queryKey: ['integrations'] })
-    } catch (err: any) {
-      alert(err.message || 'Failed to trigger sync')
+    } catch {
+      setSyncErrors(prev => ({ ...prev, [source.id]: t('syncRequestFailed') }))
     } finally {
+      await queryClient.invalidateQueries({ queryKey: ['integrations'] })
       setSyncingIds(prev => {
         const next = new Set(prev)
         next.delete(source.id)
@@ -49,91 +78,164 @@ export default function IntegrationsPage() {
     }
   }
 
-  function handleWizardCreated() {
+  function handleWizardDone(saved?: { id: string; type: string }) {
     queryClient.invalidateQueries({ queryKey: ['integrations'] })
+    // New and reconnected sources sync straight away ("Save & Start First Sync" / "Save & Sync"),
+    // so the card shows real status — or the failure reason — immediately.
+    if (saved) handleSync(saved)
+  }
+
+  function frequencyLabel(minutes: number) {
+    return minutes % 60 === 0
+      ? t('everyHours', { count: minutes / 60 })
+      : t('everyMinutes', { count: minutes })
+  }
+
+  const connectButton = (
+    <button
+      onClick={() => { setEditing(null); setWizardOpen(true) }}
+      disabled={!canManage}
+      title={canManage ? undefined : hint('iam_admin')}
+      className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[var(--color-info)] text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      <Plus className="w-4 h-4" aria-hidden="true" />
+      {t('connectNew')}
+    </button>
+  )
+
+  if (isError) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
+        <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-primary)] p-6 text-sm text-[var(--text-secondary)]">
+          <p>{tCommon('error')}</p>
+          <button onClick={() => refetch()} className="mt-3 text-[var(--color-info)] underline">{tCommon('tryAgain')}</button>
+        </div>
+      </div>
+    )
   }
 
   if (isLoading || !data) {
     return (
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
-        <div className="animate-pulse space-y-4">
+        <div className="animate-pulse space-y-4" role="status" aria-busy="true" aria-label={tCommon('loading')}>
           {[1, 2, 3].map(i => <div key={i} className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6 h-32" />)}
         </div>
       </div>
     )
   }
 
+  const errorCount = data.sources.filter(s => s.syncStatus === 'error').length
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
-        <button
-          onClick={() => setWizardOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-[var(--color-info)] text-white rounded-lg hover:opacity-90 transition-opacity"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          {t('connectNew')}
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
+          <p className="text-sm text-[var(--text-secondary)]">
+            {t('summary', { count: data.sources.length, errors: errorCount })}
+          </p>
+        </div>
+        {connectButton}
       </div>
 
+      {data.sources.length === 0 && (
+        <div className="rounded-xl border border-dashed border-[var(--border-default)] p-8 text-center text-sm text-[var(--text-secondary)]">
+          {t('empty')}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data.sources.map((source: any) => {
+        {data.sources.map((source) => {
           const isSyncing = syncingIds.has(source.id) || source.syncStatus === 'syncing'
-          const statusConfig = isSyncing
-            ? SYNC_STATUS_CONFIG['syncing' as keyof typeof SYNC_STATUS_CONFIG]
-            : SYNC_STATUS_CONFIG[source.syncStatus as keyof typeof SYNC_STATUS_CONFIG]
+          const status = isSyncing ? 'syncing' : source.syncStatus
+          const color = STATUS_COLORS[status] ?? STATUS_COLORS.disconnected
+          const requestError = syncErrors[source.id]
+          const brand = integrationBrandName(source.type)
           return (
-            <div key={source.id} className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-[var(--text-primary)]">{source.name}</h3>
+            <div
+              key={source.id}
+              className="flex flex-col bg-[var(--bg-primary)] rounded-xl border p-6"
+              style={{ boxShadow: 'var(--shadow-card)', borderColor: status === 'error' ? 'var(--color-critical)' : 'var(--border-default)' }}
+            >
+              <div className="flex items-start justify-between gap-3 mb-4">
+                <h3 className="text-sm font-semibold text-[var(--text-primary)] min-w-0 break-words"><bdi>{source.name}</bdi></h3>
                 <span
-                  className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full"
-                  style={{ color: statusConfig?.color, backgroundColor: `${statusConfig?.color}15` }}
+                  className="flex shrink-0 items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border"
+                  style={{ color: 'var(--text-primary)', borderColor: color }}
                 >
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: statusConfig?.color }} />
-                  {isSyncing ? t('syncing') : statusConfig?.label}
+                  <span className={`w-2 h-2 rounded-full ${isSyncing ? 'animate-pulse' : ''}`} style={{ backgroundColor: color }} aria-hidden="true" />
+                  {t(`statuses.${status}`)}
                 </span>
               </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-tertiary)]">{t('type')}</span>
-                  <span className="text-[var(--text-secondary)] capitalize">{source.type.replace(/_/g, ' ')}</span>
+
+              {status === 'error' && (
+                <div
+                  className="mb-4 rounded-lg border px-3 py-2 text-xs"
+                  style={{ borderColor: 'var(--color-critical)', backgroundColor: 'var(--bg-secondary)' }}
+                  role="status"
+                >
+                  <p className="flex items-center gap-1.5 font-semibold text-[var(--text-primary)]">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--color-critical)' }} aria-hidden="true" />
+                    {t('errorTitle')}
+                  </p>
+                  <p className="mt-1 text-[var(--text-primary)] break-words" dir="auto">
+                    {source.lastSyncError ? <bdi>{source.lastSyncError}</bdi> : t('errorUnknown')}
+                  </p>
+                  <p className="mt-1.5 text-[var(--text-secondary)]">
+                    {canManage ? t('errorGuidance') : t('errorGuidanceViewer', { role: roleName('iam_admin') })}
+                  </p>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-tertiary)]">{t('lastSync')}</span>
-                  <span className="text-[var(--text-secondary)]">
-                    {source.lastSyncAt ? formatRelativeTime(source.lastSyncAt) : tCommon('never')}
-                  </span>
+              )}
+
+              {requestError && (
+                <p className="mb-3 text-xs" style={{ color: 'var(--color-critical)' }} role="alert"><bdi>{requestError}</bdi></p>
+              )}
+
+              <dl className="space-y-2 text-sm">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-[var(--text-secondary)]">{t('type')}</dt>
+                  <dd className="text-[var(--text-primary)] text-end"><bdi>{brand}</bdi></dd>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-tertiary)]">{t('records')}</span>
-                  <span className="text-[var(--text-secondary)]">{source.lastSyncRecordCount ?? 0}</span>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-[var(--text-secondary)]">{t('lastSync')}</dt>
+                  <dd className="text-[var(--text-primary)] text-end">
+                    {source.lastSyncAt
+                      ? <time dateTime={source.lastSyncAt} title={format.dateTime(new Date(source.lastSyncAt), { dateStyle: 'medium', timeStyle: 'short' })}>{format.relativeTime(new Date(source.lastSyncAt), Date.now())}</time>
+                      : tCommon('never')}
+                  </dd>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-[var(--text-tertiary)]">{t('frequency')}</span>
-                  <span className="text-[var(--text-secondary)]">{source.syncFrequencyMinutes}m</span>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-[var(--text-secondary)]">{t('records')}</dt>
+                  <dd className="text-[var(--text-primary)] text-end">{format.number(source.lastSyncRecordCount ?? 0)}</dd>
                 </div>
-              </div>
-              <button
-                className="mt-4 w-full py-2 text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-secondary)] rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isSyncing}
-                onClick={() => handleSync(source)}
-              >
-                {isSyncing ? (
-                  <span className="flex items-center justify-center gap-2">
-                    <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                    </svg>
-                    {t('syncing')}
-                  </span>
-                ) : (
-                  t('triggerSync')
-                )}
-              </button>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-[var(--text-secondary)]">{t('frequency')}</dt>
+                  <dd className="text-[var(--text-primary)] text-end">{frequencyLabel(source.syncFrequencyMinutes)}</dd>
+                </div>
+              </dl>
+
+              {canManage && (
+                <div className="mt-auto pt-4 flex gap-2">
+                  <button
+                    className="flex-1 inline-flex items-center justify-center gap-2 py-2 text-xs font-medium bg-[var(--bg-secondary)] text-[var(--text-primary)] rounded-lg border border-[var(--border-default)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSyncing}
+                    onClick={() => handleSync(source)}
+                  >
+                    <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} aria-hidden="true" />
+                    {isSyncing ? t('syncing') : status === 'error' ? t('retrySync') : t('triggerSync')}
+                  </button>
+                  <button
+                    className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-[var(--text-primary)] rounded-lg border border-[var(--border-default)] hover:bg-[var(--bg-secondary)] transition-colors disabled:opacity-50"
+                    disabled={isSyncing}
+                    onClick={() => { setEditing({ id: source.id, name: source.name, type: source.type }); setWizardOpen(true) }}
+                  >
+                    <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+                    {status === 'error' ? t('reconnect') : tCommon('edit')}
+                  </button>
+                </div>
+              )}
             </div>
           )
         })}
@@ -141,8 +243,9 @@ export default function IntegrationsPage() {
 
       <IntegrationWizard
         isOpen={wizardOpen}
-        onClose={() => setWizardOpen(false)}
-        onCreated={handleWizardCreated}
+        existing={editing}
+        onClose={() => { setWizardOpen(false); setEditing(null) }}
+        onCreated={handleWizardDone}
       />
     </div>
   )

@@ -8,6 +8,10 @@ import { syncToDatabase } from '@/lib/connectors/transformer'
 import { hasRole } from '@/lib/utils/rbac'
 import type { AppRole } from '@/lib/utils/rbac'
 import { safeDecryptCredentials } from '@/lib/crypto/credentials'
+import { summarizeSyncError, summarizeRecordErrors } from '@/lib/connectors/sync-error'
+import { z } from 'zod'
+
+const syncRequestSchema = z.object({ integrationId: z.string().uuid() })
 
 export async function POST(
   request: NextRequest,
@@ -23,17 +27,18 @@ export async function POST(
 
   const { source: sourceType } = await params
 
-  let body: { integrationId?: string }
+  let body: unknown
   try {
     body = await request.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { integrationId } = body
-  if (!integrationId) {
-    return NextResponse.json({ error: 'integrationId is required' }, { status: 400 })
+  const parsed = syncRequestSchema.safeParse(body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'integrationId (uuid) is required' }, { status: 400 })
   }
+  const { integrationId } = parsed.data
 
   // Verify the integration belongs to this org
   const [integration] = await db
@@ -78,14 +83,16 @@ export async function POST(
       rawGroups,
     )
 
-    // Update integration status
+    // Update integration status (record-level errors keep a short, credential-free note)
     const now = new Date()
+    const lastSyncError = summarizeRecordErrors(result.errors)
     await db
       .update(integrationSources)
       .set({
         syncStatus: result.errors.length > 0 ? 'error' : 'connected',
         lastSyncAt: now,
         lastSyncRecordCount: result.identitiesUpserted + result.groupsUpserted,
+        lastSyncError,
       })
       .where(eq(integrationSources.id, integrationId))
 
@@ -112,13 +119,15 @@ export async function POST(
         syncStatus: result.errors.length > 0 ? 'error' : 'connected',
         lastSyncAt: now.toISOString(),
         lastSyncRecordCount: result.identitiesUpserted + result.groupsUpserted,
+        lastSyncError,
       },
     })
-  } catch (err: any) {
-    // Mark as error
+  } catch (err: unknown) {
+    // Mark as error with a short reason the UI can show (never raw credentials)
+    const lastSyncError = summarizeSyncError(err)
     await db
       .update(integrationSources)
-      .set({ syncStatus: 'error' })
+      .set({ syncStatus: 'error', lastSyncError })
       .where(eq(integrationSources.id, integrationId))
 
     // Log the failure
@@ -127,14 +136,14 @@ export async function POST(
       actorIdentityId: session.user.id,
       source: 'manual',
       orgId: session.user.orgId,
-      payload: { integrationId, sourceType, error: err.message },
-      rationale: `Sync failed for ${integration.name}: ${err.message}`,
+      payload: { integrationId, sourceType, error: lastSyncError },
+      rationale: `Sync failed for ${integration.name}: ${lastSyncError}`,
     })
 
     return NextResponse.json({
       success: false,
-      error: err.message,
-      integration: { id: integrationId, syncStatus: 'error' },
+      error: lastSyncError,
+      integration: { id: integrationId, syncStatus: 'error', lastSyncError },
     }, { status: 500 })
   }
 }

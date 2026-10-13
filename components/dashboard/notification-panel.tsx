@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { Bell, CheckCheck, AlertTriangle, AlertCircle, Info, Shield, Clock, Wifi, Loader2, Check, Eye, Search, RefreshCw, Play } from 'lucide-react'
 import { useNotifications, useUnreadCount, useMarkNotificationRead, useMarkAllRead } from '@/lib/hooks/use-notifications'
-import { formatRelativeTime } from '@/lib/utils/formatters'
 import type { Notification } from '@/lib/hooks/use-notifications'
 import { useRouter } from 'next/navigation'
+import { useFormatter, useTranslations } from 'next-intl'
+import { useAppRole } from '@/lib/hooks/use-app-role'
 
 const SEVERITY_STYLES: Record<string, { dot: string; icon: string }> = {
   critical: { dot: 'bg-[var(--color-critical)]', icon: 'text-[var(--color-critical)]' },
@@ -61,15 +62,15 @@ function ActionButton({
       className={`inline-flex items-center gap-1 px-2 py-1 rounded text-micro font-medium transition-colors disabled:opacity-50 ${
         variant === 'primary'
           ? 'bg-[var(--color-info)] text-white hover:opacity-90'
-          : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border-default)]'
+          : 'bg-[var(--bg-secondary)] text-[var(--text-primary)] hover:bg-[var(--border-default)]'
       }`}
     >
       {loading ? (
-        <Loader2 size={10} className="animate-spin" />
+        <Loader2 size={10} className="animate-spin" aria-hidden="true" />
       ) : success ? (
-        <Check size={10} className="text-green-500" />
+        <Check size={10} className="text-[var(--color-low)]" aria-hidden="true" />
       ) : (
-        <Icon size={10} />
+        <Icon size={10} aria-hidden="true" />
       )}
       {label}
     </button>
@@ -84,6 +85,8 @@ function NotificationActions({
   onActionComplete: () => void
 }) {
   const router = useRouter()
+  const t = useTranslations('notifications')
+  const { can } = useAppRole()
 
   const handleAcknowledge = async () => {
     const violationId = (notification.metadata as any)?.violationId
@@ -110,11 +113,14 @@ function NotificationActions({
   }
 
   const handleRetrySync = async () => {
-    const sourceId = (notification.metadata as any)?.integrationId || (notification.metadata as any)?.sourceId
-    if (!sourceId) return
-    const res = await fetch(`/api/sync/${sourceId}`, {
+    const meta = (notification.metadata as any) || {}
+    const integrationId = meta.integrationId || meta.sourceId
+    if (!integrationId) return
+    // POST /api/sync/[source] takes the integration id in the body; the path segment is the source type.
+    const res = await fetch(`/api/sync/${encodeURIComponent(meta.sourceType || meta.type || 'source')}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ integrationId }),
     })
     if (!res.ok) throw new Error('Failed to retry sync')
     onActionComplete()
@@ -124,10 +130,10 @@ function NotificationActions({
     case 'violation_detected':
       return (
         <div className="flex items-center gap-1.5 mt-1.5">
-          <ActionButton icon={Check} label="Acknowledge" onClick={handleAcknowledge} />
+          {can('analyst') && <ActionButton icon={Check} label={t('acknowledge')} onClick={handleAcknowledge} />}
           <ActionButton
             icon={Eye}
-            label="View"
+            label={t('view')}
             onClick={(e) => {
               e.stopPropagation()
               const violationId = (notification.metadata as any)?.violationId
@@ -148,7 +154,7 @@ function NotificationActions({
         <div className="flex items-center gap-1.5 mt-1.5">
           <ActionButton
             icon={Search}
-            label="Investigate"
+            label={t('investigate')}
             onClick={(e) => {
               e.stopPropagation()
               const threatId = (notification.metadata as any)?.threatId
@@ -157,7 +163,7 @@ function NotificationActions({
               onActionComplete()
             }}
           />
-          <ActionButton icon={Shield} label="Contain" onClick={handleContain} variant="primary" />
+          {can('analyst') && <ActionButton icon={Shield} label={t('contain')} onClick={handleContain} variant="primary" />}
         </div>
       )
 
@@ -166,7 +172,7 @@ function NotificationActions({
         <div className="flex items-center gap-1.5 mt-1.5">
           <ActionButton
             icon={Play}
-            label="Start Review"
+            label={t('startReview')}
             onClick={(e) => {
               e.stopPropagation()
               router.push('/dashboard/certifications')
@@ -180,7 +186,15 @@ function NotificationActions({
     case 'sync_failed':
       return (
         <div className="flex items-center gap-1.5 mt-1.5">
-          <ActionButton icon={RefreshCw} label="Retry Sync" onClick={handleRetrySync} variant="primary" />
+          {can('iam_admin') ? (
+            <ActionButton icon={RefreshCw} label={t('retrySync')} onClick={handleRetrySync} variant="primary" />
+          ) : (
+            <ActionButton
+              icon={Eye}
+              label={t('view')}
+              onClick={(e) => { e.stopPropagation(); router.push('/dashboard/integrations'); onActionComplete() }}
+            />
+          )}
         </div>
       )
 
@@ -197,6 +211,7 @@ function NotificationItem({
   onRead: (id: string) => void
 }) {
   const router = useRouter()
+  const format = useFormatter()
   const severity = SEVERITY_STYLES[notification.severity] || SEVERITY_STYLES.info
   const Icon = TYPE_ICONS[notification.type] || Info
 
@@ -216,19 +231,19 @@ function NotificationItem({
   }
 
   return (
-    <div
-      className={`w-full text-left px-3 py-2.5 transition-colors hover:bg-[var(--bg-secondary)] ${
+    <li
+      className={`w-full text-start px-3 py-2.5 transition-colors hover:bg-[var(--bg-secondary)] ${
         !notification.read ? 'bg-[var(--bg-secondary)]/50' : ''
       }`}
     >
-      <button onClick={handleClick} className="w-full text-left">
+      <button onClick={handleClick} className="w-full text-start">
         <div className="flex items-start gap-2.5">
-          <div className={`mt-0.5 ${severity.icon}`}>
+          <div className={`mt-0.5 ${severity.icon}`} aria-hidden="true">
             <Icon size={14} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5">
-              <p className={`text-caption leading-tight truncate ${
+              <p dir="auto" className={`text-caption leading-tight truncate ${
                 !notification.read
                   ? 'font-semibold text-[var(--text-primary)]'
                   : 'font-medium text-[var(--text-secondary)]'
@@ -236,26 +251,27 @@ function NotificationItem({
                 {notification.title}
               </p>
               {!notification.read && (
-                <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${severity.dot}`} />
+                <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full ${severity.dot}`} aria-hidden="true" />
               )}
             </div>
-            <p className="text-micro text-[var(--text-tertiary)] mt-0.5 line-clamp-2">
+            <p className="text-micro text-[var(--text-secondary)] mt-0.5 line-clamp-2" dir="auto">
               {notification.message}
             </p>
-            <p className="text-micro text-[var(--text-tertiary)] mt-1">
-              {formatRelativeTime(notification.createdAt)}
+            <p className="text-micro text-[var(--text-secondary)] mt-1">
+              <time dateTime={String(notification.createdAt)}>{format.relativeTime(new Date(notification.createdAt), Date.now())}</time>
             </p>
           </div>
         </div>
       </button>
       <NotificationActions notification={notification} onActionComplete={handleActionComplete} />
-    </div>
+    </li>
   )
 }
 
 export function NotificationPanel() {
   const [open, setOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+  const t = useTranslations('notifications')
 
   const { data: unreadCount = 0 } = useUnreadCount()
   const { data: notificationsData } = useNotifications()
@@ -296,12 +312,15 @@ export function NotificationPanel() {
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setOpen(!open)}
-        className="p-2 rounded-md text-[var(--text-tertiary)] hover:bg-[var(--bg-secondary)] transition-colors relative"
-        title="Notifications"
+        className="p-2 rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors relative"
+        title={t('title')}
+        aria-label={unreadCount > 0 ? t('buttonLabelUnread', { count: unreadCount }) : t('title')}
+        aria-expanded={open}
+        aria-haspopup="dialog"
       >
-        <Bell size={16} />
+        <Bell size={16} aria-hidden="true" />
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-[var(--color-critical)] text-white text-[10px] font-bold leading-none">
+          <span aria-hidden="true" className="absolute -top-0.5 -end-0.5 min-w-[16px] h-4 px-1 flex items-center justify-center rounded-full bg-[var(--color-critical)] text-white text-[10px] font-bold leading-none">
             {unreadCount > 99 ? '99+' : unreadCount}
           </span>
         )}
@@ -309,16 +328,18 @@ export function NotificationPanel() {
 
       {open && (
         <div
-          className="absolute right-0 top-full mt-1 w-80 sm:w-96 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg z-50 overflow-hidden"
+          role="dialog"
+          aria-label={t('title')}
+          className="absolute end-0 top-full mt-1 w-80 max-w-[calc(100vw-2rem)] sm:w-96 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg z-50 overflow-hidden"
           style={{ boxShadow: 'var(--shadow-dropdown)' }}
         >
           {/* Header */}
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-[var(--border-default)]">
             <h3 className="text-caption font-semibold text-[var(--text-primary)]">
-              Notifications
+              {t('title')}
               {unreadCount > 0 && (
-                <span className="ml-1.5 text-micro font-medium text-[var(--text-tertiary)]">
-                  ({unreadCount} unread)
+                <span className="ms-1.5 text-micro font-medium text-[var(--text-secondary)]">
+                  {t('unread', { count: unreadCount })}
                 </span>
               )}
             </h3>
@@ -326,21 +347,21 @@ export function NotificationPanel() {
               <button
                 onClick={handleMarkAllRead}
                 disabled={markAllRead.isPending}
-                className="flex items-center gap-1 text-micro text-[var(--color-info)] hover:underline disabled:opacity-50"
+                className="flex items-center gap-1 text-micro text-[var(--text-primary)] underline-offset-2 hover:underline disabled:opacity-50"
               >
-                <CheckCheck size={12} />
-                Mark all read
+                <CheckCheck size={12} aria-hidden="true" />
+                {t('markAllRead')}
               </button>
             )}
           </div>
 
           {/* Notification list */}
-          <div className="max-h-[400px] overflow-y-auto divide-y divide-[var(--border-default)]">
+          <ul className="max-h-[400px] overflow-y-auto divide-y divide-[var(--border-default)]" tabIndex={0} aria-label={t('title')}>
             {!notificationsData?.data?.length ? (
-              <div className="py-8 text-center">
-                <Bell size={24} className="mx-auto mb-2 text-[var(--text-tertiary)] opacity-40" />
-                <p className="text-caption text-[var(--text-tertiary)]">No notifications yet</p>
-              </div>
+              <li className="py-8 text-center">
+                <Bell size={24} className="mx-auto mb-2 text-[var(--text-tertiary)] opacity-40" aria-hidden="true" />
+                <p className="text-caption text-[var(--text-secondary)]">{t('empty')}</p>
+              </li>
             ) : (
               notificationsData.data.map((notification) => (
                 <NotificationItem
@@ -350,16 +371,16 @@ export function NotificationPanel() {
                 />
               ))
             )}
-          </div>
+          </ul>
 
           {/* Footer */}
           {notificationsData && notificationsData.total > notificationsData.data.length && (
             <div className="border-t border-[var(--border-default)] px-3 py-2 text-center">
               <button
                 onClick={() => { setOpen(false) }}
-                className="text-micro text-[var(--color-info)] hover:underline"
+                className="text-micro text-[var(--text-primary)] underline-offset-2 hover:underline"
               >
-                View all notifications
+                {t('viewAll')}
               </button>
             </div>
           )}
