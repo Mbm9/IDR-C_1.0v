@@ -6,6 +6,8 @@ export interface TieringData {
   tierCounts: Record<string, number>
   totalIdentities: number
   heatmap: Record<string, Record<string, number>>
+  /** All violating identities; crossTierIdentities holds the 50 riskiest. */
+  tierViolationCount: number
   crossTierIdentities: Array<{
     id: string
     displayName: string

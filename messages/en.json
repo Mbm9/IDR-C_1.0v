@@ -323,6 +323,7 @@
     "unclassifiedIdentities": "Unclassified Identities",
     "failedToLoad": "Failed to load tiering data",
     "crossTierPathsCount": "Cross-Tier Access Paths ({count})",
+    "crossTierShowingTop": "Showing the {shown} highest-risk of {total}",
     "unclassifiedCount": "Unclassified Identities ({count})",
     "heatmapAccesses": "Accesses {tier}",
     "heatmapIdentityTier": "Identity tier",

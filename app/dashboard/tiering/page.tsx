@@ -42,7 +42,7 @@ export default function TieringPage() {
     )
   }
 
-  const violationCount = data.crossTierIdentities.length
+  const violationCount = data.tierViolationCount ?? data.crossTierIdentities.length
 
   return (
     <div className="space-y-6">
@@ -73,8 +73,13 @@ export default function TieringPage() {
       {data.crossTierIdentities.length > 0 && (
         <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
           <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4">
-            {t('crossTierPathsCount', { count: data.crossTierIdentities.length })}
+            {t('crossTierPathsCount', { count: violationCount })}
           </h3>
+          {violationCount > data.crossTierIdentities.length && (
+            <p className="text-caption text-[var(--text-secondary)] -mt-3 mb-4">
+              {t('crossTierShowingTop', { shown: data.crossTierIdentities.length, total: violationCount })}
+            </p>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>

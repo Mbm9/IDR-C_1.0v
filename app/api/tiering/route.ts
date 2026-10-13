@@ -22,6 +22,7 @@ export async function GET() {
     topTierIdentities,
     topTierResources,
     unclassifiedIdentities,
+    tierViolationCount,
   ] = await Promise.all([
     // Tier counts
     db
@@ -125,6 +126,12 @@ export async function GET() {
       .from(identities)
       .where(and(eq(identities.orgId, orgId), eq(identities.adTier, 'unclassified')))
       .limit(25),
+
+    // Total tier violations (the cross-tier list above is capped)
+    db
+      .select({ count: count() })
+      .from(identities)
+      .where(and(eq(identities.orgId, orgId), eq(identities.tierViolation, true))),
   ])
 
   // Build heatmap matrix
@@ -151,6 +158,7 @@ export async function GET() {
     totalIdentities: total,
     heatmap,
     crossTierIdentities,
+    tierViolationCount: Number(tierViolationCount[0]?.count ?? 0),
     tier0Identities,
     tier0Resources,
     topTierIdentities,

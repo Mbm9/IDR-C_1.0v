@@ -323,6 +323,7 @@
     "unclassifiedIdentities": "هويات غير مصنفة",
     "failedToLoad": "فشل تحميل بيانات التصنيف",
     "crossTierPathsCount": "مسارات الوصول عبر المستويات ({count})",
+    "crossTierShowingTop": "عرض أعلى {shown} من حيث المخاطر من أصل {total}",
     "unclassifiedCount": "هويات غير مصنفة ({count})",
     "heatmapAccesses": "يصل إلى {tier}",
     "heatmapIdentityTier": "مستوى الهوية",
