@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { identities, policyViolations, exposureFindings } from '@/lib/db/schema'
 import { eq, and, inArray, desc } from 'drizzle-orm'
 import { VIOLATION_IMPACT, type PostureViolationType } from '@/lib/itdr/posture-checks'
+import { getIssueOverlay, getLocalizedIssueDef, impactLabel, issueLocaleFromRequest } from '@/lib/issues/localize'
 
 /**
  * GET /api/exposures
@@ -12,6 +13,8 @@ import { VIOLATION_IMPACT, type PostureViolationType } from '@/lib/itdr/posture-
  * findings (exposure_findings), grouped into attack-vector "impact" categories — fsProtect Impacts.
  *
  * Query: ?category=identity|certificate|gpo|secret  (optional filter)
+ *        ?locale=en|ar  (optional; defaults to the `locale` cookie) — language of `title`,
+ *        `typeLabel` and impact `label`. English titles are unchanged.
  */
 const POSTURE_TYPES = Object.keys(VIOLATION_IMPACT) as PostureViolationType[]
 const SEVERITY_WEIGHT: Record<string, number> = { critical: 10, high: 5, medium: 2, low: 1 }
@@ -22,6 +25,8 @@ interface UnifiedFinding {
   category: 'identity' | 'certificate' | 'gpo' | 'secret'
   type: string
   title: string
+  /** Catalog name of the finding type in the reader's locale. */
+  typeLabel: string
   subjectName: string
   identityId: string | null
   severity: 'critical' | 'high' | 'medium' | 'low'
@@ -31,6 +36,12 @@ interface UnifiedFinding {
 
 export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
   const categoryFilter = req.nextUrl.searchParams.get('category')
+  const locale = issueLocaleFromRequest(req)
+  const typeLabel = (type: string) => getLocalizedIssueDef(type, locale).name
+  // Arabic: the stored/derived titles are English, so rebuild them from the localized catalog
+  // name when the finding type has a translation; otherwise keep the original title.
+  const localTitle = (type: string, subjectName: string, englishTitle: string) =>
+    locale !== 'en' && getIssueOverlay(type, locale) ? `${subjectName}: ${typeLabel(type)}` : englishTitle
 
   const [identityRows, genericRows] = await Promise.all([
     db.select({
@@ -70,7 +81,8 @@ export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
       id: r.id,
       category: 'identity',
       type: r.type,
-      title: `${r.subjectName}: ${r.type.replace(/_/g, ' ')}`,
+      title: localTitle(r.type, r.subjectName, `${r.subjectName}: ${r.type.replace(/_/g, ' ')}`),
+      typeLabel: typeLabel(r.type),
       subjectName: r.subjectName,
       identityId: r.identityId,
       severity: r.severity,
@@ -81,7 +93,8 @@ export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
       id: r.id,
       category: r.category as UnifiedFinding['category'],
       type: r.type,
-      title: r.title,
+      title: localTitle(r.type, r.subjectName, r.title),
+      typeLabel: typeLabel(r.type),
       subjectName: r.subjectName,
       identityId: null,
       severity: r.severity,
@@ -100,11 +113,11 @@ export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
 
   const emptySeverity = () => ({ critical: 0, high: 0, medium: 0, low: 0 })
   const bySeverity = emptySeverity()
-  const impactMap = new Map<Impact, { category: Impact; count: number; bySeverity: ReturnType<typeof emptySeverity>; findings: UnifiedFinding[] }>()
+  const impactMap = new Map<Impact, { category: Impact; label: string; count: number; bySeverity: ReturnType<typeof emptySeverity>; findings: UnifiedFinding[] }>()
 
   for (const f of findings) {
     bySeverity[f.severity]++
-    if (!impactMap.has(f.impact)) impactMap.set(f.impact, { category: f.impact, count: 0, bySeverity: emptySeverity(), findings: [] })
+    if (!impactMap.has(f.impact)) impactMap.set(f.impact, { category: f.impact, label: impactLabel(f.impact, locale), count: 0, bySeverity: emptySeverity(), findings: [] })
     const g = impactMap.get(f.impact)!
     g.count++
     g.bySeverity[f.severity]++

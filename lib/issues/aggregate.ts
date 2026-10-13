@@ -10,6 +10,7 @@ import {
 } from '@/lib/db/schema'
 import { eq, and, count, desc } from 'drizzle-orm'
 import { getIssueDef, type IssueDef, type IssueCategory } from './catalog'
+import { localizeIssue, type IssueLocale } from './localize'
 
 const POSTURE_NOTE = 'identity' as const
 
@@ -52,13 +53,14 @@ async function aggregate(orgId: string): Promise<AggItem[]> {
   return items
 }
 
-export async function getIssues(orgId: string): Promise<IssueRow[]> {
+/** Issue list; `locale` controls the language of `name` (all other fields are locale-neutral). */
+export async function getIssues(orgId: string, locale: IssueLocale = 'en'): Promise<IssueRow[]> {
   const items = await aggregate(orgId)
   const statuses = await db.select().from(issueStatus).where(eq(issueStatus.orgId, orgId))
   const statusByFsid = new Map(statuses.map((s) => [s.fsid, s]))
 
   const rows: IssueRow[] = items.map((it) => {
-    const d = getIssueDef(it.type, { category: it.category })
+    const d = localizeIssue(getIssueDef(it.type, { category: it.category }), locale)
     const st = statusByFsid.get(d.fsid)
     return {
       fsid: d.fsid, type: it.type, source: it.source, name: d.name, category: d.category,
@@ -74,12 +76,14 @@ export async function getIssues(orgId: string): Promise<IssueRow[]> {
   return rows
 }
 
-export async function getIssueDetail(orgId: string, fsid: string) {
+/** Issue detail; `locale` controls the language of the returned `def` text (name, description, mitigation). */
+export async function getIssueDetail(orgId: string, fsid: string, locale: IssueLocale = 'en') {
   const items = await aggregate(orgId)
   const match = items.find((it) => getIssueDef(it.type, { category: it.category }).fsid === fsid)
   // catalog def even if currently 0 affected
-  const def = match ? getIssueDef(match.type, { category: match.category }) : findDefByFsid(fsid)
-  if (!def) return null
+  const baseDef = match ? getIssueDef(match.type, { category: match.category }) : findDefByFsid(fsid)
+  if (!baseDef) return null
+  const def = localizeIssue(baseDef, locale)
 
   const [st] = await db.select().from(issueStatus).where(and(eq(issueStatus.orgId, orgId), eq(issueStatus.fsid, fsid))).limit(1)
   const events = await db.select().from(issueEvents)

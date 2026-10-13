@@ -26,9 +26,14 @@ export interface IssueDef {
 
 const SEV_POINTS: Record<Severity, number> = { critical: 10, high: 5, medium: 2, low: 1 }
 
+/** Stable FSID for a finding type, e.g. `asrep_roastable` → `FS-ASREP-ROASTABLE`. */
+export function fsidForType(type: string): string {
+  return `FS-${type.toUpperCase().replace(/_/g, '-')}`
+}
+
 function def(type: string, d: Omit<IssueDef, 'fsid' | 'exposurePoints'> & { exposurePoints?: number }): [string, IssueDef] {
   return [type, {
-    fsid: `FS-${type.toUpperCase().replace(/_/g, '-')}`,
+    fsid: fsidForType(type),
     exposurePoints: d.exposurePoints ?? SEV_POINTS[d.severity],
     ...d,
   }]
@@ -139,17 +144,23 @@ export const ISSUE_CATALOG: Record<string, IssueDef> = Object.fromEntries([
 
 const SEV_RANK: Record<Severity, number> = { critical: 4, high: 3, medium: 2, low: 1 }
 
+/** Text used for finding types that have no catalog entry (see getIssueDef). */
+export const GENERIC_ISSUE_TEXT = {
+  description: 'Detected security finding.',
+  summary: 'Review and remediate the affected objects.',
+} as const
+
 /** Catalog entry for a finding type, or a sensible default. */
 export function getIssueDef(type: string, fallback?: { severity?: Severity; category?: IssueCategory; impact?: string }): IssueDef {
   const hit = ISSUE_CATALOG[type]
   if (hit) return hit
   const severity = fallback?.severity ?? 'medium'
   return {
-    fsid: `FS-${type.toUpperCase().replace(/_/g, '-')}`,
+    fsid: fsidForType(type),
     name: type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
     category: fallback?.category ?? 'identity', severity, impact: fallback?.impact ?? 'privilege_escalation',
     mitre: [], certainty: 'potential', privilege: 'any', ease: 'moderate', exposurePoints: SEV_POINTS[severity],
-    description: 'Detected security finding.', mitigation: { summary: 'Review and remediate the affected objects.', steps: [] },
+    description: GENERIC_ISSUE_TEXT.description, mitigation: { summary: GENERIC_ISSUE_TEXT.summary, steps: [] },
   }
 }
 

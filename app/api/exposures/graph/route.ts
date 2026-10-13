@@ -4,21 +4,19 @@ import { db } from '@/lib/db'
 import { identities, policyViolations, exposureFindings } from '@/lib/db/schema'
 import { eq, and, inArray, desc } from 'drizzle-orm'
 import { VIOLATION_IMPACT, type PostureViolationType } from '@/lib/itdr/posture-checks'
+import { impactLabel, issueLocaleFromRequest } from '@/lib/issues/localize'
 
 /**
  * GET /api/exposures/graph
  *
  * Relationship graph of AD exposures: each affected subject (identity / certificate template /
  * GPO / secret) links to the attack-impact hub(s) it enables. Powers the Exposures graph view.
+ * Impact hub labels follow the reader's locale (`?locale=` or the `locale` cookie).
  */
 const POSTURE_TYPES = Object.keys(VIOLATION_IMPACT) as PostureViolationType[]
 type Sev = 'critical' | 'high' | 'medium' | 'low'
 const SEV_RANK: Record<Sev, number> = { critical: 4, high: 3, medium: 2, low: 1 }
 const SEV_RISK: Record<Sev, number> = { critical: 95, high: 70, medium: 45, low: 22 }
-const IMPACT_LABEL: Record<string, string> = {
-  credential_theft: 'Credential Theft', privilege_escalation: 'Privilege Escalation',
-  lateral_movement: 'Lateral Movement', persistence: 'Persistence',
-}
 
 interface GNode {
   id: string; label: string; group: string; tier?: string; riskScore?: number
@@ -26,7 +24,8 @@ interface GNode {
 }
 interface GLink { source: string; target: string; type?: string; dangerous?: boolean }
 
-export const GET = withApiHandler(async (_req: NextRequest, { orgId }) => {
+export const GET = withApiHandler(async (req: NextRequest, { orgId }) => {
+  const locale = issueLocaleFromRequest(req)
   const [identityRows, genericRows] = await Promise.all([
     db.select({
       subjectName: identities.displayName, identityId: identities.id, tier: identities.adTier,
@@ -83,7 +82,7 @@ export const GET = withApiHandler(async (_req: NextRequest, { orgId }) => {
   const nodes: GNode[] = []
   // impact hubs
   for (const [impact, count] of impactCount) {
-    nodes.push({ id: `impact:${impact}`, label: IMPACT_LABEL[impact] ?? impact, group: 'impact', badge: count, riskScore: 100, meta: { findings: count } })
+    nodes.push({ id: `impact:${impact}`, label: impactLabel(impact, locale), group: 'impact', badge: count, riskScore: 100, meta: { findings: count } })
   }
   // subjects
   for (const s of subjectMap.values()) {

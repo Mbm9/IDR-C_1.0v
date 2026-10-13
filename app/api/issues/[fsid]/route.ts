@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withApiHandler } from '@/lib/api/handler'
 import { getIssueDetail, setIssueStatus } from '@/lib/issues/aggregate'
+import { issueLocaleFromRequest } from '@/lib/issues/localize'
 import { logAction, parseJsonBody } from '@/lib/actions/helpers'
 import { db } from '@/lib/db'
 import { issueStatus } from '@/lib/db/schema'
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 
-/** GET /api/issues/[fsid] — issue detail: metadata, mitigation, affected objects, timeline. */
-export const GET = withApiHandler(async (_req: NextRequest, { orgId, params }) => {
+/**
+ * GET /api/issues/[fsid] — issue detail: metadata, mitigation, affected objects, timeline.
+ * Name, description and mitigation text follow the reader's locale (`?locale=` or `locale` cookie).
+ */
+export const GET = withApiHandler(async (req: NextRequest, { orgId, params }) => {
   const fsid = params?.fsid as string
-  const detail = await getIssueDetail(orgId, fsid)
+  const detail = await getIssueDetail(orgId, fsid, issueLocaleFromRequest(req))
   if (!detail) return NextResponse.json({ error: 'Issue not found' }, { status: 404 })
   return NextResponse.json(detail)
 })

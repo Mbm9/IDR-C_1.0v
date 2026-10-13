@@ -240,7 +240,6 @@ export default function CompliancePage() {
             </button>
           </div>
           {downloadError && <p className="text-sm text-[var(--text-primary)] rounded-md border px-3 py-2" style={{ borderColor: 'var(--color-critical)' }} role="alert">{downloadError}</p>}
-          <p className="text-xs text-[var(--text-secondary)]">{t('controlTextNote')}</p>
 
           {/* Group by category */}
           {Object.entries(
@@ -268,17 +267,16 @@ export default function CompliancePage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="text-xs font-mono text-[var(--text-secondary)]" dir="ltr">{control.id}</span>
-                          <span className="font-medium text-sm text-[var(--text-primary)]" lang="en" dir="ltr">{control.name}</span>
+                          <span className="font-medium text-sm text-[var(--text-primary)]">{control.name}</span>
                           <span className="text-xs px-2 py-0.5 rounded-full border text-[var(--text-primary)]" style={{ borderColor: cfg.color }}>
                             {t(`status.${control.status}`)}
                           </span>
                         </div>
-                        <p className="text-xs text-[var(--text-secondary)] mt-1" lang="en" dir="ltr">{control.description}</p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-1">{control.description}</p>
                         <div className="flex flex-wrap gap-1 mt-2">
                           {control.coveredBy.map(feature => (
                             <span
                               key={feature}
-                              lang="en"
                               className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-primary)]"
                             >
                               {feature}

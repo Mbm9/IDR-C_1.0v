@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withApiHandler } from '@/lib/api/handler'
 import { getIssues } from '@/lib/issues/aggregate'
+import { issueLocaleFromRequest } from '@/lib/issues/localize'
 
-/** GET /api/issues — managed issue list (one per finding type) with status + exposure points. */
-export const GET = withApiHandler(async (_req: NextRequest, { orgId, log }) => {
-  const issues = await getIssues(orgId)
+/**
+ * GET /api/issues — managed issue list (one per finding type) with status + exposure points.
+ * Issue names follow the reader's locale (`?locale=` or the `locale` cookie).
+ */
+export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
+  const issues = await getIssues(orgId, issueLocaleFromRequest(req))
   log.info('Issues listed', { count: issues.length })
   return NextResponse.json({ issues, assessedAt: new Date().toISOString() })
 })

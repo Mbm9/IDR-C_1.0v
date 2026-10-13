@@ -4,6 +4,7 @@ import { db } from '@/lib/db'
 import { identities, policyViolations, accounts, entitlements, actionLog } from '@/lib/db/schema'
 import { eq, and, count, sql } from 'drizzle-orm'
 import { COMPLIANCE_FRAMEWORKS, getFramework, type ComplianceControl } from '@/lib/compliance/frameworks'
+import { complianceLocaleFromRequest, localizeFramework } from '@/lib/compliance/localize'
 
 /**
  * GET /api/compliance
@@ -13,9 +14,12 @@ import { COMPLIANCE_FRAMEWORKS, getFramework, type ComplianceControl } from '@/l
  *
  * Query params:
  *   ?framework=NCA_ECC  — filter to a specific framework
+ *   ?locale=en|ar       — language of framework/control text (defaults to the `locale` cookie);
+ *                         ids, keys and statuses are locale-neutral
  */
 export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
   const frameworkKey = req.nextUrl.searchParams.get('framework')
+  const locale = complianceLocaleFromRequest(req)
 
   // Gather system-wide metrics for compliance assessment
   const [
@@ -113,7 +117,8 @@ export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
   const results = frameworks.map(fw => {
     if (!fw) return null
 
-    const controlResults = fw.controls.map(control => ({
+    const localized = localizeFramework(fw, locale)
+    const controlResults = localized.controls.map(control => ({
       ...control,
       status: assessControl(control),
       relatedViolationCounts: Object.fromEntries(
@@ -130,8 +135,8 @@ export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
 
     return {
       key: fw.key,
-      name: fw.name,
-      fullName: fw.fullName,
+      name: localized.name,
+      fullName: localized.fullName,
       version: fw.version,
       score,
       summary: { compliant, partial, nonCompliant, notAssessed, total },
