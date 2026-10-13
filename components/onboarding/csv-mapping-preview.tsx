@@ -80,9 +80,9 @@ export function CSVMappingPreview({
   const getConfidenceIcon = (col: string) => {
     const conf = confidence[col]
     if (conf === undefined || !mapping[col]) return <HelpCircle size={14} aria-hidden="true" />
-    if (conf >= 80) return <Check size={14} style={{ color: 'var(--color-low)' }} aria-hidden="true" />
-    if (conf >= 50) return <AlertTriangle size={14} style={{ color: 'var(--color-medium)' }} aria-hidden="true" />
-    return <AlertTriangle size={14} style={{ color: 'var(--color-high)' }} aria-hidden="true" />
+    if (conf >= 80) return <Check size={14} style={{ color: 'var(--color-low-text)' }} aria-hidden="true" />
+    if (conf >= 50) return <AlertTriangle size={14} style={{ color: 'var(--color-medium-text)' }} aria-hidden="true" />
+    return <AlertTriangle size={14} style={{ color: 'var(--color-high-text)' }} aria-hidden="true" />
   }
 
   const getSampleValue = (colIndex: number): string => {
@@ -168,7 +168,7 @@ export function CSVMappingPreview({
       {/* Validation warning */}
       {!hasDisplayName && (
         <div role="alert" className="px-4 py-3 rounded-[var(--radius-card)] text-caption font-medium flex items-center gap-2 border text-[var(--text-primary)]" style={{ backgroundColor: 'var(--color-high-bg)', borderColor: 'var(--color-high)' }}>
-          <AlertTriangle size={14} style={{ color: 'var(--color-high)' }} aria-hidden="true" />
+          <AlertTriangle size={14} style={{ color: 'var(--color-high-text)' }} aria-hidden="true" />
           {t('displayNameRequired')}
         </div>
       )}

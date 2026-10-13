@@ -45,7 +45,7 @@ function TodaysBriefing() {
     <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-4" style={{ boxShadow: 'var(--shadow-card)' }}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <Sun size={16} style={{ color: 'var(--color-medium)' }} aria-hidden="true" />
+          <Sun size={16} style={{ color: 'var(--color-medium-text)' }} aria-hidden="true" />
           <h3 className="text-caption font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
             {t('todaysBriefing')}
           </h3>

@@ -636,7 +636,7 @@ export function IntegrationWizard({ isOpen, onClose, onCreated, existing }: Inte
                 )}
                 <div className="flex justify-between gap-3 text-xs">
                   <dt className="text-[var(--text-secondary)]">{t('summaryTest')}</dt>
-                  <dd className="font-semibold" style={{ color: 'var(--color-low)' }}>{t('passed')}</dd>
+                  <dd className="font-semibold" style={{ color: 'var(--color-low-text)' }}>{t('passed')}</dd>
                 </div>
               </dl>
 

@@ -111,7 +111,7 @@ export function IdentityTable({ data, sortBy, sortOrder, onSort }: IdentityTable
                 <td className="px-4 py-3">
                   <Link
                     href={href}
-                    className="font-medium text-[var(--text-primary)] hover:text-[var(--color-info)] transition-colors"
+                    className="font-medium text-[var(--text-primary)] hover:text-[var(--color-info-text)] transition-colors"
                   >
                     <bdi>{identity.displayName}</bdi>
                   </Link>

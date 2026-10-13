@@ -494,7 +494,7 @@ function ConnectorsTab({ search, content }: { search: string; content: DocsConte
                             className="rounded-md p-3 text-xs leading-relaxed"
                             style={{ backgroundColor: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}
                           >
-                            <strong style={{ color: 'var(--color-info)' }}>{t('connectors.note')} </strong>
+                            <strong style={{ color: 'var(--color-info-text)' }}>{t('connectors.note')} </strong>
                             <RichText text={guide.notes} />
                           </div>
                         )}

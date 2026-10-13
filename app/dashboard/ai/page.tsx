@@ -204,7 +204,7 @@ export default function AIPage() {
                 <div className="space-y-2">
                   {(latestPlan.quickWins as any[]).map((win: any, i: number) => (
                     <div key={i} className="flex items-center gap-2 p-2 bg-[var(--color-low-bg)] rounded-lg">
-                      <span style={{ color: 'var(--color-low)' }} aria-hidden="true">&#10003;</span>
+                      <span style={{ color: 'var(--color-low-text)' }} aria-hidden="true">&#10003;</span>
                       <p className="text-sm text-[var(--text-primary)]" dir="auto">{win.description || win.action}</p>
                     </div>
                   ))}

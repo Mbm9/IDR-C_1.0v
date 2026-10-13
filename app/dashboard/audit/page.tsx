@@ -37,7 +37,7 @@ const ACTION_TYPE_KEYS: Record<string, string> = {
 }
 
 const SOURCE_STYLES: Record<string, string> = {
-  manual: 'bg-[var(--color-info-bg)] text-[var(--color-info)]',
+  manual: 'bg-[var(--color-info-bg)] text-[var(--color-info-text)]',
   automated: 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]',
   ai_recommended: 'bg-purple-50 text-purple-700',
 }

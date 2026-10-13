@@ -9,11 +9,11 @@ import { useFormatter, useTranslations } from 'next-intl'
 import { useAppRole } from '@/lib/hooks/use-app-role'
 
 const SEVERITY_STYLES: Record<string, { dot: string; icon: string }> = {
-  critical: { dot: 'bg-[var(--color-critical)]', icon: 'text-[var(--color-critical)]' },
-  high: { dot: 'bg-[var(--color-high)]', icon: 'text-[var(--color-high)]' },
-  medium: { dot: 'bg-[var(--color-medium)]', icon: 'text-[var(--color-medium)]' },
-  low: { dot: 'bg-[var(--color-low)]', icon: 'text-[var(--color-low)]' },
-  info: { dot: 'bg-[var(--color-info)]', icon: 'text-[var(--color-info)]' },
+  critical: { dot: 'bg-[var(--color-critical)]', icon: 'text-[var(--color-critical-text)]' },
+  high: { dot: 'bg-[var(--color-high)]', icon: 'text-[var(--color-high-text)]' },
+  medium: { dot: 'bg-[var(--color-medium)]', icon: 'text-[var(--color-medium-text)]' },
+  low: { dot: 'bg-[var(--color-low)]', icon: 'text-[var(--color-low-text)]' },
+  info: { dot: 'bg-[var(--color-info)]', icon: 'text-[var(--color-info-text)]' },
 }
 
 const TYPE_ICONS: Record<string, typeof AlertTriangle> = {
@@ -68,7 +68,7 @@ function ActionButton({
       {loading ? (
         <Loader2 size={10} className="animate-spin" aria-hidden="true" />
       ) : success ? (
-        <Check size={10} className="text-[var(--color-low)]" aria-hidden="true" />
+        <Check size={10} className="text-[var(--color-low-text)]" aria-hidden="true" />
       ) : (
         <Icon size={10} aria-hidden="true" />
       )}

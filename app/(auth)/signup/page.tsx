@@ -156,7 +156,7 @@ function SignupForm() {
               className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-6 text-center"
             >
               <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-[var(--color-info)]/10 flex items-center justify-center">
-                <Users size={22} className="text-[var(--color-info)]" />
+                <Users size={22} className="text-[var(--color-info-text)]" />
               </div>
               <h2 className="text-title text-[var(--text-primary)] mb-2">{t('joinedTitle')}</h2>
               <p className="text-body text-[var(--text-secondary)] mb-6">
@@ -242,7 +242,7 @@ function SignupForm() {
                 </div>
 
                 {error && (
-                  <div role="alert" className="px-3 py-2 rounded-[var(--radius-badge)] text-caption font-medium" style={{ backgroundColor: 'var(--color-critical-bg)', color: 'var(--color-critical)' }}>
+                  <div role="alert" className="px-3 py-2 rounded-[var(--radius-badge)] text-caption font-medium" style={{ backgroundColor: 'var(--color-critical-bg)', color: 'var(--color-critical-text)' }}>
                     {error}
                   </div>
                 )}
@@ -258,7 +258,7 @@ function SignupForm() {
 
               <p className="text-caption text-[var(--text-secondary)] text-center mt-6">
                 {t('haveAccount')}{' '}
-                <Link href="/login" className="text-[var(--color-info)] hover:underline font-medium">
+                <Link href="/login" className="text-[var(--color-info-text)] hover:underline font-medium">
                   {t('signIn')}
                 </Link>
               </p>

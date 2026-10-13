@@ -203,7 +203,7 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-default)]">
           <div className="flex items-center gap-2">
-            <Brain size={18} className="text-[var(--color-info)]" aria-hidden="true" />
+            <Brain size={18} className="text-[var(--color-info-text)]" aria-hidden="true" />
             <h3 id="ai-chat-panel-title" className="text-body font-semibold text-[var(--text-primary)]">{t('title')}</h3>
           </div>
           <div className="flex items-center gap-1">
@@ -250,7 +250,7 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
                             </button>
                             <button
                               onClick={(e) => deleteSession(s.id, e)}
-                              className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--color-critical)] transition-colors ms-2 flex-shrink-0"
+                              className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--color-critical-text)] transition-colors ms-2 flex-shrink-0"
                               title={t('deleteSession')}
                               aria-label={t('deleteSessionNamed', { title: s.title })}
                             >
@@ -279,7 +279,7 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" role="log" aria-live="polite" aria-label={t('conversation')} tabIndex={0}>
           {messages.length === 0 && !loading && (
             <div className="flex flex-col items-center justify-center h-full text-center px-4">
-              <Brain size={40} className="text-[var(--color-info)] opacity-40 mb-3" aria-hidden="true" />
+              <Brain size={40} className="text-[var(--color-info-text)] opacity-40 mb-3" aria-hidden="true" />
               <p className="text-body font-medium text-[var(--text-secondary)] mb-4">{t('suggestedQueries')}</p>
               <div className="space-y-2 w-full">
                 {suggestedQueries.map((q) => (
@@ -323,7 +323,7 @@ export function AiChatPanel({ open, onClose }: AiChatPanelProps) {
           {loading && (
             <div className="flex justify-start">
               <div className="bg-[var(--bg-secondary)] border border-[var(--border-default)] rounded-lg px-4 py-3 flex items-center gap-2">
-                <Loader2 size={14} className="animate-spin text-[var(--color-info)]" aria-hidden="true" />
+                <Loader2 size={14} className="animate-spin text-[var(--color-info-text)]" aria-hidden="true" />
                 <span className="text-caption text-[var(--text-secondary)]">{t('thinking')}</span>
               </div>
             </div>

@@ -681,7 +681,7 @@ function ApiKeysTab({ userRole }: { userRole?: AppRole }) {
             ) : (
               <button
                 onClick={() => setPendingRevoke(k.id)}
-                className="p-1.5 text-[var(--color-critical)] hover:bg-[var(--color-critical-bg)] rounded"
+                className="p-1.5 text-[var(--color-critical-text)] hover:bg-[var(--color-critical-bg)] rounded"
                 aria-label={t('revokeKeyLabel', { label: k.label })}
                 title={t('revokeKeyLabel', { label: k.label })}
               >
@@ -893,7 +893,7 @@ function WebhooksTab() {
                 ) : (
                   <button
                     onClick={() => setPendingDelete(wh.id)}
-                    className="p-1.5 text-[var(--color-critical)] hover:bg-[var(--color-critical-bg)] rounded"
+                    className="p-1.5 text-[var(--color-critical-text)] hover:bg-[var(--color-critical-bg)] rounded"
                     title={t('deleteWebhook')}
                     aria-label={t('deleteWebhook')}
                   >
@@ -1057,7 +1057,7 @@ function AutomationTab() {
                       aria-label={ta('toggleRule', { name: rule.name })}
                       onClick={() => toggleMutation.mutate({ id: rule.id, enabled: !rule.enabled })}
                     >
-                      {rule.enabled ? <ToggleRight size={20} style={{ color: 'var(--color-info)' }} aria-hidden="true" /> : <ToggleLeft size={20} style={{ color: 'var(--text-secondary)' }} aria-hidden="true" />}
+                      {rule.enabled ? <ToggleRight size={20} style={{ color: 'var(--color-info-text)' }} aria-hidden="true" /> : <ToggleLeft size={20} style={{ color: 'var(--text-secondary)' }} aria-hidden="true" />}
                     </button>
                   ) : (
                     <span className="text-micro text-[var(--text-secondary)]">{rule.enabled ? t('webhookEnabled') : t('webhookDisabled')}</span>

@@ -40,11 +40,11 @@ const STATUS_TONES: Record<Status, Tone> = {
 }
 const statusStyle = (status: Status) => toneBadge(STATUS_TONES[status] ?? 'neutral')
 const EVENT_META: Record<string, { icon: typeof Clock; color: string }> = {
-  first_detected: { icon: Circle, color: 'var(--color-high)' },
-  risk_increased: { icon: TrendingUp, color: 'var(--color-critical)' },
-  reappeared: { icon: RotateCcw, color: 'var(--color-high)' },
-  partially_remediated: { icon: AlertTriangle, color: 'var(--color-medium)' },
-  fully_remediated: { icon: CheckCircle2, color: 'var(--color-low)' },
+  first_detected: { icon: Circle, color: 'var(--color-high-text)' },
+  risk_increased: { icon: TrendingUp, color: 'var(--color-critical-text)' },
+  reappeared: { icon: RotateCcw, color: 'var(--color-high-text)' },
+  partially_remediated: { icon: AlertTriangle, color: 'var(--color-medium-text)' },
+  fully_remediated: { icon: CheckCircle2, color: 'var(--color-low-text)' },
   status_changed: { icon: Clock, color: 'var(--text-secondary)' },
 }
 const filterBtn = (active: boolean) =>
@@ -249,7 +249,7 @@ export default function IssuesPage() {
     <div className="space-y-5">
       <div>
         <h2 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-          <ListChecks className="w-6 h-6 text-[var(--color-high)]" aria-hidden="true" />{t('title')}
+          <ListChecks className="w-6 h-6 text-[var(--color-high-text)]" aria-hidden="true" />{t('title')}
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-2xl">{t('subtitle')}</p>
       </div>

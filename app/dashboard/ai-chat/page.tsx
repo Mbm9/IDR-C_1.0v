@@ -232,7 +232,7 @@ export default function AiChatPage() {
       <section className="flex-1 min-h-0 flex flex-col rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-primary)' }} aria-labelledby="ai-chat-title">
         {/* Header */}
         <div className="p-3 border-b flex items-center gap-2" style={{ borderColor: 'var(--border-default)' }}>
-          <Brain className="w-5 h-5 text-[var(--color-info)]" aria-hidden="true" />
+          <Brain className="w-5 h-5 text-[var(--color-info-text)]" aria-hidden="true" />
           <div>
             <h2 id="ai-chat-title" className="text-sm font-semibold text-[var(--text-primary)]">{t('analystTitle')}</h2>
             <p className="text-[11px] text-[var(--text-secondary)]">{t('analystSubtitle')}</p>
@@ -244,7 +244,7 @@ export default function AiChatPage() {
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center min-h-full gap-6">
               <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                <Sparkles className="w-8 h-8 text-[var(--color-info)]" aria-hidden="true" />
+                <Sparkles className="w-8 h-8 text-[var(--color-info-text)]" aria-hidden="true" />
               </div>
               <div className="text-center">
                 <p className="text-sm font-medium text-[var(--text-primary)]">{t('emptyTitle')}</p>
@@ -333,7 +333,7 @@ export default function AiChatPage() {
           {loading && (
             <div className="flex justify-start" role="status">
               <div className="rounded-lg px-3 py-2 rounded-es-sm flex items-center gap-2" style={{ backgroundColor: 'var(--bg-secondary)' }}>
-                <Loader2 className="w-3 h-3 animate-spin text-[var(--color-info)]" aria-hidden="true" />
+                <Loader2 className="w-3 h-3 animate-spin text-[var(--color-info-text)]" aria-hidden="true" />
                 <span className="text-xs text-[var(--text-secondary)]">{t('thinking')}</span>
               </div>
             </div>

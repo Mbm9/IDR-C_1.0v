@@ -653,7 +653,7 @@ export default function OnboardingPage() {
               <div className="space-y-5">
                 <div>
                   <label htmlFor="org-name" className="block text-caption font-medium text-[var(--text-primary)] mb-1.5">
-                    {t('org.name')} <span className="text-[var(--color-critical)]" aria-hidden="true">*</span>
+                    {t('org.name')} <span className="text-[var(--color-critical-text)]" aria-hidden="true">*</span>
                   </label>
                   <input
                     id="org-name"
@@ -684,7 +684,7 @@ export default function OnboardingPage() {
 
                 <div>
                   <label htmlFor="org-domain" className="block text-caption font-medium text-[var(--text-primary)] mb-1.5">
-                    {t('org.domain')} <span className="text-[var(--color-critical)]" aria-hidden="true">*</span>
+                    {t('org.domain')} <span className="text-[var(--color-critical-text)]" aria-hidden="true">*</span>
                   </label>
                   <input
                     id="org-domain"
@@ -775,7 +775,7 @@ export default function OnboardingPage() {
                         className="p-5 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] text-start hover:border-[var(--color-info)] hover:shadow-md transition-all group"
                       >
                         <div className="w-10 h-10 rounded-lg bg-[var(--color-info-bg)] flex items-center justify-center mb-3 group-hover:bg-[var(--color-info)]/20 transition-colors">
-                          <IntIcon size={20} className="text-[var(--color-info)]" aria-hidden="true" />
+                          <IntIcon size={20} className="text-[var(--color-info-text)]" aria-hidden="true" />
                         </div>
                         <h2 className="text-body font-semibold text-[var(--text-primary)]"><bdi>{typeName(int.type)}</bdi></h2>
                         <p className="text-caption text-[var(--text-secondary)] mt-1">{t(`sourceDescriptions.${int.type}`)}</p>
@@ -793,7 +793,7 @@ export default function OnboardingPage() {
                         return (
                           <>
                             <div className="w-8 h-8 rounded-lg bg-[var(--color-info-bg)] flex items-center justify-center">
-                              <IntIcon size={16} className="text-[var(--color-info)]" aria-hidden="true" />
+                              <IntIcon size={16} className="text-[var(--color-info-text)]" aria-hidden="true" />
                             </div>
                             <h2 className="text-body font-semibold text-[var(--text-primary)]"><bdi>{typeName(IntType?.type ?? selectedIntegrationType)}</bdi></h2>
                           </>
@@ -856,7 +856,7 @@ export default function OnboardingPage() {
                       ) : csvDetecting ? (
                         /* Detection in progress */
                         <div className="py-10 text-center">
-                          <Loader2 size={32} className="mx-auto text-[var(--color-info)] animate-spin mb-3" aria-hidden="true" />
+                          <Loader2 size={32} className="mx-auto text-[var(--color-info-text)] animate-spin mb-3" aria-hidden="true" />
                           <p className="text-body text-[var(--text-primary)] font-medium" role="status">
                             {t('source.detecting')}
                           </p>
@@ -868,7 +868,7 @@ export default function OnboardingPage() {
                         /* Show mapping preview */
                         <div>
                           <div className="flex items-center gap-2 mb-4">
-                            <FileSpreadsheet size={16} className="text-[var(--color-info)]" aria-hidden="true" />
+                            <FileSpreadsheet size={16} className="text-[var(--color-info-text)]" aria-hidden="true" />
                             <span className="text-body font-medium text-[var(--text-primary)]">
                               {t('source.mappingDetected')}
                             </span>
@@ -963,7 +963,7 @@ export default function OnboardingPage() {
                 <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-8">
                   <div className="flex flex-col items-center text-center mb-6">
                     <div className="w-12 h-12 rounded-full bg-[var(--color-info-bg)] flex items-center justify-center mx-auto mb-4">
-                      <Database size={24} className="text-[var(--color-info)]" aria-hidden="true" />
+                      <Database size={24} className="text-[var(--color-info-text)]" aria-hidden="true" />
                     </div>
                     {syncComplete ? (
                       <div role="status">
@@ -1018,7 +1018,7 @@ export default function OnboardingPage() {
                           <Check size={12} className="text-white" />
                         </div>
                       ) : (
-                        <Loader2 size={20} className="text-[var(--color-info)] animate-spin flex-shrink-0" aria-hidden="true" />
+                        <Loader2 size={20} className="text-[var(--color-info-text)] animate-spin flex-shrink-0" aria-hidden="true" />
                       )}
                       <div className="flex-1">
                         <span className="text-body text-[var(--text-primary)]" dir="auto">{sp.stage}</span>
@@ -1031,7 +1031,7 @@ export default function OnboardingPage() {
 
                   {syncProgress.length === 0 && !syncComplete && (
                     <div className="flex items-center gap-3">
-                      <Loader2 size={20} className="text-[var(--color-info)] animate-spin" aria-hidden="true" />
+                      <Loader2 size={20} className="text-[var(--color-info-text)] animate-spin" aria-hidden="true" />
                       <span className="text-body text-[var(--text-primary)]" role="status">{t('sync.connecting')}</span>
                     </div>
                   )}
@@ -1157,7 +1157,7 @@ export default function OnboardingPage() {
                         onClick={() => removeTeamMember(idx)}
                         aria-label={t('team.removeMember', { number: idx + 1 })}
                         title={t('team.removeMember', { number: idx + 1 })}
-                        className="p-2.5 text-[var(--text-secondary)] hover:text-[var(--color-critical)] transition-colors"
+                        className="p-2.5 text-[var(--text-secondary)] hover:text-[var(--color-critical-text)] transition-colors"
                       >
                         <X size={16} aria-hidden="true" />
                       </button>

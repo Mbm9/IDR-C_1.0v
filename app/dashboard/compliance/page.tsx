@@ -36,9 +36,9 @@ interface FrameworkResult {
 }
 
 const STATUS_CONFIG = {
-  compliant: { icon: CheckCircle2, color: 'var(--color-low)' },
-  partial: { icon: AlertTriangle, color: 'var(--color-medium)' },
-  non_compliant: { icon: XCircle, color: 'var(--color-critical)' },
+  compliant: { icon: CheckCircle2, color: 'var(--color-low-text)' },
+  partial: { icon: AlertTriangle, color: 'var(--color-medium-text)' },
+  non_compliant: { icon: XCircle, color: 'var(--color-critical-text)' },
   not_assessed: { icon: MinusCircle, color: 'var(--text-secondary)' },
 } as const
 
@@ -163,7 +163,7 @@ export default function CompliancePage() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-title text-[var(--text-primary)] flex items-center gap-2">
-            <Shield className="w-6 h-6 text-[var(--color-info)]" aria-hidden="true" />
+            <Shield className="w-6 h-6 text-[var(--color-info-text)]" aria-hidden="true" />
             {t('title')}
           </h2>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
@@ -323,7 +323,7 @@ export default function CompliancePage() {
                 <dt className="text-xs text-[var(--text-secondary)]">{t(`metrics.${m.key}`)}</dt>
                 <dd className="text-xl font-bold text-[var(--text-primary)] flex items-center justify-center gap-1.5">
                   {m.warn && typeof m.value === 'number' && m.value > 0 && (
-                    <AlertTriangle className="w-4 h-4" style={{ color: 'var(--color-medium)' }} aria-hidden="true" />
+                    <AlertTriangle className="w-4 h-4" style={{ color: 'var(--color-medium-text)' }} aria-hidden="true" />
                   )}
                   {m.value == null
                     ? tCommon('na')

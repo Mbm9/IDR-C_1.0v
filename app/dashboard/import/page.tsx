@@ -443,7 +443,7 @@ export default function ImportPage() {
 
                 {upload.error && (
                   <div role="alert" className="flex items-start gap-2 p-2 rounded mb-3 text-xs border text-[var(--text-primary)]" style={{ borderColor: 'var(--color-critical)', backgroundColor: 'var(--color-critical-bg)' }}>
-                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: 'var(--color-critical)' }} aria-hidden="true" />
+                    <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: 'var(--color-critical-text)' }} aria-hidden="true" />
                     <bdi>{upload.error}</bdi>
                   </div>
                 )}

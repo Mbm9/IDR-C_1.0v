@@ -68,7 +68,7 @@ export function ShortcutsHelpDialog() {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-default)]">
           <div className="flex items-center gap-2">
-            <Keyboard className="w-5 h-5 text-[var(--color-info)]" aria-hidden="true" />
+            <Keyboard className="w-5 h-5 text-[var(--color-info-text)]" aria-hidden="true" />
             <h2 id="shortcuts-dialog-title" className="text-base font-semibold text-[var(--text-primary)]">{t('title')}</h2>
           </div>
           <button onClick={() => setOpen(false)} className="p-1 rounded-md hover:bg-[var(--bg-tertiary)] text-[var(--text-secondary)]" aria-label={t('close')} title={t('close')}>

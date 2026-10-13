@@ -154,7 +154,7 @@ export function QuickStartChecklist() {
                   {done ? (
                     <CheckCircle2
                       size={18}
-                      className="text-[var(--color-low)] flex-shrink-0"
+                      className="text-[var(--color-low-text)] flex-shrink-0"
                       aria-hidden="true"
                     />
                   ) : (

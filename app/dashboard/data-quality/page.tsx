@@ -362,7 +362,7 @@ export default function DataQualityPage() {
                               className="flex items-center gap-1 px-2.5 py-1 text-micro font-medium rounded-md border text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50"
                               style={{ borderColor: 'var(--color-low)' }}
                             >
-                              <CheckCircle2 size={12} style={{ color: 'var(--color-low)' }} aria-hidden="true" />
+                              <CheckCircle2 size={12} style={{ color: 'var(--color-low-text)' }} aria-hidden="true" />
                               {t('samePerson')}
                             </button>
                             <button
@@ -371,7 +371,7 @@ export default function DataQualityPage() {
                               className="flex items-center gap-1 px-2.5 py-1 text-micro font-medium rounded-md border text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors disabled:opacity-50"
                               style={{ borderColor: 'var(--color-critical)' }}
                             >
-                              <XCircle size={12} style={{ color: 'var(--color-critical)' }} aria-hidden="true" />
+                              <XCircle size={12} style={{ color: 'var(--color-critical-text)' }} aria-hidden="true" />
                               {t('differentPeople')}
                             </button>
                           </div>

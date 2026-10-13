@@ -109,7 +109,7 @@ export default function IntegrationsPage() {
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
         <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-primary)] p-6 text-sm text-[var(--text-secondary)]">
           <p>{tCommon('error')}</p>
-          <button onClick={() => refetch()} className="mt-3 text-[var(--color-info)] underline">{tCommon('tryAgain')}</button>
+          <button onClick={() => refetch()} className="mt-3 text-[var(--color-info-text)] underline">{tCommon('tryAgain')}</button>
         </div>
       </div>
     )
@@ -177,7 +177,7 @@ export default function IntegrationsPage() {
                   role="status"
                 >
                   <p className="flex items-center gap-1.5 font-semibold text-[var(--text-primary)]">
-                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--color-critical)' }} aria-hidden="true" />
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" style={{ color: 'var(--color-critical-text)' }} aria-hidden="true" />
                     {t('errorTitle')}
                   </p>
                   <p className="mt-1 text-[var(--text-primary)] break-words" dir="auto">
@@ -190,7 +190,7 @@ export default function IntegrationsPage() {
               )}
 
               {requestError && (
-                <p className="mb-3 text-xs" style={{ color: 'var(--color-critical)' }} role="alert"><bdi>{requestError}</bdi></p>
+                <p className="mb-3 text-xs" style={{ color: 'var(--color-critical-text)' }} role="alert"><bdi>{requestError}</bdi></p>
               )}
 
               <dl className="space-y-2 text-sm">

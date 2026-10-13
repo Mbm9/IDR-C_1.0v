@@ -94,7 +94,7 @@ export function ViolationCard({ violation, onAction, userRole }: ViolationCardPr
             {violation.identityName && violation.identityId && (
               <Link
                 href={`/dashboard/identities/${violation.identityId}`}
-                className="text-caption text-[var(--color-info)] hover:underline"
+                className="text-caption text-[var(--color-info-text)] hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
                 {violation.identityName}
@@ -127,7 +127,7 @@ export function ViolationCard({ violation, onAction, userRole }: ViolationCardPr
               {userRole && ['ciso', 'admin'].includes(userRole) && (
                 <button
                   onClick={() => onAction('exception', violation.id)}
-                  className="text-micro px-3 py-1.5 rounded-[var(--radius-button)] bg-[var(--color-info-bg)] text-[var(--color-info)] hover:opacity-80 transition-opacity"
+                  className="text-micro px-3 py-1.5 rounded-[var(--radius-button)] bg-[var(--color-info-bg)] text-[var(--color-info-text)] hover:opacity-80 transition-opacity"
                 >
                   Create Exception
                 </button>

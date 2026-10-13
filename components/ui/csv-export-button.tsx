@@ -45,7 +45,7 @@ export function CsvExportButton({ filename, columns, fetchData, label }: CsvExpo
       {loading
         ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
         : failed
-          ? <AlertTriangle className="w-3.5 h-3.5" style={{ color: 'var(--color-critical)' }} aria-hidden="true" />
+          ? <AlertTriangle className="w-3.5 h-3.5" style={{ color: 'var(--color-critical-text)' }} aria-hidden="true" />
           : <Download className="w-3.5 h-3.5" aria-hidden="true" />}
       <span aria-live="polite">{failed ? t('csvFailed') : (label || t('exportCsv'))}</span>
     </button>

@@ -19,7 +19,7 @@ export function ErrorState({ title, description, onRetry, retryLabel }: ErrorSta
   return (
     <div className="flex flex-col items-center justify-center py-14 px-4 text-center" role="alert">
       <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full" style={{ background: 'var(--color-critical-bg)' }}>
-        <AlertTriangle size={26} style={{ color: 'var(--color-critical)' }} aria-hidden="true" />
+        <AlertTriangle size={26} style={{ color: 'var(--color-critical-text)' }} aria-hidden="true" />
       </div>
       <h3 className="text-heading text-[var(--text-primary)] mb-1">{title ?? t('errorTitle')}</h3>
       <p className="text-caption text-[var(--text-secondary)] max-w-sm">{description ?? t('errorDescription')}</p>

@@ -29,9 +29,9 @@ const SOURCE_ICONS: Record<string, typeof Server> = {
 }
 
 const STATUS_CONFIG: Record<string, { color: string; pulse?: boolean }> = {
-  connected: { color: 'var(--color-low)' },
-  syncing: { color: 'var(--color-info)', pulse: true },
-  error: { color: 'var(--color-critical)' },
+  connected: { color: 'var(--color-low-text)' },
+  syncing: { color: 'var(--color-info-text)', pulse: true },
+  error: { color: 'var(--color-critical-text)' },
   disconnected: { color: 'var(--text-tertiary)' },
 }
 

@@ -16,7 +16,7 @@ export default function DashboardError({
   return (
     <div className="flex flex-col items-center justify-center min-h-[400px]">
       <div className="rounded-[var(--radius-card)] border p-8 max-w-md text-center" style={{ borderColor: 'var(--color-critical)', backgroundColor: 'var(--color-critical-bg)' }} role="alert">
-        <AlertTriangle size={32} className="mx-auto mb-3" style={{ color: 'var(--color-critical)' }} aria-hidden="true" />
+        <AlertTriangle size={32} className="mx-auto mb-3" style={{ color: 'var(--color-critical-text)' }} aria-hidden="true" />
         <h2 className={`text-heading font-semibold mb-2 ${TONE_TEXT.critical}`}>
           {tCommon('error')}
         </h2>

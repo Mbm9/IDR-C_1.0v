@@ -70,7 +70,7 @@ export function ExportPdfButton({
       {loading
         ? <Loader2 size={14} className="animate-spin" aria-hidden="true" />
         : failed
-          ? <AlertTriangle size={14} style={{ color: 'var(--color-critical)' }} aria-hidden="true" />
+          ? <AlertTriangle size={14} style={{ color: 'var(--color-critical-text)' }} aria-hidden="true" />
           : <FileDown size={14} aria-hidden="true" />}
       <span aria-live="polite">{loading ? t('generating') : failed ? t('pdfFailed') : (label ?? t('exportPdf'))}</span>
     </button>
