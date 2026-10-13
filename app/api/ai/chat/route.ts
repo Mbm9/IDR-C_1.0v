@@ -69,6 +69,8 @@ export async function POST(req: NextRequest) {
       metadata: {
         queryResults: response.data ?? undefined,
         suggestedActions: response.suggestedActions ?? undefined,
+        generatedBy: response.generatedBy,
+        model: response.model,
       },
     }
 

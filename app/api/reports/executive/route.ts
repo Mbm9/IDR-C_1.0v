@@ -5,6 +5,7 @@ import { identities, policyViolations, actionLog, identityThreats, integrationSo
 import { eq, and, count, desc, gte, sql } from 'drizzle-orm'
 import { EXECUTIVE_REPORT_PROMPT } from '@/lib/ai/prompts'
 import { generateJSON, aiMeta } from '@/lib/ai/client'
+import { normalizeLocale, renderBriefingKey } from '@/lib/ai/briefing'
 
 /**
  * HTML-escape untrusted strings before interpolating into the report markup.
@@ -29,6 +30,9 @@ export async function GET(req: NextRequest) {
 
   const orgId = session.user.orgId
   const params = req.nextUrl.searchParams
+  const locale = normalizeLocale(params.get('locale') ?? req.cookies.get('locale')?.value)
+  const t = (key: string, values?: Record<string, string | number>) =>
+    renderBriefingKey(locale, `executiveReport.${key}`, values) ?? key
   const days = Math.min(90, Math.max(7, parseInt(params.get('days') || '30')))
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - days)
@@ -73,7 +77,9 @@ export async function GET(req: NextRequest) {
       {
         label: 'executive-report',
         system: EXECUTIVE_REPORT_PROMPT,
-        prompt: JSON.stringify(metrics),
+        prompt: JSON.stringify(metrics) + (locale === 'ar'
+          ? '\n\nWrite every text value in the JSON (headline, topRisks, topWins, forecast, recommendations) in Modern Standard Arabic. Keep product names, acronyms and numbers as they are.'
+          : ''),
         temperature: 0.3,
         maxTokens: 1024,
         timeoutMs: 120_000,
@@ -83,20 +89,20 @@ export async function GET(req: NextRequest) {
     const meta = aiMeta(ai)
 
     const aiReport: any = ai.ok ? ai.data : {
-      headline: 'Executive report generated without AI analysis',
-      topRisks: ['AI analysis unavailable - review metrics manually'],
-      topWins: ['Report data collected successfully'],
-      forecast: 'AI forecast unavailable. Please review metrics below.',
-      recommendations: ['Enable AI provider for full report capabilities'],
+      headline: t('fallbackHeadline'),
+      topRisks: [t('fallbackRisk')],
+      topWins: [t('fallbackWin')],
+      forecast: t('fallbackForecast'),
+      recommendations: [t('fallbackRecommendation')],
     }
 
     const reportDate = new Date().toISOString().split('T')[0]
 
     const html = `<!DOCTYPE html>
-<html lang="en">
+<html lang="${locale}" dir="${locale === 'ar' ? 'rtl' : 'ltr'}">
 <head>
 <meta charset="UTF-8">
-<title>Identity Radar - Executive Report</title>
+<title>${esc(t('title'))}</title>
 <style>
   @media print { body { print-color-adjust: exact; -webkit-print-color-adjust: exact; } .no-print { display: none !important; } }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 40px 20px; color: #1a1a2e; background: white; line-height: 1.6; }
@@ -107,44 +113,44 @@ export async function GET(req: NextRequest) {
   .metric-value { font-size: 28px; font-weight: 700; color: #1e40af; }
   .metric-label { font-size: 13px; color: #64748b; margin-top: 4px; }
   .risk-item, .win-item, .rec-item { padding: 8px 0; border-bottom: 1px solid #e2e8f0; }
-  .headline { font-size: 18px; color: #334155; background: #eff6ff; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6; margin: 20px 0; }
-  .forecast { background: #f0fdf4; padding: 16px; border-radius: 8px; border-left: 4px solid #22c55e; }
+  .headline { font-size: 18px; color: #334155; background: #eff6ff; padding: 16px; border-radius: 8px; border-inline-start: 4px solid #3b82f6; margin: 20px 0; }
+  .forecast { background: #f0fdf4; padding: 16px; border-radius: 8px; border-inline-start: 4px solid #22c55e; }
   .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px; }
 </style>
 </head>
 <body>
-<h1>Identity Radar Executive Report</h1>
-<p>Report Date: ${reportDate} | Period: Last ${days} days</p>
+<h1>${esc(t('title'))}</h1>
+<p>${esc(t('dateLine', { date: reportDate, days }))}</p>
 
 <div class="headline">${esc(aiReport.headline)}</div>
 
-<h2>Key Metrics</h2>
+<h2>${esc(t('keyMetrics'))}</h2>
 <div class="metric-grid">
-  <div class="metric-card"><div class="metric-value">${metrics.totalIdentities}</div><div class="metric-label">Total Identities</div></div>
-  <div class="metric-card"><div class="metric-value">${metrics.openViolations}</div><div class="metric-label">Open Violations</div></div>
-  <div class="metric-card"><div class="metric-value">${metrics.remediatedInPeriod}</div><div class="metric-label">Remediated (${days}d)</div></div>
-  <div class="metric-card"><div class="metric-value">${metrics.activeThreats}</div><div class="metric-label">Active Threats</div></div>
-  <div class="metric-card"><div class="metric-value">${metrics.riskDistribution.critical ?? 0}</div><div class="metric-label">Critical Risk</div></div>
-  <div class="metric-card"><div class="metric-value">${metrics.recentActions}</div><div class="metric-label">Actions Taken (${days}d)</div></div>
+  <div class="metric-card"><div class="metric-value">${metrics.totalIdentities}</div><div class="metric-label">${esc(t('totalIdentities'))}</div></div>
+  <div class="metric-card"><div class="metric-value">${metrics.openViolations}</div><div class="metric-label">${esc(t('openViolations'))}</div></div>
+  <div class="metric-card"><div class="metric-value">${metrics.remediatedInPeriod}</div><div class="metric-label">${esc(t('remediated', { days }))}</div></div>
+  <div class="metric-card"><div class="metric-value">${metrics.activeThreats}</div><div class="metric-label">${esc(t('activeThreats'))}</div></div>
+  <div class="metric-card"><div class="metric-value">${metrics.riskDistribution.critical ?? 0}</div><div class="metric-label">${esc(t('criticalRisk'))}</div></div>
+  <div class="metric-card"><div class="metric-value">${metrics.recentActions}</div><div class="metric-label">${esc(t('actionsTaken', { days }))}</div></div>
 </div>
 
-<h2>Top Risks</h2>
-${aiReport.topRisks?.map((r: string) => `<div class="risk-item">${esc(r)}</div>`).join('') || '<p>No risks identified</p>'}
+<h2>${esc(t('topRisks'))}</h2>
+${aiReport.topRisks?.map((r: string) => `<div class="risk-item">${esc(r)}</div>`).join('') || `<p>${esc(t('noRisks'))}</p>`}
 
-<h2>Top Wins</h2>
-${aiReport.topWins?.map((w: string) => `<div class="win-item">${esc(w)}</div>`).join('') || '<p>No wins recorded</p>'}
+<h2>${esc(t('topWins'))}</h2>
+${aiReport.topWins?.map((w: string) => `<div class="win-item">${esc(w)}</div>`).join('') || `<p>${esc(t('noWins'))}</p>`}
 
-<h2>Forecast</h2>
+<h2>${esc(t('forecast'))}</h2>
 <div class="forecast">${esc(aiReport.forecast)}</div>
 
-<h2>Recommendations</h2>
-${aiReport.recommendations?.map((r: string) => `<div class="rec-item">${esc(r)}</div>`).join('') || '<p>No recommendations</p>'}
+<h2>${esc(t('recommendations'))}</h2>
+${aiReport.recommendations?.map((r: string) => `<div class="rec-item">${esc(r)}</div>`).join('') || `<p>${esc(t('noRecommendations'))}</p>`}
 
 <div class="footer">
   ${meta.generatedBy === 'ai'
-    ? `Narrative sections are AI-generated recommendations (${esc(meta.model)}) and require human review.`
-    : 'Narrative sections were generated without AI.'}<br>
-  Generated by Identity Radar | ${reportDate} | Confidential
+    ? esc(t('footerAi', { model: meta.model ?? '' }))
+    : esc(t('footerNoAi'))}<br>
+  ${esc(t('footerGenerated', { date: reportDate }))}
 </div>
 </body>
 </html>`
@@ -159,6 +165,6 @@ ${aiReport.recommendations?.map((r: string) => `<div class="rec-item">${esc(r)}<
     })
   } catch (err: any) {
     console.error('[Executive Report] Error:', err)
-    return NextResponse.json({ error: 'Failed to generate report', details: err.message }, { status: 500 })
+    return NextResponse.json({ error: 'Failed to generate report' }, { status: 500 })
   }
 }

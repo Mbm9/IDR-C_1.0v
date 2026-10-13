@@ -22,6 +22,9 @@ export type ChatMessage = {
   metadata?: {
     queryResults?: any
     suggestedActions?: any
+    /** 'ai' when a model produced the answer, 'deterministic' for the rule-based fallback */
+    generatedBy?: 'ai' | 'deterministic'
+    model?: string
   }
 }
 

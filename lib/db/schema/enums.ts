@@ -114,7 +114,8 @@ export const actionSourceEnum = pgEnum('action_source', ['manual', 'automated', 
 export const planStatusEnum = pgEnum('plan_status', [
   'draft', 'approved', 'in_progress', 'completed', 'rejected',
 ])
-export const planGeneratedByEnum = pgEnum('plan_generated_by', ['ai', 'manual'])
+// deterministic = rule-based fallback plan produced when no AI provider answered
+export const planGeneratedByEnum = pgEnum('plan_generated_by', ['ai', 'manual', 'deterministic'])
 
 // Notification enums
 export const notificationTypeEnum = pgEnum('notification_type', [

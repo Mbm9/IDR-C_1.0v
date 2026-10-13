@@ -5,6 +5,7 @@ import { notifications, webhookEndpoints, users } from '@/lib/db/schema'
 import { eq, and, desc, count, SQL } from 'drizzle-orm'
 import { sendWebhook } from '@/lib/webhooks/sender'
 import { hasRole } from '@/lib/utils/rbac'
+import { normalizeLocale, renderBriefingKey } from '@/lib/ai/briefing'
 import type { AppRole } from '@/lib/utils/rbac'
 
 export async function GET(req: NextRequest) {
@@ -38,8 +39,21 @@ export async function GET(req: NextRequest) {
     ),
   ])
 
+  // Notifications created with message keys (metadata.i18n) are rendered in
+  // the reader's locale; English keeps the stored, more specific text.
+  const locale = normalizeLocale(req.cookies.get('locale')?.value)
+  const localized = locale === 'en' ? notificationList : notificationList.map((n) => {
+    const i18n = (n.metadata as { i18n?: { titleKey?: string; messageKey?: string } } | null)?.i18n
+    if (!i18n) return n
+    return {
+      ...n,
+      title: (i18n.titleKey && renderBriefingKey(locale, i18n.titleKey)) || n.title,
+      message: (i18n.messageKey && renderBriefingKey(locale, i18n.messageKey)) || n.message,
+    }
+  })
+
   return NextResponse.json({
-    data: notificationList,
+    data: localized,
     total: totalResult[0]?.total ?? 0,
     unreadCount: unreadResult[0]?.total ?? 0,
     page,

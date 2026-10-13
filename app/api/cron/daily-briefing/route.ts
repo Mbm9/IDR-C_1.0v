@@ -167,6 +167,8 @@ export async function GET(request: NextRequest) {
           message: headline || 'Your daily briefing is ready',
           severity: 'info',
           link: '/dashboard',
+          // Rendered in the reader's locale by GET /api/notifications.
+          metadata: { i18n: { titleKey: 'briefing.notificationTitle', messageKey: 'briefing.notificationReady' } },
         })
       }
 

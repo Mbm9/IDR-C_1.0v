@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
 
     // Save to database
     const [saved] = await db.insert(remediationPlans).values({
-      generatedBy: 'ai',
+      generatedBy: meta.generatedBy === 'ai' ? 'ai' : 'deterministic',
       inputParams: { timelineDays, riskAppetite, provider, model: meta.model, aiGenerated: meta.generatedBy === 'ai' },
       rankedActions: plan.rankedActions || [],
       executiveSummary: plan.executiveSummary || '',
@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ...plan, planId: saved.id, ...meta })
   } catch (err: any) {
     console.error('[AI] Unhandled error:', err)
-    return NextResponse.json({ error: 'AI analysis failed', details: err.message }, { status: 500 })
+    return NextResponse.json({ error: 'AI analysis failed' }, { status: 500 })
   }
 }
 
