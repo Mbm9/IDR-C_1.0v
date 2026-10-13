@@ -80,6 +80,7 @@ export default function AuditPage() {
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <select
+          aria-label={t('allActions')}
           value={filters.actionType || ''}
           onChange={(e) => handleFilter('actionType', e.target.value)}
           className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
@@ -90,6 +91,7 @@ export default function AuditPage() {
           ))}
         </select>
         <select
+          aria-label={t('allSources')}
           value={filters.source || ''}
           onChange={(e) => handleFilter('source', e.target.value)}
           className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"

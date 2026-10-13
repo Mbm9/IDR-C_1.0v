@@ -73,11 +73,14 @@ function methodColor(method: string): string {
 
 function Accordion({
   title,
+  aside,
   children,
   defaultOpen = false,
   forceOpen,
 }: {
   title: React.ReactNode
+  /** Interactive content shown in the header row but outside the toggle button (no nested controls). */
+  aside?: React.ReactNode
   children: React.ReactNode
   defaultOpen?: boolean
   forceOpen?: boolean
@@ -90,21 +93,24 @@ function Accordion({
       className="rounded-lg border overflow-hidden"
       style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--bg-secondary)' }}
     >
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={isOpen}
-        className="flex w-full items-center justify-between gap-3 px-4 py-3 text-start font-medium transition-colors"
-        style={{ color: 'var(--text-primary)' }}
-      >
-        <span className="flex min-w-0 items-center gap-2">{title}</span>
-        {/* Collapsed: chevron points toward the inline end (right in LTR, left in RTL). */}
-        <span
-          className={`shrink-0 transition-transform duration-200 ${isOpen ? '' : 'ltr:-rotate-90 rtl:rotate-90'}`}
+      <div className="flex items-center gap-3 pe-4">
+        <button
+          type="button"
+          onClick={() => setOpen((prev) => !prev)}
+          aria-expanded={isOpen}
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 ps-4 py-3 text-start font-medium transition-colors"
+          style={{ color: 'var(--text-primary)' }}
         >
-          <ChevronDown className="h-4 w-4" style={{ color: 'var(--text-tertiary)' }} />
-        </span>
-      </button>
+          <span className="flex min-w-0 items-center gap-2">{title}</span>
+          {/* Collapsed: chevron points toward the inline end (right in LTR, left in RTL). */}
+          <span
+            className={`shrink-0 transition-transform duration-200 ${isOpen ? '' : 'ltr:-rotate-90 rtl:rotate-90'}`}
+          >
+            <ChevronDown className="h-4 w-4" style={{ color: 'var(--text-tertiary)' }} aria-hidden="true" />
+          </span>
+        </button>
+        {aside && <div className="shrink-0">{aside}</div>}
+      </div>
       <div
         className="overflow-hidden transition-all duration-200"
         style={{
@@ -167,13 +173,11 @@ function GuideTab({ search, content }: { search: string; content: DocsContent })
           key={section.id}
           forceOpen={search.length > 0 ? true : undefined}
           title={
-            <span className="flex flex-wrap items-center gap-3">
-              <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-                {section.title}
-              </span>
-              <RouteLink href={section.path} chip />
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {section.title}
             </span>
           }
+          aside={<RouteLink href={section.path} chip />}
         >
           <p className="mb-3 text-sm leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
             <RichText text={section.description} />

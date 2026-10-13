@@ -52,32 +52,43 @@ test.describe('Administrator journey', () => {
   test.skip(!hasRoleUsers(), 'set E2E_USER_PASSWORD and create the uat.<role> users')
 
   test('a role change takes effect on the next request without re-login', async ({ browser }) => {
+    // Uses its own invited user so it never changes the shared uat.<role>
+    // accounts other specs rely on while running in parallel.
     const admin = await newSession(browser, 'admin')
-    const viewer = await newSession(browser, 'viewer')
+    const email = `e2e.rolechange.${Date.now()}@acmefs.sa`
+    const password = 'E2eRoleChange#2026'
+    const userCtx = await browser.newContext()
     try {
-      const team = await (await admin.page.request.get('/api/settings/team')).json()
-      const target = team.members.find((m: any) => m.email === 'uat.viewer@acmefs.sa')
-      expect(target).toBeTruthy()
+      const invite = await admin.page.request.post('/api/settings/team', { data: { email, role: 'viewer' } })
+      expect(invite.status(), await invite.text()).toBe(200)
+      const token = new URL((await invite.json()).inviteUrl).searchParams.get('invite')
+      const signup = await userCtx.request.post('/api/auth/signup', { data: { name: 'E2E Role Change', email, password, inviteToken: token } })
+      expect(signup.status(), await signup.text()).toBe(201)
+      const userId = (await signup.json()).userId
 
-      const probe = () => viewer.page.request.post('/api/actions/acknowledge', {
+      const user = await userCtx.newPage()
+      await user.goto('/login')
+      await user.fill('input[type="email"]', email)
+      await user.fill('input[type="password"]', password)
+      await user.click('button[type="submit"]')
+      await user.waitForURL(/\/dashboard/, { timeout: 15_000 })
+
+      const probe = () => user.request.post('/api/actions/acknowledge', {
         data: { violationId: '00000000-0000-4000-8000-000000000000' },
         failOnStatusCode: false,
       })
       expect((await probe()).status()).toBe(403)
 
-      const promote = await admin.page.request.put('/api/settings/team', { data: { userId: target.id, role: 'analyst' } })
-      expect(promote.ok()).toBeTruthy()
-      // Same viewer cookie: the gate now passes and validation answers instead.
+      const promote = await admin.page.request.put('/api/settings/team', { data: { userId, role: 'analyst' } })
+      expect(promote.ok(), await promote.text()).toBeTruthy()
+      // Same session cookie: the gate now passes and validation answers instead.
       expect((await probe()).status()).not.toBe(403)
 
       const audit = await (await admin.page.request.get('/api/audit?actionType=change_role')).json()
-      expect(audit.data.some((e: any) => e.payload?.userId === target.id && e.payload?.to === 'analyst')).toBeTruthy()
+      expect(audit.data.some((e: any) => e.payload?.userId === userId && e.payload?.to === 'analyst')).toBeTruthy()
     } finally {
-      const team = await (await admin.page.request.get('/api/settings/team')).json()
-      const target = team.members.find((m: any) => m.email === 'uat.viewer@acmefs.sa')
-      if (target) await admin.page.request.put('/api/settings/team', { data: { userId: target.id, role: 'viewer' } })
+      await userCtx.close()
       await admin.ctx.close()
-      await viewer.ctx.close()
     }
   })
 

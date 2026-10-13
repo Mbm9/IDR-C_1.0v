@@ -48,7 +48,7 @@ test.describe('Login Page', () => {
   test('shows Identity Radar branding', async ({ page }) => {
     await page.goto('/')
 
-    const branding = page.getByRole('heading', { name: /identity radar/i }).locator('visible=true').first()
+    const branding = page.getByText('Identity Radar', { exact: true }).locator('visible=true').first()
     await expect(branding).toBeVisible()
   })
 
@@ -58,13 +58,9 @@ test.describe('Login Page', () => {
     const passwordInput = page.locator('input[type="password"]')
     await expect(passwordInput).toBeVisible()
 
-    // Look for show/hide password button (eye icon)
-    const toggleButton = page.locator('button').filter({ has: page.locator('svg') }).first()
-    if (await toggleButton.isVisible()) {
-      await toggleButton.click()
-      // After toggle, input type should change to text
-      const visibleInput = page.locator('input[name="password"], input[type="text"]').first()
-      await expect(visibleInput).toBeVisible()
-    }
+    // The eye button next to the password field (named "Show password")
+    const toggleButton = page.getByRole('button', { name: /show password/i })
+    await toggleButton.click()
+    await expect(page.locator('input#password')).toHaveAttribute('type', 'text')
   })
 })

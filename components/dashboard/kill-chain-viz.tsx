@@ -58,7 +58,7 @@ export function KillChainViz({ phaseCounts, onPhaseClick, selectedPhase }: KillC
                     : undefined,
               }}
             >
-              <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wide text-center leading-tight">
+              <span className="text-[10px] font-medium text-[var(--text-primary)] uppercase tracking-wide text-center leading-tight">
                 {phaseLabel}
               </span>
               <span className="text-lg font-bold" style={{ color: count > 0 ? 'color-mix(in srgb, var(--color-critical) 70%, var(--text-primary))' : 'var(--text-secondary)' }}>

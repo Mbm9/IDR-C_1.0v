@@ -952,7 +952,7 @@
     "dismiss": "إغلاق"
   },
   "login": {
-    "title": "رادار الهوية",
+    "title": "Identity Radar",
     "subtitle": "إدارة وضع الهوية والوصول",
     "tagline": "اكتشف كل هوية. أصلح كل خطر.",
     "description": "منصة إدارة وضع الهوية والوصول المدعومة بالذكاء الاصطناعي مع تصنيف Active Directory وتتبع الهويات غير البشرية والامتثال الآلي.",
@@ -1909,7 +1909,7 @@
   },
   "signup": {
     "loading": "جاري التحميل...",
-    "brand": "رادار الهوية",
+    "brand": "Identity Radar",
     "brandSubtitle": "إدارة وضع الهوية والوصول",
     "heroTitle": "ابدأ إدارة وضع الهوية لديك اليوم.",
     "heroDescription": "تتضمن الباقة المجانية 500 هوية ومصدر تكامل واحد و3 أعضاء فريق. لا حاجة لبطاقة ائتمان.",
@@ -2464,7 +2464,7 @@
     }
   },
   "onboarding": {
-    "productName": "رادار الهوية",
+    "productName": "Identity Radar",
     "setupWizard": "معالج الإعداد",
     "progress": "الخطوة {current} من {total}",
     "continue": "متابعة",
