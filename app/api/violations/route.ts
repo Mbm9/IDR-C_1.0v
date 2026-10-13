@@ -4,6 +4,9 @@ import { db } from '@/lib/db'
 import { policyViolations, policies, identities } from '@/lib/db/schema'
 import { and, eq, count, desc, asc, sql, gt, SQL } from 'drizzle-orm'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
   const params = req.nextUrl.searchParams
 

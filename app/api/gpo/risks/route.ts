@@ -5,6 +5,9 @@ import { gpoObjects, gpoLinks, gpoPermissions, identities, groups } from '@/lib/
 import { eq, and, sql } from 'drizzle-orm'
 import { unauthorized } from '@/lib/actions/helpers'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 interface GpoRisk {
   gpoId: string
   gpoName: string

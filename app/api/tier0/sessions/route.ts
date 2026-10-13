@@ -4,6 +4,9 @@ import { db } from '@/lib/db'
 import { tier0Sessions, identities, resources } from '@/lib/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/tier0/sessions — who is accessing Tier 0 infrastructure right now.
  * Returns active logon sessions on Tier 0 hosts (Domain Controllers etc.), joined

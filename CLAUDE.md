@@ -184,4 +184,4 @@ DOMAIN=localhost
 
 - Framework: Vitest (unit/integration) + Playwright (E2E)
 - Run: `npm test` (unit) / `npm run test:e2e` (E2E)
-- 142+ unit/integration tests, 31 E2E tests
+- 377 unit/integration tests, 45 E2E tests (E2E needs the uat.<role> users: tests/uat/create-role-users.sql)

@@ -3,6 +3,9 @@ import { withApiHandler } from '@/lib/api/handler'
 import { getIssues } from '@/lib/issues/aggregate'
 import { issueLocaleFromRequest } from '@/lib/issues/localize'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/issues — managed issue list (one per finding type) with status + exposure points.
  * Issue names follow the reader's locale (`?locale=` or the `locale` cookie).

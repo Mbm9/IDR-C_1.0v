@@ -4,6 +4,9 @@ import { db } from '@/lib/db'
 import { identities, policyViolations, identityThreats, groups, entitlements } from '@/lib/db/schema'
 import { eq, ilike, or, desc } from 'drizzle-orm'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/search?q=query
  *

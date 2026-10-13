@@ -7,6 +7,9 @@ import { hasRole } from '@/lib/utils/rbac'
 import { unauthorized, forbidden } from '@/lib/actions/helpers'
 import type { AppRole } from '@/lib/utils/rbac'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     const session = await auth()

@@ -4,6 +4,9 @@ import { db } from '@/lib/db'
 import { postureSnapshots } from '@/lib/db/schema'
 import { eq, and, gte, asc } from 'drizzle-orm'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/exposures/trends?days=30
  *

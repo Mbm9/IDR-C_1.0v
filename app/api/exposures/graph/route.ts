@@ -6,6 +6,9 @@ import { eq, and, inArray, desc } from 'drizzle-orm'
 import { VIOLATION_IMPACT, type PostureViolationType } from '@/lib/itdr/posture-checks'
 import { impactLabel, issueLocaleFromRequest } from '@/lib/issues/localize'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/exposures/graph
  *

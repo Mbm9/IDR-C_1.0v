@@ -5,6 +5,9 @@ import { identities } from '@/lib/db/schema'
 import { and, eq, gte, lte, ilike, or, desc, asc, count, sql, SQL } from 'drizzle-orm'
 import { identityFilterSchema } from '@/lib/schemas/identity'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 export const GET = withApiHandler(async (req: NextRequest, { orgId, log }) => {
   const params = Object.fromEntries(req.nextUrl.searchParams)
 

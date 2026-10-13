@@ -9,6 +9,9 @@ import {
 import { eq, and, desc, asc, sql, gte, lte, or, ilike, SQL } from 'drizzle-orm'
 import { unauthorized } from '@/lib/actions/helpers'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 interface UnifiedResult {
   id: string
   findingType: 'violation' | 'attack_path' | 'threat' | 'shadow_admin' | 'peer_anomaly' | 'gpo_risk' | 'canary_trigger'

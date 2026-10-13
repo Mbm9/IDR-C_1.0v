@@ -4,6 +4,9 @@ import { db } from '@/lib/db'
 import { identities, groups, resources } from '@/lib/db/schema'
 import { eq, and, ilike } from 'drizzle-orm'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 /** GET /api/graph/search?q= — node autocomplete for the PathFinder source/target pickers. */
 export const GET = withApiHandler(async (req: NextRequest, { orgId }) => {
   const q = (req.nextUrl.searchParams.get('q') || '').trim()

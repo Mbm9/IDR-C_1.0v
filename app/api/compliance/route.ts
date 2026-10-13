@@ -6,6 +6,9 @@ import { eq, and, count, sql } from 'drizzle-orm'
 import { COMPLIANCE_FRAMEWORKS, getFramework, type ComplianceControl } from '@/lib/compliance/frameworks'
 import { complianceLocaleFromRequest, localizeFramework } from '@/lib/compliance/localize'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/compliance
  *

@@ -5,6 +5,9 @@ import { gpoObjects, gpoLinks, gpoPermissions, identities } from '@/lib/db/schem
 import { eq, and, sql, notInArray } from 'drizzle-orm'
 import { unauthorized } from '@/lib/actions/helpers'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 // GET: Aggregate GPO stats
 export async function GET(req: NextRequest) {
   try {

@@ -5,6 +5,9 @@ import { chatSessions } from '@/lib/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
 import { unauthorized } from '@/lib/actions/helpers'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 export async function GET(_req: NextRequest) {
   try {
     const session = await auth()

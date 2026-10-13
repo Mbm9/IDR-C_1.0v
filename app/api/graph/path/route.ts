@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withApiHandler } from '@/lib/api/handler'
 import { findPath } from '@/lib/graph/queries'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 /** GET /api/graph/path?source=&target=&maxDepth= — PathFinder shortest path between two entities. */
 export const GET = withApiHandler(async (req: NextRequest, { orgId }) => {
   const source = req.nextUrl.searchParams.get('source')

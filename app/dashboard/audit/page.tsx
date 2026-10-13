@@ -72,7 +72,7 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
         <ExportPdfButton reportType="audit_trail" label={tCommon('export')} />
       </div>
@@ -115,9 +115,9 @@ export default function AuditPage() {
             {data.data.map((entry: any) => (
               <div key={entry.id} className="p-4 hover:bg-[var(--bg-secondary)] transition-colors">
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3">
+                  <div className="flex min-w-0 items-start gap-3">
                     <div className="w-2 h-2 rounded-full bg-[var(--color-info)] mt-2 flex-shrink-0" />
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium text-[var(--text-primary)]">
                           {ACTION_TYPE_KEYS[entry.actionType] ? t(ACTION_TYPE_KEYS[entry.actionType] as any) : entry.actionType}
@@ -127,10 +127,10 @@ export default function AuditPage() {
                         </span>
                       </div>
                       {entry.actorName && (
-                        <p className="text-xs text-[var(--text-secondary)] mt-0.5">{tCommon('by')} {entry.actorName}</p>
+                        <p className="text-xs text-[var(--text-secondary)] mt-0.5 [overflow-wrap:anywhere]">{tCommon('by')} <bdi>{entry.actorName}</bdi></p>
                       )}
                       {entry.rationale && (
-                        <p className="text-sm text-[var(--text-secondary)] mt-1">{entry.rationale}</p>
+                        <p className="text-sm text-[var(--text-secondary)] mt-1 [overflow-wrap:anywhere]">{entry.rationale}</p>
                       )}
                     </div>
                   </div>

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { withApiHandler } from '@/lib/api/handler'
 import { cronMonitor } from '@/lib/cron/monitor'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/metrics/cron-health
  *

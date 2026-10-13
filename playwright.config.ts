@@ -25,5 +25,9 @@ export default defineConfig({
     url: 'http://localhost:3000',
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // The suite reuses one admin account, so it exceeds the per-user API limit
+    // meant for people (300/min). When reusing a running server, start it with
+    // the same variable.
+    env: { RATE_LIMIT_API_PER_MIN: '5000', RATE_LIMIT_AUTH_PER_MIN: '200' },
   },
 })

@@ -4,6 +4,9 @@ import { db } from '@/lib/db'
 import { activeSessions } from '@/lib/db/schema'
 import { eq, and, isNull } from 'drizzle-orm'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/settings/sessions
  * List active sessions for the current user.

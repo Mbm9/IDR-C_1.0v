@@ -5,6 +5,9 @@ import { identityThreats } from '@/lib/db/schema'
 import { eq, and, gte, sql, count, avg } from 'drizzle-orm'
 import { unauthorized } from '@/lib/actions/helpers'
 
+// Reads the session per request; never prerender at build time.
+export const dynamic = 'force-dynamic'
+
 export async function GET(req: NextRequest) {
   try {
     const session = await auth()
