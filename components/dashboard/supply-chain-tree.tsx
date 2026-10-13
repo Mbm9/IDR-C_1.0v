@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 interface NhiDetail {
   nhi: { id: string; name: string; subType: string; status: string; tier: string; expiryAt?: string }
@@ -16,6 +17,23 @@ interface Props {
 }
 
 export function SupplyChainTree({ owner, ownedNhis }: Props) {
+  const t = useTranslations('supplyChain')
+  const tTiers = useTranslations('tiers')
+  const tId = useTranslations('identity')
+  const tSev = useTranslations('severity')
+  const tStatus = useTranslations('status')
+  const tr = (fn: ReturnType<typeof useTranslations>, v: string | null | undefined) => {
+    const s = String(v ?? '')
+    return s && fn.has(s) ? fn(s) : s.replace(/_/g, ' ')
+  }
+  const L = {
+    type: t('treeType'), tier: t('treeTier'), dept: t('treeDept'), status: t('treeStatus'),
+    criticality: t('treeCriticality'), resources: t('treeResources'), permission: t('treePermission'),
+    na: t('treeNa'), owner: t('legendOwner'), nhi: t('legendNhi'), critical: t('legendCritical'), resource: t('legendResource'),
+  }
+  const credAge = (days: number) => t('treeCredentialAge', { days })
+  const moreRes = (n: number) => t('treeMore', { count: n })
+  const labelsKey = JSON.stringify(L)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 })
@@ -72,7 +90,7 @@ export function SupplyChainTree({ owner, ownedNhis }: Props) {
 
     hitAreas.push({
       x: rootX, y: rootY, r: 18,
-      text: [owner.name, `Type: ${owner.type}`, `Tier: ${owner.tier}`, `Dept: ${owner.department || 'N/A'}`],
+      text: [owner.name, `${L.type}: ${tr(tId, owner.type)}`, `${L.tier}: ${tr(tTiers, owner.tier)}`, `${L.dept}: ${owner.department || L.na}`],
     })
 
     // Draw NHIs
@@ -117,12 +135,12 @@ export function SupplyChainTree({ owner, ownedNhis }: Props) {
         x: nhiX, y: nhiY, r: 12,
         text: [
           detail.nhi.name,
-          `Type: ${detail.nhi.subType}`,
-          `Tier: ${detail.nhi.tier}`,
-          `Status: ${detail.nhi.status}`,
-          `Criticality: ${detail.criticality}`,
-          detail.credentialAge !== null ? `Credential age: ${detail.credentialAge} days` : '',
-          `Resources: ${detail.resources.length}`,
+          `${L.type}: ${tr(tId, detail.nhi.subType)}`,
+          `${L.tier}: ${tr(tTiers, detail.nhi.tier)}`,
+          `${L.status}: ${tr(tStatus, detail.nhi.status)}`,
+          `${L.criticality}: ${tr(tSev, detail.criticality)}`,
+          detail.credentialAge !== null ? credAge(detail.credentialAge) : '',
+          `${L.resources}: ${detail.resources.length}`,
         ].filter(Boolean),
       })
 
@@ -158,24 +176,24 @@ export function SupplyChainTree({ owner, ownedNhis }: Props) {
 
         hitAreas.push({
           x: resX, y: resY, r: 8,
-          text: [res.name, `Type: ${res.type}`, `Tier: ${res.tier}`, `Criticality: ${res.criticality}`, `Permission: ${res.permission}`],
+          text: [res.name, `${L.type}: ${String(res.type).replace(/_/g, ' ')}`, `${L.tier}: ${tr(tTiers, res.tier)}`, `${L.criticality}: ${tr(tSev, res.criticality)}`, `${L.permission}: ${res.permission}`],
         })
       })
 
       if (detail.resources.length > 3) {
         ctx.fillStyle = 'rgba(148, 163, 184, 0.5)'
         ctx.font = '9px sans-serif'
-        ctx.fillText(`+${detail.resources.length - 3} more`, resX + 10, resStartY + resPerNhi.length * resSpacing + 3)
+        ctx.fillText(moreRes(detail.resources.length - 3), resX + 10, resStartY + resPerNhi.length * resSpacing + 3)
       }
     })
 
     // Legend
     const legendY = height - 30
     const legends = [
-      { color: '#3b82f6', shape: 'circle', label: 'Owner' },
-      { color: '#8b5cf6', shape: 'circle', label: 'NHI' },
-      { color: '#ef4444', shape: 'circle', label: 'Critical' },
-      { color: '#6b7280', shape: 'rect', label: 'Resource' },
+      { color: '#3b82f6', shape: 'circle', label: L.owner },
+      { color: '#8b5cf6', shape: 'circle', label: L.nhi },
+      { color: '#ef4444', shape: 'circle', label: L.critical },
+      { color: '#6b7280', shape: 'rect', label: L.resource },
     ]
     legends.forEach((leg, idx) => {
       const lx = 16 + idx * 100
@@ -213,12 +231,13 @@ export function SupplyChainTree({ owner, ownedNhis }: Props) {
 
     canvas.addEventListener('mousemove', handleMouseMove)
     return () => canvas.removeEventListener('mousemove', handleMouseMove)
-  }, [owner, ownedNhis, dimensions])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [owner, ownedNhis, dimensions, labelsKey])
 
   if (ownedNhis.length === 0) {
     return (
       <div className="text-center py-8 text-[var(--text-secondary)]">
-        No NHIs owned by this identity.
+        {t('noOwnedNhis')}
       </div>
     )
   }
@@ -227,9 +246,17 @@ export function SupplyChainTree({ owner, ownedNhis }: Props) {
     <div ref={containerRef} className="relative w-full">
       <canvas
         ref={canvasRef}
+        role="img"
+        aria-label={t('treeAria', { owner: owner.name, count: ownedNhis.length })}
         style={{ width: dimensions.width, height: dimensions.height }}
         className="w-full"
       />
+      {/* Text alternative for the canvas diagram */}
+      <ul className="sr-only">
+        {ownedNhis.map((d) => (
+          <li key={d.nhi.id}>{d.nhi.name}: {d.resources.map((r) => r.name).join(', ')}</li>
+        ))}
+      </ul>
       {tooltip && (
         <div
           className="absolute bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg shadow-lg p-3 pointer-events-none z-10"

@@ -2,6 +2,8 @@
 
 import { useMemo } from 'react'
 import Link from 'next/link'
+import { useLocale, useTranslations } from 'next-intl'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 
 interface GraphDetailPanelProps {
   node: any | null
@@ -11,132 +13,146 @@ interface GraphDetailPanelProps {
   isOpen: boolean
 }
 
-// ── Formatting helpers ──
+// Badge tones built from theme tokens so they keep AA contrast in light and dark themes.
+const TONE = {
+  critical: 'bg-[var(--color-critical-bg)] text-[color:color-mix(in_srgb,var(--color-critical)_60%,var(--text-primary))]',
+  high: 'bg-[var(--color-high-bg)] text-[color:color-mix(in_srgb,var(--color-high)_60%,var(--text-primary))]',
+  medium: 'bg-[var(--color-medium-bg)] text-[color:color-mix(in_srgb,var(--color-medium)_60%,var(--text-primary))]',
+  low: 'bg-[var(--color-low-bg)] text-[color:color-mix(in_srgb,var(--color-low)_60%,var(--text-primary))]',
+  info: 'bg-[var(--color-info-bg)] text-[color:color-mix(in_srgb,var(--color-info)_60%,var(--text-primary))]',
+  neutral: 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]',
+} as const
 
-function formatRelativeTime(val: string | null | undefined): string {
-  if (!val) return '-'
-  try {
-    const date = new Date(val)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffSec = Math.floor(diffMs / 1000)
-    const diffMin = Math.floor(diffSec / 60)
-    const diffHrs = Math.floor(diffMin / 60)
-    const diffDays = Math.floor(diffHrs / 24)
+type T = ReturnType<typeof useTranslations>
 
-    if (diffDays > 365) return `${Math.floor(diffDays / 365)}y ago`
-    if (diffDays > 30) return `${Math.floor(diffDays / 30)}mo ago`
-    if (diffDays > 0) return `${diffDays}d ago`
-    if (diffHrs > 0) return `${diffHrs}h ago`
-    if (diffMin > 0) return `${diffMin}m ago`
-    return 'just now'
-  } catch {
-    return String(val)
-  }
+/** Translate an enum-like value via `ns.<value>` when the key exists, else humanise it. */
+function label(t: T, ns: string, value: string): string {
+  return t.has(`${ns}.${value}`) ? t(`${ns}.${value}`) : value.replace(/_/g, ' ')
 }
 
-function formatAbsoluteDate(val: string | null | undefined): string {
-  if (!val) return ''
-  try {
-    return new Date(val).toLocaleString()
-  } catch {
-    return String(val)
+// Risk-factor fields that are bookkeeping, not factors.
+const NON_FACTOR_KEYS = new Set(['history', 'riskVelocity'])
+
+/**
+ * Risk factors used to be a string array; the risk scorer now stores an object of
+ * flags and counters (plus history/riskVelocity). Accept both shapes and return the
+ * active factors as pill keys.
+ */
+function activeRiskFactors(raw: unknown): string[] {
+  if (!raw) return []
+  if (Array.isArray(raw)) return raw.filter((x): x is string => typeof x === 'string' && x.length > 0)
+  if (typeof raw !== 'object') return []
+  const out: string[] = []
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (NON_FACTOR_KEYS.has(k)) continue
+    if (v === true) out.push(k)
+    else if (typeof v === 'number' && v > 0 && k !== 'dormancyDays') out.push(k)
+    else if (k === 'dormancyDays' && typeof v === 'number' && v >= 90) out.push(k)
   }
+  return out
+}
+
+// ── Formatting helpers ──
+
+function useDateFormatters() {
+  const locale = useLocale()
+  const t = useTranslations('graphPanel')
+  const e = useTranslations('securityEnums')
+  const rtf = useMemo(() => new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }), [locale])
+  const relative = (val: string | null | undefined): string => {
+    if (!val) return '-'
+    const date = new Date(val)
+    if (Number.isNaN(date.getTime())) return String(val)
+    const diffSec = Math.round((date.getTime() - Date.now()) / 1000)
+    const abs = Math.abs(diffSec)
+    if (abs < 60) return t('justNow')
+    if (abs < 3600) return rtf.format(Math.round(diffSec / 60), 'minute')
+    if (abs < 86400) return rtf.format(Math.round(diffSec / 3600), 'hour')
+    if (abs < 86400 * 30) return rtf.format(Math.round(diffSec / 86400), 'day')
+    if (abs < 86400 * 365) return rtf.format(Math.round(diffSec / (86400 * 30)), 'month')
+    return rtf.format(Math.round(diffSec / (86400 * 365)), 'year')
+  }
+  const absolute = (val: string | null | undefined): string => {
+    if (!val) return ''
+    const d = new Date(val)
+    return Number.isNaN(d.getTime()) ? String(val) : d.toLocaleString(locale)
+  }
+  return { relative, absolute }
 }
 
 function DateDisplay({ value }: { value: string | null | undefined }) {
-  if (!value) return <span className="text-[var(--text-tertiary)]">-</span>
+  const { relative, absolute } = useDateFormatters()
+  if (!value) return <span className="text-[var(--text-secondary)]">-</span>
   return (
-    <span title={formatAbsoluteDate(value)} className="cursor-help underline decoration-dotted decoration-[var(--text-tertiary)]">
-      {formatRelativeTime(value)}
+    <span title={absolute(value)} className="cursor-help underline decoration-dotted decoration-[var(--text-secondary)]">
+      {relative(value)}
     </span>
   )
 }
 
 function BoolBadge({ value, trueLabel, falseLabel }: { value?: boolean | null; trueLabel?: string; falseLabel?: string }) {
-  if (value === undefined || value === null) return <span className="text-[var(--text-tertiary)]">-</span>
+  const t = useTranslations('graphPanel')
+  const e = useTranslations('securityEnums')
+  if (value === undefined || value === null) return <span className="text-[var(--text-secondary)]">-</span>
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${
-      value
-        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-        : 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400'
-    }`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${value ? 'bg-green-500' : 'bg-red-500'}`} />
-      {value ? (trueLabel || 'Yes') : (falseLabel || 'No')}
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${value ? TONE.low : TONE.critical}`}>
+      <span aria-hidden className={`w-1.5 h-1.5 rounded-full ${value ? 'bg-[var(--color-low)]' : 'bg-[var(--color-critical)]'}`} />
+      {value ? (trueLabel || t('yes')) : (falseLabel || t('no'))}
     </span>
   )
 }
 
 function RiskScoreBar({ score }: { score?: number | null }) {
-  if (score === undefined || score === null) return <span className="text-[var(--text-tertiary)]">-</span>
-  let color = 'bg-green-500'
-  let textColor = 'text-green-700 dark:text-green-400'
-  if (score >= 80) { color = 'bg-red-500'; textColor = 'text-red-700 dark:text-red-400' }
-  else if (score >= 60) { color = 'bg-orange-500'; textColor = 'text-orange-700 dark:text-orange-400' }
-  else if (score >= 40) { color = 'bg-amber-500'; textColor = 'text-amber-700 dark:text-amber-400' }
+  if (score === undefined || score === null) return <span className="text-[var(--text-secondary)]">-</span>
+  const level = score >= 80 ? 'critical' : score >= 60 ? 'high' : score >= 40 ? 'medium' : 'low'
   return (
-    <div className="flex items-center gap-2 w-full">
-      <span className={`text-sm font-bold ${textColor} min-w-[28px]`}>{score}</span>
+    <div className="flex items-center gap-2 w-36">
+      <span className="text-sm font-bold min-w-[28px]" style={{ color: `color-mix(in srgb, var(--color-${level}) 60%, var(--text-primary))` }}>{score}</span>
       <div className="flex-1 h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${score}%` }} />
+        <div className="h-full rounded-full transition-all" style={{ width: `${score}%`, background: `var(--color-${level})` }} />
       </div>
     </div>
   )
 }
 
 function TierBadge({ tier }: { tier?: string | null }) {
-  if (!tier) return <span className="text-[var(--text-tertiary)]">-</span>
-  const colors: Record<string, string> = {
-    tier_0: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-    tier_1: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-    tier_2: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-    unclassified: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
-  }
+  const tTiers = useTranslations('tiers')
+  if (!tier) return <span className="text-[var(--text-secondary)]">-</span>
+  const tone = tier === 'tier_0' ? TONE.critical : tier === 'tier_1' ? TONE.high : TONE.neutral
   return (
-    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${colors[tier] || colors.unclassified}`}>
-      {tier.replace('_', ' ').toUpperCase()}
+    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold whitespace-nowrap ${tone}`}>
+      {tTiers.has(tier) ? tTiers(tier) : tier.replace('_', ' ').toUpperCase()}
     </span>
   )
+}
+
+const STATUS_DOT: Record<string, string> = {
+  active: 'var(--color-low)', inactive: 'var(--text-secondary)', disabled: 'var(--color-critical)',
+  dormant: 'var(--color-medium)', orphaned: 'var(--color-nhi)', suspended: 'var(--color-high)',
+  open: 'var(--color-critical)', acknowledged: 'var(--color-medium)', remediated: 'var(--color-low)',
+  excepted: 'var(--color-info)', false_positive: 'var(--text-secondary)', pending: 'var(--color-medium)',
+  certified: 'var(--color-low)', revoked: 'var(--color-critical)', expired: 'var(--color-high)',
 }
 
 function StatusDot({ status }: { status?: string | null }) {
-  if (!status) return <span className="text-[var(--text-tertiary)]">-</span>
-  const dotColors: Record<string, string> = {
-    active: 'bg-green-500',
-    inactive: 'bg-gray-400',
-    disabled: 'bg-red-500',
-    dormant: 'bg-yellow-500',
-    orphaned: 'bg-purple-500',
-    suspended: 'bg-orange-500',
-    open: 'bg-red-500',
-    acknowledged: 'bg-yellow-500',
-    remediated: 'bg-green-500',
-    excepted: 'bg-blue-500',
-    false_positive: 'bg-gray-400',
-    pending: 'bg-yellow-500',
-    certified: 'bg-green-500',
-    revoked: 'bg-red-500',
-    expired: 'bg-orange-500',
-    connected: 'bg-green-500',
-    syncing: 'bg-blue-500',
-    error: 'bg-red-500',
-    disconnected: 'bg-gray-400',
-  }
+  const e = useTranslations('securityEnums')
+  if (!status) return <span className="text-[var(--text-secondary)]">-</span>
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className={`w-2 h-2 rounded-full ${dotColors[status] || 'bg-gray-400'}`} />
-      <span className="text-xs capitalize">{status.replace(/_/g, ' ')}</span>
+      <span aria-hidden className="w-2 h-2 rounded-full" style={{ background: STATUS_DOT[status] ?? 'var(--text-secondary)' }} />
+      <span className="text-xs">{label(e, 'statuses', status)}</span>
     </span>
   )
 }
 
-function PillBadges({ items }: { items?: (string | null | undefined)[] | null }) {
-  if (!items || items.length === 0) return <span className="text-[var(--text-tertiary)]">-</span>
+function PillBadges({ items, ns }: { items: string[]; ns?: string }) {
+  const e = useTranslations('securityEnums')
+  if (items.length === 0) return <span className="text-[var(--text-secondary)]">-</span>
   return (
-    <div className="flex flex-wrap gap-1">
-      {items.filter(Boolean).map((item, i) => (
-        <span key={i} className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
-          {String(item).replace(/_/g, ' ')}
+    <div className="flex flex-wrap gap-1 justify-end">
+      {items.map((item) => (
+        <span key={item} className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-[var(--bg-tertiary)] text-[var(--text-secondary)]">
+          {ns ? label(e, ns, item) : item.replace(/_/g, ' ')}
         </span>
       ))}
     </div>
@@ -144,16 +160,12 @@ function PillBadges({ items }: { items?: (string | null | undefined)[] | null })
 }
 
 function SeverityBadge({ severity }: { severity?: string | null }) {
-  if (!severity) return <span className="text-[var(--text-tertiary)]">-</span>
-  const colors: Record<string, string> = {
-    critical: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
-    high: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-    medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400',
-    low: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  }
+  const tSev = useTranslations('severity')
+  if (!severity) return <span className="text-[var(--text-secondary)]">-</span>
+  const tone = (TONE as Record<string, string>)[severity] ?? TONE.neutral
   return (
-    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase ${colors[severity] || colors.low}`}>
-      {severity}
+    <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${tone}`}>
+      {tSev.has(severity) ? tSev(severity) : severity}
     </span>
   )
 }
@@ -163,120 +175,98 @@ function SeverityBadge({ severity }: { severity?: string | null }) {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="mt-3">
-      <h4 className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-        <span className="flex-1 h-px bg-[var(--border-default)]" />
+      <h4 className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+        <span aria-hidden className="flex-1 h-px bg-[var(--border-default)]" />
         {title}
-        <span className="flex-1 h-px bg-[var(--border-default)]" />
+        <span aria-hidden className="flex-1 h-px bg-[var(--border-default)]" />
       </h4>
       <div className="space-y-0">{children}</div>
     </div>
   )
 }
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+function Row({ label: rowLabel, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex justify-between items-start py-1.5 border-b border-[var(--border-default)] last:border-0">
-      <span className="text-[11px] text-[var(--text-tertiary)] shrink-0 w-[120px]">{label}</span>
-      <span className="text-[11px] text-[var(--text-primary)] text-end">{children}</span>
+    <div className="flex justify-between items-start gap-2 py-1.5 border-b border-[var(--border-default)] last:border-0">
+      <span className="text-[11px] text-[var(--text-secondary)] shrink-0 w-[120px]">{rowLabel}</span>
+      <span className="text-[11px] text-[var(--text-primary)] text-end min-w-0 break-words">{children}</span>
     </div>
   )
+}
+
+function Text({ value }: { value?: string | null }) {
+  return value ? <bdi>{value}</bdi> : <>-</>
 }
 
 // ── Node Type Icons ──
 
 function NodeTypeIcon({ type }: { type: string }) {
   const iconClass = 'w-5 h-5'
-  switch (type) {
-    case 'identity':
-      return (
-        <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-        </svg>
-      )
-    case 'resource':
-      return (
-        <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
-        </svg>
-      )
-    case 'group':
-      return (
-        <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      )
-    case 'violation':
-      return (
-        <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-        </svg>
-      )
-    case 'account':
-      return (
-        <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-        </svg>
-      )
-    default:
-      return (
-        <svg className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <circle cx="12" cy="12" r="10" />
-        </svg>
-      )
+  const d: Record<string, string> = {
+    identity: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z',
+    resource: 'M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2',
+    group: 'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z',
+    violation: 'M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z',
+    account: 'M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z',
   }
+  return (
+    <svg aria-hidden className={iconClass} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      {d[type] ? <path strokeLinecap="round" strokeLinejoin="round" d={d[type]} /> : <circle cx="12" cy="12" r="10" />}
+    </svg>
+  )
 }
 
 // ── Connected Edges ──
 
+const EDGE_TONE: Record<string, string> = {
+  violation: TONE.critical, entitlement: TONE.info, membership: TONE.medium, account: TONE.neutral,
+}
+
 function ConnectedEdges({ nodeId, links, allNodes }: { nodeId: string; links: any[]; allNodes: any[] }) {
+  const t = useTranslations('graphPanel')
+  const e = useTranslations('securityEnums')
   const connected = useMemo(() => {
     if (!links || !allNodes) return []
     const nodeMap = new Map(allNodes.map(n => [n.id, n]))
     return links
-      .filter(l => {
-        const sid = typeof l.source === 'string' ? l.source : l.source?.id
-        const tid = typeof l.target === 'string' ? l.target : l.target?.id
-        return sid === nodeId || tid === nodeId
-      })
       .map(l => {
         const sid = typeof l.source === 'string' ? l.source : l.source?.id
         const tid = typeof l.target === 'string' ? l.target : l.target?.id
-        const otherId = sid === nodeId ? tid : sid
-        const otherNode = nodeMap.get(otherId)
-        const direction = sid === nodeId ? 'outgoing' : 'incoming'
-        return { link: l, otherNode, direction }
+        if (sid !== nodeId && tid !== nodeId) return null
+        const otherNode = nodeMap.get(sid === nodeId ? tid : sid)
+        return otherNode ? { link: l, otherNode, outgoing: sid === nodeId } : null
       })
-      .filter(c => c.otherNode)
+      .filter((c): c is { link: any; otherNode: any; outgoing: boolean } => !!c)
   }, [nodeId, links, allNodes])
 
   if (connected.length === 0) return null
 
   return (
-    <Section title="Connections">
-      <div className="space-y-1 max-h-[200px] overflow-y-auto">
-        {connected.map((c, i) => (
-          <div key={i} className="flex items-center gap-2 py-1 text-[11px]">
-            <span className={`text-[var(--text-tertiary)] ${c.direction === 'outgoing' ? '' : 'rotate-180'}`}>
-              &rarr;
-            </span>
-            <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${
-              c.link.type === 'violation' ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' :
-              c.link.type === 'entitlement' ? 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' :
-              c.link.type === 'membership' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-              c.link.type === 'account' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400' :
-              'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-            }`}>
-              {c.link.type}
-            </span>
-            <span className="text-[var(--text-primary)] truncate flex-1" title={c.otherNode.label}>
-              {c.otherNode.label}
-            </span>
-            <span className="text-[var(--text-tertiary)] text-[9px] capitalize shrink-0">
-              {c.otherNode.type}
-            </span>
-          </div>
-        ))}
-      </div>
+    <Section title={t('connections')}>
+      <ul
+        className="space-y-1 max-h-[200px] overflow-y-auto"
+        tabIndex={0}
+        aria-label={t('connections')}
+      >
+        {connected.map((c, i) => {
+          // Outgoing points toward the reading direction's end; incoming toward its start.
+          const Arrow = c.outgoing ? ArrowRight : ArrowLeft
+          return (
+            <li key={i} className="flex items-center gap-2 py-1 text-[11px]">
+              <Arrow size={12} aria-label={c.outgoing ? t('outgoing') : t('incoming')} className="text-[var(--text-secondary)] flex-shrink-0 rtl:-scale-x-100" />
+              <span className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${EDGE_TONE[c.link.type] ?? TONE.neutral}`}>
+                {label(e, 'edgeTypes', c.link.type)}
+              </span>
+              <bdi className="text-[var(--text-primary)] truncate flex-1" title={c.otherNode.label}>
+                {c.otherNode.label}
+              </bdi>
+              <span className="text-[var(--text-secondary)] text-[9px] shrink-0">
+                {label(e, 'nodeTypes', c.otherNode.type)}
+              </span>
+            </li>
+          )
+        })}
+      </ul>
     </Section>
   )
 }
@@ -284,94 +274,98 @@ function ConnectedEdges({ nodeId, links, allNodes }: { nodeId: string; links: an
 // ── Node Detail Sections ──
 
 function IdentityDetails({ node, links, allNodes }: { node: any; links?: any[]; allNodes?: any[] }) {
+  const t = useTranslations('graphPanel')
+  const e = useTranslations('securityEnums')
+  const tId = useTranslations('identity')
   const p = node.properties || node
+  const isHuman = p.type === 'human' || p.identityType === 'human'
+  const subType = String(p.subType || p.type || '')
   return (
     <div className="space-y-0">
       {/* Header */}
       <div className="text-center pb-3 border-b border-[var(--border-default)]">
         <div
+          aria-hidden
           className="w-14 h-14 rounded-full mx-auto mb-2 flex items-center justify-center text-white font-bold text-xl"
-          style={{ background: p.type === 'human' || p.identityType === 'human' ? '#2563EB' : '#7C3AED' }}
+          style={{ background: isHuman ? 'var(--color-human)' : 'var(--color-nhi)' }}
         >
-          {(p.displayName || p.label || '?')[0].toUpperCase()}
+          {String(p.displayName || node.label || '?')[0].toUpperCase()}
         </div>
-        <h3 className="font-semibold text-sm text-[var(--text-primary)]">{p.displayName || node.label}</h3>
-        <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">{p.upn || ''}</p>
+        <h3 className="font-semibold text-sm text-[var(--text-primary)]"><bdi>{p.displayName || node.label}</bdi></h3>
+        {p.upn && <p className="text-[11px] text-[var(--text-secondary)] mt-0.5"><bdi>{p.upn}</bdi></p>}
         <div className="flex gap-1.5 justify-center mt-2 flex-wrap">
-          <span className={`px-2 py-0.5 rounded text-[10px] font-medium capitalize ${
-            p.type === 'human' || p.identityType === 'human'
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-              : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-          }`}>
-            {(p.subType || p.type || '').replace(/_/g, ' ')}
-          </span>
+          {subType && (
+            <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${isHuman ? TONE.info : TONE.neutral}`}>
+              {tId.has(subType) ? tId(subType) : subType.replace(/_/g, ' ')}
+            </span>
+          )}
           <StatusDot status={p.status} />
         </div>
       </div>
 
       {/* Security */}
-      <Section title="Security">
-        <Row label="Risk Score"><RiskScoreBar score={p.riskScore} /></Row>
-        <Row label="AD Tier"><TierBadge tier={p.adTier} /></Row>
-        <Row label="Effective Tier"><TierBadge tier={p.effectiveTier} /></Row>
-        <Row label="Tier Violation"><BoolBadge value={p.tierViolation} trueLabel="VIOLATION" falseLabel="Clean" /></Row>
-        <Row label="Risk Factors"><PillBadges items={p.riskFactors} /></Row>
+      <Section title={t('security')}>
+        <Row label={t('riskScore')}><RiskScoreBar score={p.riskScore} /></Row>
+        <Row label={t('adTier')}><TierBadge tier={p.adTier} /></Row>
+        <Row label={t('effectiveTier')}><TierBadge tier={p.effectiveTier} /></Row>
+        <Row label={t('tierViolation')}><BoolBadge value={p.tierViolation == null ? p.tierViolation : !p.tierViolation} trueLabel={t('clean')} falseLabel={t('violation')} /></Row>
+        <Row label={t('riskFactors')}><PillBadges items={activeRiskFactors(p.riskFactors)} ns="factors" /></Row>
       </Section>
 
       {/* Identity Info */}
-      <Section title="Identity Info">
-        <Row label="Display Name">{p.displayName || '-'}</Row>
-        <Row label="UPN">{p.upn || '-'}</Row>
-        <Row label="Email">{p.email || '-'}</Row>
-        <Row label="SAM Account">{p.samAccountName || '-'}</Row>
-        <Row label="Department">{p.department || '-'}</Row>
-        <Row label="Source System">{p.sourceSystem ? p.sourceSystem.replace(/_/g, ' ') : '-'}</Row>
+      <Section title={t('identityInfo')}>
+        <Row label={t('displayName')}><Text value={p.displayName} /></Row>
+        <Row label={t('upn')}><Text value={p.upn} /></Row>
+        <Row label={t('email')}><Text value={p.email} /></Row>
+        <Row label={t('samAccount')}><Text value={p.samAccountName} /></Row>
+        <Row label={t('department')}><Text value={p.department} /></Row>
+        <Row label={t('sourceSystem')}><Text value={p.sourceSystem ? String(p.sourceSystem).replace(/_/g, ' ') : null} /></Row>
       </Section>
 
       {/* Timeline */}
-      <Section title="Timeline">
-        <Row label="Last Logon"><DateDisplay value={p.lastLogonAt} /></Row>
-        <Row label="Password Set"><DateDisplay value={p.passwordLastSetAt} /></Row>
-        <Row label="Created in Src"><DateDisplay value={p.createdInSourceAt} /></Row>
-        <Row label="Expiry"><DateDisplay value={p.expiryAt} /></Row>
-        <Row label="Created"><DateDisplay value={p.createdAt} /></Row>
-        <Row label="Updated"><DateDisplay value={p.updatedAt} /></Row>
+      <Section title={t('timeline')}>
+        <Row label={t('lastLogon')}><DateDisplay value={p.lastLogonAt} /></Row>
+        <Row label={t('passwordSet')}><DateDisplay value={p.passwordLastSetAt} /></Row>
+        <Row label={t('createdInSource')}><DateDisplay value={p.createdInSourceAt} /></Row>
+        <Row label={t('expiry')}><DateDisplay value={p.expiryAt} /></Row>
+        <Row label={t('created')}><DateDisplay value={p.createdAt} /></Row>
+        <Row label={t('updated')}><DateDisplay value={p.updatedAt} /></Row>
       </Section>
 
-      {/* Connected Edges */}
       {links && allNodes && (
         <ConnectedEdges nodeId={node.id} links={links} allNodes={allNodes} />
       )}
 
       <Link
         href={`/dashboard/identities/${node.id}`}
-        className="block w-full text-center py-2.5 mt-4 text-xs font-medium bg-[var(--color-accent)] text-white rounded-lg hover:opacity-90 transition-opacity"
+        className="flex items-center justify-center gap-1 w-full py-2.5 mt-4 text-xs font-medium bg-[var(--color-info)] text-white rounded-lg hover:opacity-90 transition-opacity"
       >
-        View Full Detail &rarr;
+        {t('viewFullDetail')}
+        <ArrowRight size={12} aria-hidden className="rtl:-scale-x-100" />
       </Link>
     </div>
   )
 }
 
 function ResourceDetails({ node, links, allNodes }: { node: any; links?: any[]; allNodes?: any[] }) {
+  const t = useTranslations('graphPanel')
+  const e = useTranslations('securityEnums')
   const p = node.properties || node
   return (
     <div className="space-y-0">
       <div className="text-center pb-3 border-b border-[var(--border-default)]">
-        <div className="w-14 h-14 rounded mx-auto mb-2 flex items-center justify-center text-white font-bold text-lg bg-[#5F6B7A]">
-          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2" />
-          </svg>
+        <div aria-hidden className="w-14 h-14 rounded mx-auto mb-2 flex items-center justify-center text-white bg-[var(--color-tier2)]">
+          <NodeTypeIcon type="resource" />
         </div>
-        <h3 className="font-semibold text-sm text-[var(--text-primary)]">{p.name || node.label}</h3>
+        <h3 className="font-semibold text-sm text-[var(--text-primary)]"><bdi>{p.name || node.label}</bdi></h3>
       </div>
 
-      <Section title="Resource Info">
-        <Row label="Name">{p.name || '-'}</Row>
-        <Row label="Type"><span className="capitalize">{(p.resourceType || '-').replace(/_/g, ' ')}</span></Row>
-        <Row label="AD Tier"><TierBadge tier={p.adTier} /></Row>
-        <Row label="Criticality"><SeverityBadge severity={p.criticality} /></Row>
-        <Row label="Environment"><span className="capitalize">{(p.environment || '-').replace(/_/g, ' ')}</span></Row>
+      <Section title={t('resourceInfo')}>
+        <Row label={t('name')}><Text value={p.name} /></Row>
+        <Row label={t('type')}>{p.resourceType ? label(e, 'resourceTypes', p.resourceType) : '-'}</Row>
+        <Row label={t('adTier')}><TierBadge tier={p.adTier} /></Row>
+        <Row label={t('criticality')}><SeverityBadge severity={p.criticality} /></Row>
+        <Row label={t('environment')}>{p.environment ? label(e, 'environments', p.environment) : '-'}</Row>
       </Section>
 
       {links && allNodes && (
@@ -382,31 +376,31 @@ function ResourceDetails({ node, links, allNodes }: { node: any; links?: any[]; 
 }
 
 function GroupDetails({ node, links, allNodes }: { node: any; links?: any[]; allNodes?: any[] }) {
+  const t = useTranslations('graphPanel')
+  const e = useTranslations('securityEnums')
   const p = node.properties || node
   return (
     <div className="space-y-0">
       <div className="text-center pb-3 border-b border-[var(--border-default)]">
-        <div className={`w-14 h-14 rounded mx-auto mb-2 flex items-center justify-center text-white font-bold text-lg ${p.isPrivileged ? 'bg-red-600' : 'bg-[#CA8A04]'}`}>
-          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
+        <div aria-hidden className="w-14 h-14 rounded mx-auto mb-2 flex items-center justify-center text-white" style={{ background: p.isPrivileged ? 'var(--color-critical)' : 'var(--color-medium)' }}>
+          <NodeTypeIcon type="group" />
         </div>
-        <h3 className="font-semibold text-sm text-[var(--text-primary)]">{p.name || node.label}</h3>
+        <h3 className="font-semibold text-sm text-[var(--text-primary)]"><bdi>{p.name || node.label}</bdi></h3>
         {p.isPrivileged && (
-          <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">
-            PRIVILEGED
+          <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold ${TONE.critical}`}>
+            {t('privilegedBadge')}
           </span>
         )}
       </div>
 
-      <Section title="Group Info">
-        <Row label="Name">{p.name || '-'}</Row>
-        <Row label="Type"><span className="capitalize">{(p.groupType || '-').replace(/_/g, ' ')}</span></Row>
-        <Row label="Scope"><span className="capitalize">{(p.scope || '-').replace(/_/g, ' ')}</span></Row>
-        <Row label="AD Tier"><TierBadge tier={p.groupTier || p.adTier} /></Row>
-        <Row label="Privileged"><BoolBadge value={p.isPrivileged} /></Row>
-        <Row label="Members">{p.memberCount ?? '-'}</Row>
-        <Row label="Nested Groups">{p.nestedGroupCount ?? '-'}</Row>
+      <Section title={t('groupInfo')}>
+        <Row label={t('name')}><Text value={p.name} /></Row>
+        <Row label={t('type')}>{p.groupType ? label(e, 'groupTypes', p.groupType) : '-'}</Row>
+        <Row label={t('scope')}>{p.scope ? label(e, 'groupScopes', p.scope) : '-'}</Row>
+        <Row label={t('adTier')}><TierBadge tier={p.groupTier || p.adTier} /></Row>
+        <Row label={t('privileged')}><BoolBadge value={p.isPrivileged} /></Row>
+        <Row label={t('members')}>{p.memberCount ?? '-'}</Row>
+        <Row label={t('nestedGroups')}>{p.nestedGroupCount ?? '-'}</Row>
       </Section>
 
       {links && allNodes && (
@@ -417,35 +411,36 @@ function GroupDetails({ node, links, allNodes }: { node: any; links?: any[]; all
 }
 
 function ViolationDetails({ node, links, allNodes }: { node: any; links?: any[]; allNodes?: any[] }) {
+  const t = useTranslations('graphPanel')
+  const e = useTranslations('securityEnums')
   const p = node.properties || node
+  const vType = p.violationType ? label(e, 'violationTypes', p.violationType) : t('violation')
   return (
     <div className="space-y-0">
       <div className="text-center pb-3 border-b border-[var(--border-default)]">
-        <div className="w-14 h-14 rounded mx-auto mb-2 flex items-center justify-center text-white font-bold text-lg bg-red-600">
-          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
+        <div aria-hidden className="w-14 h-14 rounded mx-auto mb-2 flex items-center justify-center text-white bg-[var(--color-critical)]">
+          <NodeTypeIcon type="violation" />
         </div>
-        <h3 className="font-semibold text-sm text-[var(--text-primary)] capitalize">{(p.violationType || 'Violation').replace(/_/g, ' ')}</h3>
+        <h3 className="font-semibold text-sm text-[var(--text-primary)]">{vType}</h3>
         <div className="flex gap-1.5 justify-center mt-2">
           <SeverityBadge severity={p.severity} />
           <StatusDot status={p.status} />
         </div>
       </div>
 
-      <Section title="Violation Info">
-        <Row label="Type"><span className="capitalize">{(p.violationType || '-').replace(/_/g, ' ')}</span></Row>
-        <Row label="Severity"><SeverityBadge severity={p.severity} /></Row>
-        <Row label="Status"><StatusDot status={p.status} /></Row>
-        <Row label="Policy"><span className="text-[11px]">{p.policyName || '-'}</span></Row>
-        <Row label="Policy Type"><span className="capitalize text-[11px]">{(p.policyType || '-').replace(/_/g, ' ')}</span></Row>
+      <Section title={t('violationInfo')}>
+        <Row label={t('type')}>{p.violationType ? vType : '-'}</Row>
+        <Row label={t('severity')}><SeverityBadge severity={p.severity} /></Row>
+        <Row label={t('status')}><StatusDot status={p.status} /></Row>
+        <Row label={t('policy')}><Text value={p.policyName} /></Row>
+        <Row label={t('policyType')}>{p.policyType ? label(e, 'violationTypes', p.policyType) : '-'}</Row>
       </Section>
 
-      <Section title="Timeline">
-        <Row label="Detected"><DateDisplay value={p.detectedAt} /></Row>
-        <Row label="Remediated"><DateDisplay value={p.remediatedAt} /></Row>
+      <Section title={t('timeline')}>
+        <Row label={t('detected')}><DateDisplay value={p.detectedAt} /></Row>
+        <Row label={t('remediated')}><DateDisplay value={p.remediatedAt} /></Row>
         {p.exceptionReason && (
-          <Row label="Exception">{p.exceptionReason}</Row>
+          <Row label={t('exception')}><bdi>{p.exceptionReason}</bdi></Row>
         )}
       </Section>
 
@@ -457,34 +452,42 @@ function ViolationDetails({ node, links, allNodes }: { node: any; links?: any[];
 }
 
 function AccountDetails({ node, links, allNodes }: { node: any; links?: any[]; allNodes?: any[] }) {
+  const t = useTranslations('graphPanel')
+  const e = useTranslations('securityEnums')
   const p = node.properties || node
   return (
     <div className="space-y-0">
       <div className="text-center pb-3 border-b border-[var(--border-default)]">
-        <div className="w-14 h-14 rounded mx-auto mb-2 flex items-center justify-center text-white font-bold text-lg bg-indigo-600">
-          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
-          </svg>
+        <div aria-hidden className="w-14 h-14 rounded mx-auto mb-2 flex items-center justify-center text-white bg-[var(--color-info)]">
+          <NodeTypeIcon type="account" />
         </div>
-        <h3 className="font-semibold text-sm text-[var(--text-primary)]">{p.accountName || node.label}</h3>
-        <div className="flex gap-1.5 justify-center mt-2">
-          <span className="px-2 py-0.5 rounded text-[10px] font-medium capitalize bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">
-            {(p.platform || '').replace(/_/g, ' ')}
-          </span>
-        </div>
+        <h3 className="font-semibold text-sm text-[var(--text-primary)]"><bdi>{p.accountName || node.label}</bdi></h3>
+        {p.platform && (
+          <div className="flex gap-1.5 justify-center mt-2">
+            <span className={`px-2 py-0.5 rounded text-[10px] font-medium ${TONE.info}`}>
+              <bdi>{String(p.platform).replace(/_/g, ' ')}</bdi>
+            </span>
+          </div>
+        )}
       </div>
 
-      <Section title="Account Info">
-        <Row label="Account Name">{p.accountName || '-'}</Row>
-        <Row label="Platform"><span className="capitalize">{(p.platform || '-').replace(/_/g, ' ')}</span></Row>
-        <Row label="Account Type"><span className="capitalize">{(p.accountType || '-').replace(/_/g, ' ')}</span></Row>
-        <Row label="Enabled"><BoolBadge value={p.enabled} trueLabel="Enabled" falseLabel="Disabled" /></Row>
-        <Row label="MFA Enabled"><BoolBadge value={p.mfaEnabled} trueLabel="MFA On" falseLabel="MFA Off" /></Row>
-        <Row label="Privileged"><BoolBadge value={p.privileged} trueLabel="Privileged" falseLabel="Standard" /></Row>
+      <Section title={t('accountInfo')}>
+        <Row label={t('accountName')}><Text value={p.accountName} /></Row>
+        <Row label={t('platform')}><Text value={p.platform ? String(p.platform).replace(/_/g, ' ') : null} /></Row>
+        <Row label={t('accountType')}>{p.accountType ? label(e, 'accountTypes', p.accountType) : '-'}</Row>
+        <Row label={t('enabled')}><BoolBadge value={p.enabled} trueLabel={t('enabledValue')} falseLabel={t('disabledValue')} /></Row>
+        <Row label={t('mfaEnabled')}><BoolBadge value={p.mfaEnabled} trueLabel={t('mfaOn')} falseLabel={t('mfaOff')} /></Row>
+        <Row label={t('privileged')}>
+          {p.privileged == null ? '-' : (
+            <span className={`inline-flex px-2 py-0.5 rounded text-[10px] font-medium ${p.privileged ? TONE.high : TONE.neutral}`}>
+              {p.privileged ? t('privilegedValue') : t('standardValue')}
+            </span>
+          )}
+        </Row>
       </Section>
 
-      <Section title="Timeline">
-        <Row label="Last Auth"><DateDisplay value={p.lastAuthenticatedAt} /></Row>
+      <Section title={t('timeline')}>
+        <Row label={t('lastAuth')}><DateDisplay value={p.lastAuthenticatedAt} /></Row>
       </Section>
 
       {links && allNodes && (
@@ -497,28 +500,34 @@ function AccountDetails({ node, links, allNodes }: { node: any; links?: any[]; a
 // ── Main Panel ──
 
 export function GraphDetailPanel({ node, links, allNodes, onClose, isOpen }: GraphDetailPanelProps) {
+  const t = useTranslations('graphPanel')
+  const e = useTranslations('securityEnums')
+  const open = isOpen && !!node
   return (
-    <div
-      className={`fixed top-0 end-0 h-full w-[400px] bg-[var(--bg-primary)] border-s border-[var(--border-default)] shadow-xl z-40 transform transition-transform duration-200 ease-in-out overflow-y-auto ${
-        isOpen && node ? 'translate-x-0' : 'translate-x-full'
+    <aside
+      aria-label={node ? t('panelTitle', { type: label(e, 'nodeTypes', node.type) }) : undefined}
+      aria-hidden={!open}
+      // Slides in from the inline end edge: right in LTR, left in RTL.
+      className={`fixed top-0 end-0 h-full w-[400px] max-w-full bg-[var(--bg-primary)] border-s border-[var(--border-default)] shadow-xl z-40 transform transition-transform duration-200 ease-in-out overflow-y-auto ${
+        open ? 'translate-x-0 visible' : 'translate-x-full rtl:-translate-x-full invisible'
       }`}
     >
       {node && (
         <div className="p-5">
           {/* Header */}
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2 text-[var(--text-tertiary)]">
+            <div className="flex items-center gap-2 text-[var(--text-secondary)]">
               <NodeTypeIcon type={node.type} />
-              <span className="text-xs font-semibold uppercase tracking-wide capitalize">
-                {node.type} Details
+              <span className="text-xs font-semibold uppercase tracking-wide">
+                {t('panelTitle', { type: label(e, 'nodeTypes', node.type) })}
               </span>
             </div>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg hover:bg-[var(--bg-secondary)] text-[var(--text-tertiary)] transition-colors"
-              aria-label="Close"
+              className="p-1.5 rounded-lg hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors"
+              aria-label={t('close')}
             >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg aria-hidden className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -531,6 +540,6 @@ export function GraphDetailPanel({ node, links, allNodes, onClose, isOpen }: Gra
           {node.type === 'account' && <AccountDetails node={node} links={links} allNodes={allNodes} />}
         </div>
       )}
-    </div>
+    </aside>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   GraphLegend,
   BLAST_RADIUS_LEGEND_NODES,
@@ -82,6 +83,8 @@ const ADMIN_ACCESS = ['admin', 'owner', 'full_control', 'write', 'genericall']
 // ── Component (force-directed + draggable via the shared engine) ──
 
 export function BlastRadiusGraph({ data, height = 580, onNodeClick, className = '' }: BlastRadiusGraphProps) {
+  const t = useTranslations('forceGraph')
+  const tBr = useTranslations('blastRadius')
   const { nodes, links, originalById } = useMemo(() => {
     if (!data) return { nodes: [] as FgNode[], links: [] as FgLink[], originalById: new Map<string, BlastRadiusNode>() }
     const nMap = new Map<string, FgNode>()
@@ -94,7 +97,7 @@ export function BlastRadiusGraph({ data, height = 580, onNodeClick, className = 
       id: data.center.id, label: data.center.name, group: 'center',
       tier: data.center.tier, riskScore: Math.max(80, data.center.riskScore || 80),
       severity: 'critical', badge: '◎',
-      meta: { type: data.center.type, role: 'compromised origin' },
+      meta: { type: data.center.type, role: 'center' },
     })
 
     for (const ring of data.rings) {
@@ -136,8 +139,8 @@ export function BlastRadiusGraph({ data, height = 580, onNodeClick, className = 
 
   if (!data) {
     return (
-      <div className={`flex items-center justify-center h-96 text-[var(--text-tertiary)] ${className}`}>
-        Select an identity to visualize blast radius
+      <div className={`flex items-center justify-center h-96 text-[var(--text-secondary)] ${className}`}>
+        {tBr('selectToVisualize')}
       </div>
     )
   }
@@ -149,16 +152,17 @@ export function BlastRadiusGraph({ data, height = 580, onNodeClick, className = 
         links={links}
         colorOf={BR_COLOR_OF}
         height={height}
-        searchPlaceholder="Search reachable nodes…"
+        searchPlaceholder={tBr('searchReachable')}
+        ariaLabel={tBr('graphAria', { name: data.center.name, count: Math.max(0, nodes.length - 1) })}
         onSelect={(n) => { if (n && onNodeClick) { const orig = originalById.get(n.id); if (orig) onNodeClick(orig) } }}
         filterGroups={[
-          { key: 'identity', label: 'Identity', color: BR_COLORS.identity },
-          { key: 'resource', label: 'Resource', color: BR_COLORS.resource },
-          { key: 'group', label: 'Group', color: BR_COLORS.group },
+          { key: 'identity', label: t('groups.identity'), color: BR_COLORS.identity },
+          { key: 'resource', label: t('groups.resource'), color: BR_COLORS.resource },
+          { key: 'group', label: t('groups.group'), color: BR_COLORS.group },
         ]}
       />
       <GraphLegend
-        title="Blast Radius Legend"
+        title="blastRadiusLegend"
         nodes={BLAST_RADIUS_LEGEND_NODES}
         edges={BLAST_RADIUS_LEGEND_EDGES}
         tiers={TIER_COLORS}

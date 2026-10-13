@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import * as d3 from 'd3'
+import { useTranslations } from 'next-intl'
 
 // ── Types ──
 
@@ -44,6 +45,10 @@ interface IdentityGraphProps {
   onEdgeHover?: (link: GraphLink | null, x: number, y: number) => void
   visibleEdgeTypes?: string[]
 }
+
+// Above this many nodes only key labels are drawn (Tier 0, tier violations, the
+// hovered node and its neighbours) so names don't pile on top of each other.
+const DENSE_LABEL_THRESHOLD = 30
 
 // ── Constants ──
 
@@ -99,7 +104,7 @@ function tierToY(tier: string | undefined, height: number): number {
 export function IdentityGraph({
   nodes,
   links,
-  width = 900,
+  width: widthProp,
   height = 600,
   layout = 'force',
   onNodeClick,
@@ -108,8 +113,32 @@ export function IdentityGraph({
   onEdgeHover,
   visibleEdgeTypes,
 }: IdentityGraphProps) {
+  const t = useTranslations('identityGraph')
+  const tTiers = useTranslations('tiers')
+  const tSev = useTranslations('severity')
+  const tEnum = useTranslations('securityEnums')
+  const tId = useTranslations('identity')
   const svgRef = useRef<SVGSVGElement>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
   const [tooltip, setTooltip] = useState<{ x: number; y: number; node: GraphNode } | null>(null)
+  const [legendOpen, setLegendOpen] = useState(true)
+  // Track the container width so the canvas fits any viewport (no horizontal scroll at 390px).
+  const [measured, setMeasured] = useState<number | null>(null)
+  useEffect(() => {
+    const el = wrapRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      const w = Math.floor(entries[0].contentRect.width)
+      if (w > 0) setMeasured((prev) => (prev === w ? prev : w))
+    })
+    ro.observe(el)
+    if (el.clientWidth < 640) setLegendOpen(false)
+    return () => ro.disconnect()
+  }, [])
+  const width = measured ?? widthProp ?? 900
+  const dense = nodes.length > DENSE_LABEL_THRESHOLD
+  const edgeLabelText = { manager: t('edgeManages'), owner: t('edgeOwns') }
+  const edgeLabelKey = `${edgeLabelText.manager}|${edgeLabelText.owner}`
 
   const getNodeRadius = useCallback((d: GraphNode) => {
     if (d.type === 'identity') return Math.max(8, Math.min(22, (d.riskScore || 10) / 4))
@@ -295,7 +324,7 @@ export function IdentityGraph({
     link
       .on('mouseenter', function (event, d) {
         if (onEdgeHover) {
-          onEdgeHover(d as GraphLink, event.pageX, event.pageY)
+          onEdgeHover(d as GraphLink, event.clientX, event.clientY)
         }
         d3.select(this)
           .attr('stroke-width', (EDGE_STYLES[d.type]?.width || 1) * 2.5)
@@ -317,7 +346,8 @@ export function IdentityGraph({
       .data(edgeLabelLinks)
       .enter()
       .append('text')
-      .text((d: any) => d.label || d.type)
+      .text((d: any) => (d.type === 'manager' ? edgeLabelText.manager : edgeLabelText.owner))
+      .attr('opacity', dense ? 0 : 1)
       .attr('text-anchor', 'middle')
       .attr('fill', (d: any) => d.type === 'manager' ? '#3B82F6' : '#8B5CF6')
       .attr('font-size', '9px')
@@ -464,14 +494,21 @@ export function IdentityGraph({
           .attr('stroke-width', 1.5)
       }
 
-      // Label
+      // Label (halo keeps it legible over edges); dense graphs only label key nodes
+      const keyNode = d.tier === 'tier_0' || !!d.tierViolation
       el.append('text')
-        .text(d.label.length > 16 ? d.label.slice(0, 16) + '...' : d.label)
+        .attr('class', 'ig-label')
+        .text(d.label.length > 16 ? d.label.slice(0, 16) + '…' : d.label)
         .attr('dy', radius + 14)
         .attr('text-anchor', 'middle')
-        .attr('fill', 'var(--text-secondary)')
+        .attr('fill', 'var(--text-primary)')
         .attr('font-size', '10px')
+        .attr('paint-order', 'stroke')
+        .attr('stroke', 'var(--bg-primary)')
+        .attr('stroke-width', 3)
         .attr('pointer-events', 'none')
+        .attr('opacity', !dense || keyNode ? 1 : 0)
+        .attr('data-key', keyNode ? '1' : '0')
     })
 
     // ── Interactions ──
@@ -493,12 +530,12 @@ export function IdentityGraph({
     node.on('contextmenu', (event, d) => {
       event.preventDefault()
       event.stopPropagation()
-      if (onNodeRightClick) onNodeRightClick(d, event.pageX, event.pageY)
+      if (onNodeRightClick) onNodeRightClick(d, event.clientX, event.clientY)
     })
 
     // Hover: highlight connected edges, dim unconnected
     node.on('mouseenter', function (event, d) {
-      setTooltip({ x: event.pageX, y: event.pageY, node: d })
+      setTooltip({ x: event.clientX, y: event.clientY, node: d })
 
       // Highlight connected
       const connectedNodeIds = new Set<string>([d.id])
@@ -519,6 +556,9 @@ export function IdentityGraph({
       node.each(function (n) {
         d3.select(this).attr('opacity', connectedNodeIds.has(n.id) ? 1 : 0.2)
       })
+      // Reveal labels of the hovered node and its neighbours
+      node.select<SVGTextElement>('text.ig-label')
+        .attr('opacity', (n: GraphNode) => (connectedNodeIds.has(n.id) ? 1 : (!dense ? 0.25 : 0)))
     })
 
     node.on('mouseleave', function () {
@@ -527,6 +567,8 @@ export function IdentityGraph({
         .attr('opacity', 0.5)
         .attr('stroke-width', (d: any) => EDGE_STYLES[d.type]?.width || 1)
       node.attr('opacity', 1)
+      node.select<SVGTextElement>('text.ig-label')
+        .attr('opacity', function () { return !dense || this.getAttribute('data-key') === '1' ? 1 : 0 })
     })
 
     // ── Tick ──
@@ -545,48 +587,71 @@ export function IdentityGraph({
     })
 
     return () => { simulation.stop() }
-  }, [nodes, links, width, height, layout, onNodeClick, onNodeDoubleClick, onNodeRightClick, onEdgeHover, visibleEdgeTypes, getNodeRadius])
+  }, [nodes, links, width, height, layout, onNodeClick, onNodeDoubleClick, onNodeRightClick, onEdgeHover, visibleEdgeTypes, getNodeRadius, dense, edgeLabelKey])
+
+  const nodeTypeLabel = (n: GraphNode) => (tEnum.has(`nodeTypes.${n.type}`) ? tEnum(`nodeTypes.${n.type}`) : n.type)
+  const subTypeLabel = (s: string) => {
+    if (tId.has(s)) return tId(s)
+    if (tEnum.has(`violationTypes.${s}`)) return tEnum(`violationTypes.${s}`)
+    if (tEnum.has(`resourceTypes.${s}`)) return tEnum(`resourceTypes.${s}`)
+    return s.replace(/_/g, ' ')
+  }
 
   return (
-    <div className="relative">
+    <div ref={wrapRef} className="relative w-full">
       <svg
         ref={svgRef}
         width={width}
         height={height}
-        className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]"
+        direction="ltr"
+        role="img"
+        aria-label={t('canvasLabel', { nodes: nodes.length, edges: links.length })}
+        className="block max-w-full rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]"
         style={{ boxShadow: 'var(--shadow-card)' }}
       />
 
-      {/* Legend */}
-      <div className="absolute top-3 start-3 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-[var(--radius-badge)] p-2 text-micro space-y-1 select-none">
-        <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Nodes</p>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: '#2563EB' }} /> Human</div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: '#7C3AED' }} /> NHI</div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded" style={{ background: '#5F6B7A' }} /> Resource</div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded rotate-45" style={{ background: '#CA8A04' }} /> Group</div>
-        <div className="flex items-center gap-2">
-          <svg className="w-3 h-3" viewBox="0 -8 12 16"><path d="M0,-7 L7,4 L-7,4 Z" fill="#DC2626" /></svg>
-          Violation
-        </div>
-        <div className="flex items-center gap-2">
-          <svg className="w-3 h-3" viewBox="-8 -8 16 16">
-            <polygon points="6.9,4 4,6.9 -4,6.9 -6.9,4 -6.9,-4 -4,-6.9 4,-6.9 6.9,-4" fill="#4F46E5" />
-          </svg>
-          Account
-        </div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded" style={{ background: '#0891B2' }} /> GPO</div>
-        <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full border-2 border-red-500" /> Tier Violation</div>
-        <div className="border-t border-[var(--border-default)] my-1 pt-1">
-          <p className="text-[10px] font-semibold text-[var(--text-tertiary)] uppercase tracking-wide mb-1">Edges</p>
-          <div className="flex items-center gap-2"><span className="w-4 h-0.5" style={{ background: '#94a3b8' }} /> Entitlement</div>
-          <div className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#cbd5e1' }} /> Membership</div>
-          <div className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#3B82F6' }} /> Manager</div>
-          <div className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#8B5CF6' }} /> Owner</div>
-          <div className="flex items-center gap-2"><span className="w-4 h-[2px]" style={{ background: '#DC2626' }} /> Violation</div>
-          <div className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#4F46E5' }} /> Account</div>
-          <div className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#0891B2' }} /> GPO Link</div>
-          <div className="flex items-center gap-2"><span className="w-4 h-[1.5px]" style={{ background: '#DC2626' }} /> GPO Edit</div>
-        </div>
+      {/* Legend (collapsible so it never hides the graph on small screens) */}
+      <div className="absolute top-3 start-3 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-[var(--radius-badge)] text-micro select-none text-[var(--text-primary)] max-w-[calc(100%-1.5rem)]">
+        <button
+          type="button"
+          onClick={() => setLegendOpen((o) => !o)}
+          aria-expanded={legendOpen}
+          className="w-full px-2 py-1 text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide text-start"
+        >
+          {t('legend')} {legendOpen ? '−' : '+'}
+        </button>
+        {legendOpen && (
+          <div className="px-2 pb-2 space-y-1">
+            <p className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1">{t('nodes')}</p>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded-full" style={{ background: '#2563EB' }} /> {t('human')}</div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded-full" style={{ background: '#7C3AED' }} /> {t('nhi')}</div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded" style={{ background: '#5F6B7A' }} /> {t('resource')}</div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded rotate-45" style={{ background: '#CA8A04' }} /> {t('group')}</div>
+            <div className="flex items-center gap-2">
+              <svg aria-hidden className="w-3 h-3" viewBox="0 -8 12 16"><path d="M0,-7 L7,4 L-7,4 Z" fill="#DC2626" /></svg>
+              {t('violation')}
+            </div>
+            <div className="flex items-center gap-2">
+              <svg aria-hidden className="w-3 h-3" viewBox="-8 -8 16 16">
+                <polygon points="6.9,4 4,6.9 -4,6.9 -6.9,4 -6.9,-4 -4,-6.9 4,-6.9 6.9,-4" fill="#4F46E5" />
+              </svg>
+              {t('account')}
+            </div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded" style={{ background: '#0891B2' }} /> {t('gpo')}</div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded-full border-2 border-[var(--color-critical)]" /> {t('tierViolation')}</div>
+            <div className="border-t border-[var(--border-default)] my-1 pt-1 space-y-1">
+              <p className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1">{t('edges')}</p>
+              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5" style={{ background: '#94a3b8' }} /> {tEnum('edgeTypes.entitlement')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#cbd5e1' }} /> {tEnum('edgeTypes.membership')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#3B82F6' }} /> {tEnum('edgeTypes.manager')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#8B5CF6' }} /> {tEnum('edgeTypes.owner')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-[2px]" style={{ background: '#DC2626' }} /> {tEnum('edgeTypes.violation')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#4F46E5' }} /> {tEnum('edgeTypes.account')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#0891B2' }} /> {tEnum('edgeTypes.gpo_link')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-[1.5px]" style={{ background: '#DC2626' }} /> {tEnum('edgeTypes.gpo_edit')}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Node tooltip */}
@@ -595,12 +660,12 @@ export function IdentityGraph({
           className="fixed z-50 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-3 text-caption pointer-events-none max-w-[240px]"
           style={{ left: tooltip.x + 12, top: tooltip.y + 12, boxShadow: 'var(--shadow-dropdown)' }}
         >
-          <p className="font-medium text-[var(--text-primary)]">{tooltip.node.label}</p>
-          <p className="text-[var(--text-tertiary)] capitalize">{tooltip.node.type} {tooltip.node.subType ? `· ${tooltip.node.subType.replace(/_/g, ' ')}` : ''}</p>
-          {tooltip.node.tier && <p className="text-[var(--text-secondary)]">Tier: {tooltip.node.tier.replace('_', ' ')}</p>}
+          <p className="font-medium text-[var(--text-primary)]"><bdi>{tooltip.node.label}</bdi></p>
+          <p className="text-[var(--text-secondary)]">{nodeTypeLabel(tooltip.node)} {tooltip.node.subType ? `· ${subTypeLabel(tooltip.node.subType)}` : ''}</p>
+          {tooltip.node.tier && <p className="text-[var(--text-secondary)]">{t('tier')}: {tTiers.has(tooltip.node.tier) ? tTiers(tooltip.node.tier) : tooltip.node.tier.replace('_', ' ')}</p>}
           {tooltip.node.riskScore !== undefined && (
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-[var(--text-secondary)] text-xs">Risk:</span>
+              <span className="text-[var(--text-secondary)] text-xs">{t('risk')}:</span>
               <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
                 <div
                   className={`h-full rounded-full ${
@@ -614,9 +679,9 @@ export function IdentityGraph({
               <span className="text-[var(--text-secondary)] text-xs font-medium">{tooltip.node.riskScore}</span>
             </div>
           )}
-          {tooltip.node.tierViolation && <p className="text-[var(--color-critical)] font-medium text-xs mt-1">TIER VIOLATION</p>}
+          {tooltip.node.tierViolation && <p className="text-[color:color-mix(in_srgb,var(--color-critical)_70%,var(--text-primary))] font-medium text-xs mt-1">{t('tierViolation')}</p>}
           {tooltip.node.type === 'violation' && tooltip.node.properties?.severity && (
-            <p className="text-xs mt-1 capitalize"><span className="text-[var(--text-tertiary)]">Severity:</span> {tooltip.node.properties.severity}</p>
+            <p className="text-xs mt-1"><span className="text-[var(--text-secondary)]">{t('severity')}:</span> {tSev.has(tooltip.node.properties.severity) ? tSev(tooltip.node.properties.severity) : tooltip.node.properties.severity}</p>
           )}
         </div>
       )}

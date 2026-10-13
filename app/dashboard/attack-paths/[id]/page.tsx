@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useTranslations } from 'next-intl'
-import { ArrowLeft, Brain, Shield, Route, Zap, RefreshCw, ExternalLink } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
+import { ArrowLeft, ArrowRight, Brain, Shield, Route, Zap, RefreshCw, ExternalLink } from 'lucide-react'
 import { AttackPathGraph } from '@/components/dashboard/attack-path-graph'
 import type { AttackPathData } from '@/components/dashboard/attack-path-graph'
+import { useAppRole } from '@/lib/hooks/use-app-role'
 
 interface AttackPathDetail {
   id: string
@@ -26,12 +27,21 @@ interface AttackPathDetail {
   targetResource?: { id: string; name: string; adTier: string; type: string } | null
 }
 
+// Badge tones built from theme tokens so they keep AA contrast in light and dark themes.
+const TONE = {
+  critical: 'bg-[var(--color-critical-bg)] text-[color:color-mix(in_srgb,var(--color-critical)_60%,var(--text-primary))]',
+  high: 'bg-[var(--color-high-bg)] text-[color:color-mix(in_srgb,var(--color-high)_60%,var(--text-primary))]',
+  medium: 'bg-[var(--color-medium-bg)] text-[color:color-mix(in_srgb,var(--color-medium)_60%,var(--text-primary))]',
+  low: 'bg-[var(--color-low-bg)] text-[color:color-mix(in_srgb,var(--color-low)_60%,var(--text-primary))]',
+  info: 'bg-[var(--color-info-bg)] text-[color:color-mix(in_srgb,var(--color-info)_60%,var(--text-primary))]',
+  neutral: 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]',
+} as const
+
 function tierBadge(tier: string): string {
   switch (tier) {
-    case 'tier_0': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-    case 'tier_1': return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-    case 'tier_2': return 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400'
-    default: return 'bg-slate-100 text-slate-500'
+    case 'tier_0': return TONE.critical
+    case 'tier_1': return TONE.high
+    default: return TONE.neutral
   }
 }
 
@@ -59,6 +69,16 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
   const { id } = params
   const t = useTranslations('attackPaths')
   const tCommon = useTranslations('common')
+  const tTiers = useTranslations('tiers')
+  const tGate = useTranslations('roleGate')
+  const locale = useLocale()
+  const { can } = useAppRole()
+  // POST /api/attack-paths/[id]/narrate requires analyst
+  const canNarrate = can('analyst')
+  const tierLabel = (tier: string) => (tTiers.has(tier) ? tTiers(tier) : tier.replace('_', ' ').toUpperCase())
+  const statusLabel = (s: string) => (t.has(`statuses.${s}`) ? t(`statuses.${s}`) : s.replace(/_/g, ' '))
+  const techniqueDescription = (technique: string, fallback: string) =>
+    t.has(`techniques.${technique}`) ? t(`techniques.${technique}`) : fallback
   const [path, setPath] = useState<AttackPathDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [narrating, setNarrating] = useState(false)
@@ -72,15 +92,16 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
         if (res.ok) {
           setPath(await res.json())
         } else {
-          setError('Failed to load attack path')
+          setError(t('failedToLoadOne'))
         }
       } catch {
-        setError('Failed to load attack path')
+        setError(t('failedToLoadOne'))
       } finally {
         setLoading(false)
       }
     }
     fetchPath()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const requestNarration = async () => {
@@ -97,14 +118,14 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
   }
 
   if (loading) {
-    return <div className="flex justify-center py-16 text-[var(--text-tertiary)]">{tCommon('loading')}</div>
+    return <div className="flex justify-center py-16 text-[var(--text-secondary)]">{tCommon('loading')}</div>
   }
 
   if (error || !path) {
     return (
-      <div className="p-6 text-center text-red-500">
-        {error || 'Attack path not found'}
-        <Link href="/dashboard/attack-paths" className="block mt-3 text-[var(--color-info)]">{tCommon('back')}</Link>
+      <div role="alert" className="p-6 text-center text-[color:color-mix(in_srgb,var(--color-critical)_70%,var(--text-primary))]">
+        {error || t('notFound')}
+        <Link href="/dashboard/attack-paths" className="block mt-3 text-[color:color-mix(in_srgb,var(--color-info)_70%,var(--text-primary))]">{tCommon('back')}</Link>
       </div>
     )
   }
@@ -139,7 +160,7 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
   return (
     <div className="space-y-6">
       {/* Back link */}
-      <Link href="/dashboard/attack-paths" className="inline-flex items-center gap-2 text-body text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors">
+      <Link href="/dashboard/attack-paths" className="inline-flex items-center gap-2 text-body text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
         <ArrowLeft size={16} className="rtl:-scale-x-100" />
         {t('backToAttackPaths')}
       </Link>
@@ -147,38 +168,34 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-h2 font-bold text-[var(--text-primary)]">
-              {sourceNode?.name || 'Unknown'}
-            </h1>
-            <span className="text-[var(--text-tertiary)]">&rarr;</span>
-            <h1 className="text-h2 font-bold text-[var(--text-primary)]">
-              {targetNode?.name || 'Unknown'}
-            </h1>
-          </div>
+          <h1 className="text-h2 font-bold text-[var(--text-primary)] flex items-center gap-3 flex-wrap">
+            <bdi>{sourceNode?.name || t('unknown')}</bdi>
+            <ArrowRight size={20} aria-label={t('leadsTo')} className="text-[var(--text-secondary)] rtl:-scale-x-100" />
+            <bdi>{targetNode?.name || t('unknown')}</bdi>
+          </h1>
           <div className="flex items-center gap-3 mt-2">
             {sourceNode?.tier && (
               <span className={`text-micro px-2 py-0.5 rounded-full font-semibold ${tierBadge(sourceNode.tier)}`}>
-                {sourceNode.tier.replace('_', ' ').toUpperCase()}
+                {tierLabel(sourceNode.tier)}
               </span>
             )}
-            <span className="text-[var(--text-tertiary)]">&rarr;</span>
+            <ArrowRight size={14} aria-hidden className="text-[var(--text-secondary)] rtl:-scale-x-100" />
             {targetNode?.tier && (
               <span className={`text-micro px-2 py-0.5 rounded-full font-semibold ${tierBadge(targetNode.tier)}`}>
-                {targetNode.tier.replace('_', ' ').toUpperCase()}
+                {tierLabel(targetNode.tier)}
               </span>
             )}
           </div>
         </div>
         <div className="flex gap-3 items-center">
           <div className="text-center px-4">
-            <p className="text-micro text-[var(--text-tertiary)] uppercase">{t('riskScore')}</p>
-            <p className={`text-h2 font-bold ${path.riskScore >= 80 ? 'text-[var(--color-critical)]' : path.riskScore >= 60 ? 'text-[var(--color-warning)]' : 'text-[var(--text-primary)]'}`}>
+            <p className="text-micro text-[var(--text-secondary)] uppercase">{t('riskScore')}</p>
+            <p className={`text-h2 font-bold ${path.riskScore >= 80 ? 'text-[color:color-mix(in_srgb,var(--color-critical)_70%,var(--text-primary))]' : path.riskScore >= 60 ? 'text-[color:color-mix(in_srgb,var(--color-high)_70%,var(--text-primary))]' : 'text-[var(--text-primary)]'}`}>
               {path.riskScore}
             </p>
           </div>
           <div className="text-center px-4 border-s border-[var(--border-default)]">
-            <p className="text-micro text-[var(--text-tertiary)] uppercase">{t('length')}</p>
+            <p className="text-micro text-[var(--text-secondary)] uppercase">{t('length')}</p>
             <p className="text-h2 font-bold text-[var(--text-primary)]">{path.pathLength}</p>
           </div>
         </div>
@@ -187,16 +204,16 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
       {/* Stats row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="p-3 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]">
-          <div className="flex items-center gap-2 text-micro text-[var(--text-tertiary)]">
+          <div className="flex items-center gap-2 text-micro text-[var(--text-secondary)]">
             <Zap size={14} />
             {t('technique')}
           </div>
-          <p className="text-body font-semibold text-[var(--text-primary)] mt-1">{path.attackTechnique}</p>
+          <p className="text-body font-semibold text-[var(--text-primary)] mt-1"><bdi>{path.attackTechnique}</bdi></p>
         </div>
         <div className="p-3 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]">
-          <div className="flex items-center gap-2 text-micro text-[var(--text-tertiary)]">
-            <Shield size={14} />
-            MITRE ATT&CK
+          <div className="flex items-center gap-2 text-micro text-[var(--text-secondary)]">
+            <Shield size={14} aria-hidden />
+            {t('mitreAttack')}
           </div>
           <p className="text-body font-mono font-semibold text-[var(--text-primary)] mt-1">
             {path.mitreId ? (
@@ -204,28 +221,28 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
                 href={`https://attack.mitre.org/techniques/${path.mitreId.replace('.', '/')}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-[var(--color-info)] hover:underline inline-flex items-center gap-1"
+                className="text-[color:color-mix(in_srgb,var(--color-info)_70%,var(--text-primary))] hover:underline inline-flex items-center gap-1"
               >
                 {path.mitreId}
-                <ExternalLink size={11} />
+                <ExternalLink size={11} aria-hidden />
               </a>
-            ) : 'N/A'}
+            ) : tCommon('na')}
           </p>
         </div>
         <div className="p-3 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]">
-          <div className="flex items-center gap-2 text-micro text-[var(--text-tertiary)]">
+          <div className="flex items-center gap-2 text-micro text-[var(--text-secondary)]">
             <Route size={14} />
             {t('statusCol')}
           </div>
-          <p className="text-body font-semibold capitalize text-[var(--text-primary)] mt-1">{path.status}</p>
+          <p className="text-body font-semibold text-[var(--text-primary)] mt-1">{statusLabel(path.status)}</p>
         </div>
         <div className="p-3 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]">
-          <div className="flex items-center gap-2 text-micro text-[var(--text-tertiary)]">
+          <div className="flex items-center gap-2 text-micro text-[var(--text-secondary)]">
             <Route size={14} />
             {t('discovered')}
           </div>
           <p className="text-body font-semibold text-[var(--text-primary)] mt-1">
-            {new Date(path.discoveredAt).toLocaleDateString()}
+            {new Date(path.discoveredAt).toLocaleDateString(locale)}
           </p>
         </div>
       </div>
@@ -243,8 +260,13 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
 
         {/* Step-by-step walkthrough (1/3 width) */}
         <div className="lg:col-span-1">
-          <h2 className="text-h4 font-semibold text-[var(--text-primary)] mb-3">Step-by-Step Walkthrough</h2>
-          <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] divide-y divide-[var(--border-default)] max-h-[400px] overflow-y-auto">
+          <h2 id="ap-walkthrough" className="text-h4 font-semibold text-[var(--text-primary)] mb-3">{t('walkthrough')}</h2>
+          <div
+            className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] divide-y divide-[var(--border-default)] max-h-[400px] overflow-y-auto"
+            tabIndex={0}
+            role="region"
+            aria-labelledby="ap-walkthrough"
+          >
             {(path.pathEdges as any[]).map((edge: any, i: number) => {
               const from = (path.pathNodes as any[])[i]
               const to = (path.pathNodes as any[])[i + 1]
@@ -257,44 +279,49 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
                   : null
 
               return (
-                <button
+                <div
                   key={i}
-                  onClick={() => setSelectedStep(isExpanded ? null : i)}
-                  className={`w-full text-start px-4 py-3 transition-colors ${isExpanded ? 'bg-[var(--bg-secondary)]' : 'hover:bg-[var(--bg-secondary)]'}`}
+                  className={`px-4 py-3 transition-colors ${isExpanded ? 'bg-[var(--bg-secondary)]' : 'hover:bg-[var(--bg-secondary)]'}`}
                 >
                   {/* Step header */}
-                  <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStep(isExpanded ? null : i)}
+                    aria-expanded={isExpanded}
+                    className="w-full text-start flex items-center gap-3"
+                  >
                     <span className="flex-shrink-0 w-7 h-7 rounded-full bg-[var(--color-info)] text-white text-micro font-bold flex items-center justify-center">
                       {i + 1}
                     </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-body font-medium text-[var(--text-primary)] truncate">
-                        {from?.name} → {to?.name}
-                      </p>
-                      <p className="text-micro text-[var(--color-warning)] font-semibold">{edge.technique}</p>
-                    </div>
-                  </div>
+                    <span className="flex-1 min-w-0 block">
+                      <span className="flex items-center gap-1 text-body font-medium text-[var(--text-primary)] min-w-0">
+                        <bdi className="truncate">{from?.name}</bdi>
+                        <ArrowRight size={12} aria-hidden className="flex-shrink-0 text-[var(--text-secondary)] rtl:-scale-x-100" />
+                        <bdi className="truncate">{to?.name}</bdi>
+                      </span>
+                      <span className="block text-micro text-[color:color-mix(in_srgb,var(--color-high)_60%,var(--text-primary))] font-semibold"><bdi>{edge.technique}</bdi></span>
+                    </span>
+                  </button>
 
                   {/* Expanded detail */}
                   {isExpanded && (
                     <div className="mt-3 ms-10 space-y-2">
                       <div>
-                        <p className="text-micro text-[var(--text-tertiary)] uppercase tracking-wide">Edge Label</p>
+                        <p className="text-micro text-[var(--text-secondary)] uppercase tracking-wide">{t('edgeLabel')}</p>
                         <p className="text-caption text-[var(--text-secondary)]">{edge.label || edge.type}</p>
                       </div>
 
                       {mitreUrl && (
                         <div>
-                          <p className="text-micro text-[var(--text-tertiary)] uppercase tracking-wide">MITRE ATT&CK</p>
+                          <p className="text-micro text-[var(--text-secondary)] uppercase tracking-wide">{t('mitreAttack')}</p>
                           <a
                             href={mitreUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-caption text-[var(--color-info)] hover:underline inline-flex items-center gap-1"
-                            onClick={e => e.stopPropagation()}
+                            className="text-caption text-[color:color-mix(in_srgb,var(--color-info)_70%,var(--text-primary))] hover:underline inline-flex items-center gap-1"
                           >
                             {edge.mitreId || path.mitreId}
-                            <ExternalLink size={10} />
+                            <ExternalLink size={10} aria-hidden />
                           </a>
                         </div>
                       )}
@@ -302,16 +329,16 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
                       {info && (
                         <>
                           <div>
-                            <p className="text-micro text-[var(--text-tertiary)] uppercase tracking-wide">Description</p>
-                            <p className="text-caption text-[var(--text-secondary)]">{info.description}</p>
+                            <p className="text-micro text-[var(--text-secondary)] uppercase tracking-wide">{t('descriptionLabel')}</p>
+                            <p className="text-caption text-[var(--text-secondary)]">{techniqueDescription(edge.technique, info.description)}</p>
                           </div>
                           <div>
-                            <p className="text-micro text-[var(--text-tertiary)] uppercase tracking-wide">Attacker Tools</p>
+                            <p className="text-micro text-[var(--text-secondary)] uppercase tracking-wide">{t('attackerTools')}</p>
                             <div className="flex flex-wrap gap-1 mt-0.5">
                               {info.tools.map(tool => (
-                                <span key={tool} className="text-micro px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-default)]">
+                                <bdi key={tool} className="text-micro px-1.5 py-0.5 rounded bg-[var(--bg-secondary)] text-[var(--text-secondary)] border border-[var(--border-default)]">
                                   {tool}
-                                </span>
+                                </bdi>
                               ))}
                             </div>
                           </div>
@@ -322,24 +349,24 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
                       <div className="flex gap-4">
                         {from?.tier && (
                           <div>
-                            <p className="text-micro text-[var(--text-tertiary)]">From Tier</p>
+                            <p className="text-micro text-[var(--text-secondary)]">{t('fromTier')}</p>
                             <span className={`text-micro px-1.5 py-0.5 rounded font-semibold ${tierBadge(from.tier)}`}>
-                              {from.tier.replace('_', ' ').toUpperCase()}
+                              {tierLabel(from.tier)}
                             </span>
                           </div>
                         )}
                         {to?.tier && (
                           <div>
-                            <p className="text-micro text-[var(--text-tertiary)]">To Tier</p>
+                            <p className="text-micro text-[var(--text-secondary)]">{t('toTier')}</p>
                             <span className={`text-micro px-1.5 py-0.5 rounded font-semibold ${tierBadge(to.tier)}`}>
-                              {to.tier.replace('_', ' ').toUpperCase()}
+                              {tierLabel(to.tier)}
                             </span>
                           </div>
                         )}
                       </div>
                     </div>
                   )}
-                </button>
+                </div>
               )
             })}
           </div>
@@ -350,16 +377,18 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
       <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]">
         <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-default)]">
           <div className="flex items-center gap-2">
-            <Brain size={16} className="text-[var(--color-info)]" />
+            <Brain size={16} aria-hidden className="text-[color:color-mix(in_srgb,var(--color-info)_70%,var(--text-primary))]" />
             <h2 className="text-body font-semibold text-[var(--text-primary)]">{t('aiNarrative')}</h2>
           </div>
           {!path.aiNarrative && (
             <button
-              onClick={requestNarration}
+              onClick={canNarrate ? requestNarration : undefined}
               disabled={narrating}
-              className="flex items-center gap-2 px-3 py-1.5 text-micro bg-[var(--color-info)] text-white rounded-[var(--radius-badge)] hover:opacity-90 transition-opacity disabled:opacity-50"
+              aria-disabled={!canNarrate || undefined}
+              title={canNarrate ? undefined : tGate('requiresRole', { role: tGate('roles.analyst') })}
+              className="flex items-center gap-2 px-3 py-1.5 text-micro bg-[var(--color-info)] text-white rounded-[var(--radius-badge)] hover:opacity-90 transition-opacity disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
             >
-              <RefreshCw size={12} className={narrating ? 'animate-spin' : ''} />
+              <RefreshCw size={12} aria-hidden className={narrating ? 'animate-spin' : ''} />
               {narrating ? t('generating') : t('generateNarrative')}
             </button>
           )}
@@ -370,7 +399,7 @@ export default function AttackPathDetailPage({ params }: { params: { id: string 
               {path.aiNarrative}
             </p>
           ) : (
-            <p className="text-body text-[var(--text-tertiary)] italic">{t('noNarrativeYet')}</p>
+            <p className="text-body text-[var(--text-secondary)] italic">{canNarrate ? t('noNarrativeYet') : t('noNarrativeViewer')}</p>
           )}
         </div>
       </div>

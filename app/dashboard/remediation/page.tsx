@@ -2,10 +2,12 @@
 
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useLocale, useTranslations } from 'next-intl'
 import {
-  Shield, ShieldAlert, CheckCircle2, XCircle, Clock, Play,
-  ChevronDown, ChevronRight, AlertTriangle, Loader2, Zap,
+  Shield, ShieldAlert, CheckCircle2, XCircle, Clock,
+  ChevronDown, ChevronRight, Loader2, Zap,
 } from 'lucide-react'
+import { useAppRole } from '@/lib/hooks/use-app-role'
 
 interface RemediationAction {
   priority: number
@@ -35,21 +37,26 @@ interface Plan {
   inputParams?: any
 }
 
-const STATUS_STYLES: Record<string, { icon: any; color: string; bg: string; label: string }> = {
-  draft: { icon: Clock, color: 'text-amber-500', bg: 'bg-amber-500/10', label: 'Pending Approval' },
-  approved: { icon: CheckCircle2, color: 'text-blue-500', bg: 'bg-blue-500/10', label: 'Approved' },
-  completed: { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-500/10', label: 'Completed' },
-  rejected: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-500/10', label: 'Rejected' },
-}
-
-const ACTION_TYPE_LABELS: Record<string, string> = {
-  revoke_entitlement: 'Revoke Access',
-  reclassify_tier: 'Reclassify Tier',
-  disable_identity: 'Disable Identity',
-  flag_for_review: 'Flag for Review',
+// Status tones built from theme tokens so they keep AA contrast in light and dark themes.
+const tone = (c: string) => `bg-[var(--color-${c}-bg)] text-[color:color-mix(in_srgb,var(--color-${c})_60%,var(--text-primary))]`
+const STATUS_STYLES: Record<string, { icon: any; cls: string }> = {
+  draft: { icon: Clock, cls: tone('medium') },
+  approved: { icon: CheckCircle2, cls: tone('info') },
+  completed: { icon: CheckCircle2, cls: tone('low') },
+  rejected: { icon: XCircle, cls: tone('critical') },
 }
 
 export default function RemediationPage() {
+  const t = useTranslations('remediation')
+  const tTiers = useTranslations('tiers')
+  const tCommon = useTranslations('common')
+  const tGate = useTranslations('roleGate')
+  const locale = useLocale()
+  const { can } = useAppRole()
+  // POST /api/remediation requires analyst; approving/rejecting (PUT) requires CISO
+  const canGenerate = can('analyst')
+  const canDecide = can('ciso')
+  const tierLabel = (tier: string) => (tTiers.has(tier) ? tTiers(tier) : tier)
   const queryClient = useQueryClient()
   const [expandedPlan, setExpandedPlan] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
@@ -113,44 +120,50 @@ export default function RemediationPage() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-title text-[var(--text-primary)]">
-            <ShieldAlert className="inline-block w-6 h-6 me-2 text-[var(--accent)]" />
-            Remediation Queue
+            <ShieldAlert aria-hidden className="inline-block w-6 h-6 me-2 text-[color:color-mix(in_srgb,var(--color-info)_70%,var(--text-primary))]" />
+            {t('title')}
           </h2>
-          <p className="text-sm text-[var(--text-tertiary)] mt-1">
-            Review and approve tier violation remediation proposals
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            {t('subtitle')}
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           {pendingCount > 0 && (
-            <span className="px-3 py-1 rounded-full bg-amber-500/10 text-amber-500 text-sm font-medium">
-              {pendingCount} pending approval
+            <span className={`px-3 py-1 rounded-full text-sm font-medium ${tone('medium')}`}>
+              {t('pendingCount', { count: pendingCount })}
             </span>
           )}
           <button
-            onClick={() => generateMutation.mutate()}
+            onClick={canGenerate ? () => generateMutation.mutate() : undefined}
             disabled={generateMutation.isPending}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+            aria-disabled={!canGenerate || undefined}
+            title={canGenerate ? undefined : tGate('requiresRole', { role: tGate('roles.analyst') })}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--color-info)] text-white text-sm font-medium hover:opacity-90 disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
           >
             {generateMutation.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
+              <Loader2 aria-hidden className="w-4 h-4 animate-spin" />
             ) : (
-              <Zap className="w-4 h-4" />
+              <Zap aria-hidden className="w-4 h-4" />
             )}
-            Scan & Generate Proposals
+            {t('generate')}
           </button>
         </div>
       </div>
 
       {/* Results of generation */}
       {generateMutation.isSuccess && (
-        <div className="p-4 rounded-lg border border-emerald-500/30 bg-emerald-500/5">
-          <p className="text-sm text-emerald-600">
-            Scan complete: {generateMutation.data.totalViolations} violations found,{' '}
-            {generateMutation.data.proposedActions} actions proposed.
+        <div role="status" className="p-4 rounded-lg border border-[var(--color-low)]/30 bg-[var(--color-low-bg)]">
+          <p className="text-sm text-[var(--text-primary)]">
+            {t('scanComplete', { violations: generateMutation.data.totalViolations ?? 0, actions: generateMutation.data.proposedActions ?? 0 })}
           </p>
+        </div>
+      )}
+      {generateMutation.isError && (
+        <div role="alert" className="p-4 rounded-lg border border-[var(--color-critical)]/30 bg-[var(--color-critical-bg)]">
+          <p className="text-sm text-[var(--text-primary)]">{t('generateFailed')}</p>
         </div>
       )}
 
@@ -161,10 +174,10 @@ export default function RemediationPage() {
           ))}
         </div>
       ) : plans.length === 0 ? (
-        <div className="text-center py-16 text-[var(--text-tertiary)]">
-          <Shield className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="text-lg font-medium">No remediation plans yet</p>
-          <p className="text-sm mt-1">Click "Scan & Generate" to detect tier violations</p>
+        <div className="text-center py-16 text-[var(--text-secondary)]">
+          <Shield aria-hidden className="w-12 h-12 mx-auto mb-3 opacity-30" />
+          <p className="text-lg font-medium">{t('emptyTitle')}</p>
+          <p className="text-sm mt-1">{canGenerate ? t('emptyHint') : t('emptyHintViewer')}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -177,49 +190,50 @@ export default function RemediationPage() {
             return (
               <div
                 key={plan.id}
-                className="rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] overflow-hidden"
+                className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-secondary)] overflow-hidden"
               >
                 {/* Plan Header */}
                 <button
                   onClick={() => setExpandedPlan(isExpanded ? null : plan.id)}
-                  className="w-full flex items-center justify-between p-4 text-start hover:bg-[var(--bg-tertiary)] transition-colors"
+                  aria-expanded={isExpanded}
+                  className="w-full flex items-center justify-between gap-2 p-4 text-start hover:bg-[var(--bg-tertiary)] transition-colors"
                 >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className={`p-2 rounded-lg ${style.bg}`}>
-                      <Icon className={`w-5 h-5 ${style.color}`} />
+                  <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap sm:flex-nowrap">
+                    <div className={`p-2 rounded-lg ${style.cls}`}>
+                      <Icon aria-hidden className="w-5 h-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${style.bg} ${style.color} font-medium`}>
-                          {style.label}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${style.cls}`}>
+                          {t.has(`statuses.${plan.status}`) ? t(`statuses.${plan.status}`) : plan.status}
                         </span>
-                        <span className="text-xs text-[var(--text-tertiary)]">
-                          {new Date(plan.generatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        <span className="text-xs text-[var(--text-secondary)]">
+                          {new Date(plan.generatedAt).toLocaleDateString(locale, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
                       <p className="text-sm text-[var(--text-primary)] mt-1 truncate">
-                        {plan.executiveSummary}
+                        <bdi>{plan.executiveSummary}</bdi>
                       </p>
                     </div>
-                    <div className="flex items-center gap-4 text-xs text-[var(--text-tertiary)]">
-                      <span>{actions.length} actions</span>
-                      <span className="text-emerald-500">-{plan.projectedRiskReduction}% risk</span>
+                    <div className="flex items-center gap-4 text-xs text-[var(--text-secondary)]">
+                      <span>{t('actionsCount', { count: actions.length })}</span>
+                      <span className="font-medium text-[color:color-mix(in_srgb,var(--color-low)_60%,var(--text-primary))]">{t('riskReduction', { pct: plan.projectedRiskReduction })}</span>
                     </div>
                   </div>
-                  {isExpanded ? <ChevronDown className="w-5 h-5 text-[var(--text-tertiary)]" /> : <ChevronRight className="w-5 h-5 text-[var(--text-tertiary)]" />}
+                  {isExpanded ? <ChevronDown aria-hidden className="w-5 h-5 text-[var(--text-secondary)]" /> : <ChevronRight aria-hidden className="w-5 h-5 text-[var(--text-secondary)] rtl:-scale-x-100" />}
                 </button>
 
                 {/* Expanded Actions */}
                 {isExpanded && (
-                  <div className="border-t border-[var(--border-primary)] p-4 space-y-3">
+                  <div className="border-t border-[var(--border-default)] p-4 space-y-3">
                     {/* Quick Wins */}
                     {(plan.quickWins || []).length > 0 && (
-                      <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-                        <p className="text-xs font-semibold text-emerald-600 mb-1">
-                          Quick Wins (low effort, high impact)
+                      <div className="p-3 rounded-lg bg-[var(--color-low-bg)] border border-[var(--color-low)]/30">
+                        <p className="text-xs font-semibold text-[var(--text-primary)] mb-1">
+                          {t('quickWins')}
                         </p>
                         {(plan.quickWins as RemediationAction[]).map((qw, i) => (
-                          <p key={i} className="text-xs text-emerald-700">{qw.description}</p>
+                          <p key={i} className="text-xs text-[var(--text-secondary)]"><bdi>{qw.description}</bdi></p>
                         ))}
                       </div>
                     )}
@@ -229,28 +243,28 @@ export default function RemediationPage() {
                       {actions.map((action, i) => (
                         <div
                           key={i}
-                          className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)]"
+                          className="flex items-start gap-3 p-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)]"
                         >
-                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-tertiary)] flex items-center justify-center text-xs font-bold">
+                          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] flex items-center justify-center text-xs font-bold">
                             {action.priority}
                           </span>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs px-2 py-0.5 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] font-medium">
-                                {ACTION_TYPE_LABELS[action.actionType] || action.actionType}
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${tone('info')}`}>
+                                {t.has(`actionTypes.${action.actionType}`) ? t(`actionTypes.${action.actionType}`) : action.actionType.replace(/_/g, ' ')}
                               </span>
-                              <span className="text-xs text-[var(--text-tertiary)]">
-                                {action.currentTier} → {action.effectiveTier}
+                              <span className="text-xs text-[var(--text-secondary)] inline-flex items-center gap-1">
+                                {t('tierChange', { from: tierLabel(action.currentTier), to: tierLabel(action.effectiveTier) })}
                               </span>
-                              <span className="text-xs text-[var(--text-tertiary)]">
-                                Risk: {action.riskScore}
+                              <span className="text-xs text-[var(--text-secondary)]">
+                                {t('riskValue', { score: action.riskScore })}
                               </span>
                             </div>
                             <p className="text-sm font-medium text-[var(--text-primary)] mt-1">
-                              {action.description}
+                              <bdi>{action.description}</bdi>
                             </p>
-                            <p className="text-xs text-[var(--text-tertiary)] mt-0.5">
-                              {action.justification}
+                            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                              <bdi>{action.justification}</bdi>
                             </p>
                           </div>
                         </div>
@@ -258,43 +272,49 @@ export default function RemediationPage() {
                     </div>
 
                     {/* Approval Buttons */}
-                    {plan.status === 'draft' && (
-                      <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border-primary)]">
+                    {plan.status === 'draft' && !canDecide && (
+                      <p className="pt-3 border-t border-[var(--border-default)] text-xs text-[var(--text-secondary)]">
+                        {t('awaitingCiso')}
+                      </p>
+                    )}
+                    {plan.status === 'draft' && canDecide && (
+                      <div className="flex items-center justify-end gap-3 flex-wrap pt-3 border-t border-[var(--border-default)]">
                         <button
                           onClick={() => setShowRejectDialog(plan.id)}
-                          className="px-4 py-2 rounded-lg border border-red-500/30 text-red-500 text-sm font-medium hover:bg-red-500/5"
+                          className="px-4 py-2 rounded-lg border border-[var(--color-critical)]/40 text-[color:color-mix(in_srgb,var(--color-critical)_70%,var(--text-primary))] text-sm font-medium hover:bg-[var(--color-critical-bg)]"
                         >
-                          <XCircle className="w-4 h-4 inline-block me-1" />
-                          Reject
+                          <XCircle aria-hidden className="w-4 h-4 inline-block me-1" />
+                          {t('reject')}
                         </button>
                         <button
                           onClick={() => {
-                            if (confirm(`Approve and execute ${actions.length} remediation actions? This cannot be undone.`)) {
+                            if (confirm(t('approveConfirm', { count: actions.length }))) {
                               approveMutation.mutate(plan.id)
                             }
                           }}
                           disabled={approveMutation.isPending}
-                          className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50"
+                          className="px-4 py-2 rounded-lg bg-emerald-700 text-white text-sm font-medium hover:bg-emerald-800 disabled:opacity-50"
                         >
                           {approveMutation.isPending ? (
-                            <Loader2 className="w-4 h-4 inline-block me-1 animate-spin" />
+                            <Loader2 aria-hidden className="w-4 h-4 inline-block me-1 animate-spin" />
                           ) : (
-                            <CheckCircle2 className="w-4 h-4 inline-block me-1" />
+                            <CheckCircle2 aria-hidden className="w-4 h-4 inline-block me-1" />
                           )}
-                          Approve & Execute
+                          {t('approve')}
                         </button>
                       </div>
                     )}
 
                     {/* Reject Dialog */}
-                    {showRejectDialog === plan.id && (
-                      <div className="p-4 rounded-lg border border-red-500/30 bg-red-500/5 space-y-3">
-                        <p className="text-sm font-medium text-red-600">Reject this remediation plan</p>
+                    {canDecide && showRejectDialog === plan.id && (
+                      <div className="p-4 rounded-lg border border-[var(--color-critical)]/30 bg-[var(--color-critical-bg)] space-y-3">
+                        <label htmlFor={`reject-${plan.id}`} className="block text-sm font-medium text-[var(--text-primary)]">{t('rejectTitle')}</label>
                         <textarea
+                          id={`reject-${plan.id}`}
                           value={rejectReason}
                           onChange={e => setRejectReason(e.target.value)}
-                          placeholder="Reason for rejection (optional)..."
-                          className="w-full p-2 rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-sm resize-none"
+                          placeholder={t('rejectPlaceholder')}
+                          className="w-full p-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm resize-none"
                           rows={2}
                         />
                         <div className="flex gap-2 justify-end">
@@ -302,14 +322,14 @@ export default function RemediationPage() {
                             onClick={() => { setShowRejectDialog(null); setRejectReason('') }}
                             className="px-3 py-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                           >
-                            Cancel
+                            {tCommon('cancel')}
                           </button>
                           <button
                             onClick={() => rejectMutation.mutate({ planId: plan.id, reason: rejectReason })}
                             disabled={rejectMutation.isPending}
-                            className="px-3 py-1.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                            className="px-3 py-1.5 rounded-lg bg-red-700 text-white text-sm font-medium hover:bg-red-800 disabled:opacity-50"
                           >
-                            Confirm Reject
+                            {t('confirmReject')}
                           </button>
                         </div>
                       </div>

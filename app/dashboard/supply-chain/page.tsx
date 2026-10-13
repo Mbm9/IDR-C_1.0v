@@ -35,7 +35,6 @@ interface SupplyChainDetail {
 
 export default function SupplyChainPage() {
   const t = useTranslations('supplyChain')
-  const tCommon = useTranslations('common')
 
   const [highRisk, setHighRisk] = useState<HighRiskOwner[]>([])
   const [loading, setLoading] = useState(true)
@@ -128,7 +127,7 @@ export default function SupplyChainPage() {
         <div className="p-4 border-b border-[var(--border-default)]">
           <h3 className="text-sm font-medium text-[var(--text-secondary)]">{t('keyPersonRisk')}</h3>
         </div>
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label={t('keyPersonRisk')} className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border-default)]">
@@ -144,22 +143,31 @@ export default function SupplyChainPage() {
               {highRisk.map((item) => (
                 <tr
                   key={item.owner.id}
-                  className={`border-b border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] cursor-pointer ${selectedOwner === item.owner.id ? 'bg-[var(--bg-secondary)]' : ''}`}
+                  className={`border-b border-[var(--border-default)] hover:bg-[var(--bg-secondary)] cursor-pointer ${selectedOwner === item.owner.id ? 'bg-[var(--bg-secondary)]' : ''}`}
                   onClick={() => loadSupplyChain(item.owner.id)}
                 >
-                  <td className="py-3 px-4 text-[var(--text-primary)] font-medium">{item.owner.name}</td>
-                  <td className="py-3 px-4 text-[var(--text-secondary)]">{item.owner.department || '-'}</td>
+                  <td className="py-3 px-4 text-[var(--text-primary)] font-medium">
+                    <button
+                      type="button"
+                      aria-pressed={selectedOwner === item.owner.id}
+                      onClick={(e) => { e.stopPropagation(); loadSupplyChain(item.owner.id) }}
+                      className="text-start hover:text-[color:color-mix(in_srgb,var(--color-info)_70%,var(--text-primary))] hover:underline"
+                    >
+                      <bdi>{item.owner.name}</bdi>
+                    </button>
+                  </td>
+                  <td className="py-3 px-4 text-[var(--text-secondary)]"><bdi>{item.owner.department || '-'}</bdi></td>
                   <td className="py-3 px-4 text-[var(--text-primary)] font-semibold">{item.nhiCount}</td>
                   <td className="py-3 px-4">
-                    <span className={`font-medium ${item.criticalResourceCount > 0 ? 'text-[var(--color-critical)]' : 'text-[var(--text-primary)]'}`}>
+                    <span className="font-medium" style={{ color: item.criticalResourceCount > 0 ? 'color-mix(in srgb, var(--color-critical) 70%, var(--text-primary))' : 'var(--text-primary)' }}>
                       {item.criticalResourceCount}
                     </span>
                   </td>
                   <td className="py-3 px-4">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
                       item.successionPlan
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                        : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
+                        ? 'bg-[var(--color-low-bg)] text-[color:color-mix(in_srgb,var(--color-low)_60%,var(--text-primary))]'
+                        : 'bg-[var(--color-critical-bg)] text-[color:color-mix(in_srgb,var(--color-critical)_60%,var(--text-primary))]'
                     }`}>
                       {item.successionPlan ? t('hasPlan') : t('noPlan')}
                     </span>
@@ -168,7 +176,7 @@ export default function SupplyChainPage() {
                     <button
                       onClick={(e) => { e.stopPropagation(); simulateDeparture(item.owner.id) }}
                       disabled={simulatingDeparture}
-                      className="px-3 py-1 text-xs bg-[var(--color-high)] text-white rounded hover:opacity-90 disabled:opacity-50"
+                      className="px-3 py-1 text-xs bg-[color:color-mix(in_srgb,var(--color-high)_80%,black)] text-white rounded hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
                     >
                       {t('simulateDeparture')}
                     </button>
@@ -186,15 +194,15 @@ export default function SupplyChainPage() {
 
       {/* Supply chain detail */}
       {detailLoading && (
-        <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-12 text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-[var(--color-info)] border-t-transparent rounded-full mx-auto" />
+        <div role="status" className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-12 text-center">
+          <div aria-hidden className="animate-spin h-8 w-8 border-4 border-[var(--color-info)] border-t-transparent rounded-full mx-auto" />
         </div>
       )}
 
       {supplyDetail && !detailLoading && (
         <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
           <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4">
-            {t('supplyChainFor')} {supplyDetail.owner.name}
+            {t('supplyChainFor')} <bdi>{supplyDetail.owner.name}</bdi>
           </h3>
           <SupplyChainTree owner={supplyDetail.owner} ownedNhis={supplyDetail.ownedNhis} />
         </div>
@@ -203,8 +211,8 @@ export default function SupplyChainPage() {
       {/* Departure impact */}
       {departureImpact && (
         <div className="bg-[var(--color-critical-bg)] border border-[var(--color-critical)] rounded-xl p-6">
-          <h3 className="text-lg font-semibold text-[var(--color-critical)] mb-3">
-            {t('departureImpact')}: {departureImpact.departingIdentity.name}
+          <h3 className="text-lg font-semibold text-[color:color-mix(in_srgb,var(--color-critical)_70%,var(--text-primary))] mb-3">
+            {t('departureImpact')}: <bdi>{departureImpact.departingIdentity.name}</bdi>
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
@@ -216,7 +224,7 @@ export default function SupplyChainPage() {
               <p className="text-sm text-[var(--text-secondary)]">{t('affectedResources')}</p>
             </div>
             <div>
-              <p className="text-2xl font-bold text-[var(--color-critical)]">{departureImpact.impact.criticalResourceCount}</p>
+              <p className="text-2xl font-bold text-[color:color-mix(in_srgb,var(--color-critical)_70%,var(--text-primary))]">{departureImpact.impact.criticalResourceCount}</p>
               <p className="text-sm text-[var(--text-secondary)]">{t('criticalImpacted')}</p>
             </div>
           </div>
@@ -224,7 +232,7 @@ export default function SupplyChainPage() {
             <p className="text-sm font-medium text-[var(--text-primary)]">{t('suggestedActions')}</p>
             <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1">
               {departureImpact.recommendations.suggestedActions.map((action, i) => (
-                <li key={i}>{action}</li>
+                <li key={i}><bdi>{action}</bdi></li>
               ))}
             </ul>
           </div>
@@ -233,9 +241,9 @@ export default function SupplyChainPage() {
               <p className="text-sm font-medium text-[var(--text-primary)] mb-1">{t('transferCandidates')}</p>
               <div className="flex flex-wrap gap-2">
                 {departureImpact.recommendations.transferCandidates.map(c => (
-                  <span key={c.id} className="text-xs bg-[var(--bg-primary)] px-3 py-1.5 rounded-lg border border-[var(--border-default)]">
+                  <bdi key={c.id} className="text-xs bg-[var(--bg-primary)] text-[var(--text-primary)] px-3 py-1.5 rounded-lg border border-[var(--border-default)]">
                     {c.name}
-                  </span>
+                  </bdi>
                 ))}
               </div>
             </div>

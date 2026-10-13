@@ -1,8 +1,27 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { Fragment, useState, useEffect, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { MetricCard } from '@/components/ui/metric-card'
+import { useAppRole } from '@/lib/hooks/use-app-role'
+
+// Badge tones built from theme tokens so they keep AA contrast in light and dark themes.
+const TONE = {
+  critical: 'bg-[var(--color-critical-bg)] text-[color:color-mix(in_srgb,var(--color-critical)_60%,var(--text-primary))]',
+  high: 'bg-[var(--color-high-bg)] text-[color:color-mix(in_srgb,var(--color-high)_60%,var(--text-primary))]',
+  medium: 'bg-[var(--color-medium-bg)] text-[color:color-mix(in_srgb,var(--color-medium)_60%,var(--text-primary))]',
+  low: 'bg-[var(--color-low-bg)] text-[color:color-mix(in_srgb,var(--color-low)_60%,var(--text-primary))]',
+  info: 'bg-[var(--color-info-bg)] text-[color:color-mix(in_srgb,var(--color-info)_60%,var(--text-primary))]',
+  neutral: 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]',
+} as const
+const riskText = (score: number) =>
+  `color-mix(in srgb, var(--color-${score >= 80 ? 'critical' : score >= 60 ? 'high' : 'medium'}) 60%, var(--text-primary))`
+
+const METHOD_KEYS: Record<string, string> = {
+  acl_analysis: 'aclAnalysis', delegation_chain: 'delegationChain', nested_group: 'nestedGroup',
+  svc_ownership: 'svcOwnership', gpo_rights: 'gpoRights',
+}
 
 interface ShadowAdmin {
   id: string
@@ -31,6 +50,12 @@ interface ShadowData {
 export default function ShadowAdminsPage() {
   const t = useTranslations('shadowAdmins')
   const tCommon = useTranslations('common')
+  const tGate = useTranslations('roleGate')
+  const { can } = useAppRole()
+  // POST /api/shadow-admins and PATCH /api/shadow-admins/[id] require analyst
+  const canAct = can('analyst')
+  const methodLabel = (m: string) => (METHOD_KEYS[m] ? t(METHOD_KEYS[m]) : m.replace(/_/g, ' '))
+  const statusLabel = (s: string) => (t.has(`statuses.${s}`) ? t(`statuses.${s}`) : s.replace(/_/g, ' '))
 
   const [data, setData] = useState<ShadowData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -94,12 +119,14 @@ export default function ShadowAdminsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
         <button
-          onClick={runScan}
+          onClick={canAct ? runScan : undefined}
           disabled={scanning}
-          className="px-4 py-2 bg-[var(--color-info)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
+          aria-disabled={!canAct || undefined}
+          title={canAct ? undefined : tGate('requiresRole', { role: tGate('roles.analyst') })}
+          className="px-4 py-2 bg-[var(--color-info)] text-white rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50 aria-disabled:opacity-50 aria-disabled:cursor-not-allowed"
         >
           {scanning ? t('scanning') : t('runScan')}
         </button>
@@ -120,8 +147,8 @@ export default function ShadowAdminsPage() {
           <div className="flex flex-wrap gap-3">
             {Object.entries(summary.byMethod).map(([method, count]) => (
               <div key={method} className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-secondary)] rounded-lg">
-                <span className="text-sm text-[var(--text-primary)] font-medium">{method.replace(/_/g, ' ')}</span>
-                <span className="text-xs bg-[var(--color-info-bg)] text-[var(--color-info)] px-2 py-0.5 rounded-full">{count}</span>
+                <span className="text-sm text-[var(--text-primary)] font-medium">{methodLabel(method)}</span>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${TONE.info}`}>{count}</span>
               </div>
             ))}
           </div>
@@ -132,6 +159,7 @@ export default function ShadowAdminsPage() {
       <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)]" style={{ boxShadow: 'var(--shadow-card)' }}>
         <div className="p-4 border-b border-[var(--border-default)] flex flex-wrap gap-2">
           <select
+            aria-label={t('statusFilter')}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
@@ -143,6 +171,7 @@ export default function ShadowAdminsPage() {
             <option value="remediated">{tCommon('remediated')}</option>
           </select>
           <select
+            aria-label={t('methodFilter')}
             value={methodFilter}
             onChange={(e) => setMethodFilter(e.target.value)}
             className="px-3 py-2 border border-[var(--border-default)] rounded-lg text-sm bg-[var(--bg-primary)]"
@@ -156,7 +185,7 @@ export default function ShadowAdminsPage() {
           </select>
         </div>
 
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label={t('title')} className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border-default)]">
@@ -166,38 +195,51 @@ export default function ShadowAdminsPage() {
                 <th className="text-start py-3 px-4 text-[var(--text-secondary)] font-medium">{t('equivalentGroups')}</th>
                 <th className="text-start py-3 px-4 text-[var(--text-secondary)] font-medium">{t('riskScore')}</th>
                 <th className="text-start py-3 px-4 text-[var(--text-secondary)] font-medium">{t('statusCol')}</th>
-                <th className="text-start py-3 px-4 text-[var(--text-secondary)] font-medium">{t('actions')}</th>
+                {canAct && <th className="text-start py-3 px-4 text-[var(--text-secondary)] font-medium">{t('actions')}</th>}
               </tr>
             </thead>
             <tbody>
-              {(data?.items || []).map((sa) => (
-                <>
+              {(data?.items || []).map((sa) => {
+                const expanded = expandedId === sa.id
+                return (
+                <Fragment key={sa.id}>
                   <tr
-                    key={sa.id}
-                    className="border-b border-[var(--border-subtle)] hover:bg-[var(--bg-secondary)] cursor-pointer"
-                    onClick={() => setExpandedId(expandedId === sa.id ? null : sa.id)}
+                    className="border-b border-[var(--border-default)] hover:bg-[var(--bg-secondary)] cursor-pointer"
+                    onClick={() => setExpandedId(expanded ? null : sa.id)}
                   >
-                    <td className="py-3 px-4 text-[var(--text-primary)] font-medium">{sa.identityName}</td>
-                    <td className="py-3 px-4">
-                      <span className="text-xs bg-[var(--bg-secondary)] px-2 py-0.5 rounded-full">{sa.detectionMethod.replace(/_/g, ' ')}</span>
+                    <td className="py-3 px-4 text-[var(--text-primary)] font-medium">
+                      <button
+                        type="button"
+                        aria-expanded={expanded}
+                        onClick={(e) => { e.stopPropagation(); setExpandedId(expanded ? null : sa.id) }}
+                        className="inline-flex items-center gap-1 text-start"
+                      >
+                        {expanded
+                          ? <ChevronDown aria-hidden size={14} className="text-[var(--text-secondary)] flex-shrink-0" />
+                          : <ChevronRight aria-hidden size={14} className="text-[var(--text-secondary)] flex-shrink-0 rtl:-scale-x-100" />}
+                        <bdi>{sa.identityName}</bdi>
+                      </button>
                     </td>
-                    <td className="py-3 px-4 text-[var(--text-secondary)] max-w-[200px] truncate">{sa.effectiveRights.join(', ')}</td>
-                    <td className="py-3 px-4 text-[var(--text-secondary)] max-w-[200px] truncate">{sa.equivalentToGroups.join(', ')}</td>
                     <td className="py-3 px-4">
-                      <span className={`font-medium ${sa.riskScore >= 80 ? 'text-[var(--color-critical)]' : sa.riskScore >= 60 ? 'text-[var(--color-high)]' : 'text-[var(--color-medium)]'}`}>
+                      <span className="text-xs bg-[var(--bg-secondary)] text-[var(--text-secondary)] px-2 py-0.5 rounded-full whitespace-nowrap">{methodLabel(sa.detectionMethod)}</span>
+                    </td>
+                    <td className="py-3 px-4 text-[var(--text-secondary)] max-w-[200px] truncate"><bdi>{sa.effectiveRights.join(', ')}</bdi></td>
+                    <td className="py-3 px-4 text-[var(--text-secondary)] max-w-[200px] truncate"><bdi>{sa.equivalentToGroups.join(', ')}</bdi></td>
+                    <td className="py-3 px-4">
+                      <span className="font-medium" style={{ color: riskText(sa.riskScore) }}>
                         {sa.riskScore}
                       </span>
                     </td>
                     <td className="py-3 px-4">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        sa.status === 'open' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' :
-                        sa.status === 'confirmed' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
-                        sa.status === 'remediated' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300' :
-                        'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                        sa.status === 'open' ? TONE.critical :
+                        sa.status === 'confirmed' ? TONE.high :
+                        sa.status === 'remediated' ? TONE.low : TONE.neutral
                       }`}>
-                        {sa.status}
+                        {statusLabel(sa.status)}
                       </span>
                     </td>
+                    {canAct && (
                     <td className="py-3 px-4">
                       {sa.status === 'open' && (
                         <div className="flex gap-1">
@@ -209,30 +251,32 @@ export default function ShadowAdminsPage() {
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); updateStatus(sa.id, 'dismissed') }}
-                            className="px-2 py-1 text-xs border border-[var(--border-default)] rounded hover:bg-[var(--bg-secondary)]"
+                            className="px-2 py-1 text-xs border border-[var(--border-default)] text-[var(--text-secondary)] rounded hover:bg-[var(--bg-secondary)]"
                           >
                             {t('dismiss')}
                           </button>
                         </div>
                       )}
                     </td>
+                    )}
                   </tr>
-                  {expandedId === sa.id && (
-                    <tr key={`${sa.id}-details`}>
-                      <td colSpan={7} className="px-4 py-3 bg-[var(--bg-secondary)]">
+                  {expanded && (
+                    <tr>
+                      <td colSpan={canAct ? 7 : 6} className="px-4 py-3 bg-[var(--bg-secondary)]">
                         <div className="space-y-2">
                           <p className="text-sm font-medium text-[var(--text-primary)]">{t('evidenceChain')}</p>
                           <ul className="list-disc list-inside text-sm text-[var(--text-secondary)] space-y-1">
                             {sa.detectionReasons.map((reason, idx) => (
-                              <li key={idx}>{reason}</li>
+                              <li key={idx}><bdi>{reason}</bdi></li>
                             ))}
                           </ul>
                         </div>
                       </td>
                     </tr>
                   )}
-                </>
-              ))}
+                </Fragment>
+                )
+              })}
             </tbody>
           </table>
         </div>

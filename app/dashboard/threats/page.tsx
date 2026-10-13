@@ -7,6 +7,7 @@ import { MetricCard } from '@/components/ui/metric-card'
 import { KillChainViz } from '@/components/dashboard/kill-chain-viz'
 import { ThreatCard } from '@/components/dashboard/threat-card'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
+import { useAppRole } from '@/lib/hooks/use-app-role'
 
 interface ThreatStats {
   totalActive: number
@@ -49,6 +50,9 @@ export default function ThreatsPage() {
   const tSev = useTranslations('severity')
   const tCommon = useTranslations('common')
   const router = useRouter()
+  const { can } = useAppRole()
+  // PATCH /api/threats/[id] requires analyst; read-only roles just open the threat
+  const canAct = can('analyst')
 
   const [stats, setStats] = useState<ThreatStats | null>(null)
   const [threats, setThreats] = useState<ThreatFeedItem[]>([])
@@ -89,6 +93,10 @@ export default function ThreatsPage() {
   }, [fetchData])
 
   const handleInvestigate = useCallback(async (id: string) => {
+    if (!canAct) {
+      router.push(`/dashboard/threats/${id}`)
+      return
+    }
     try {
       await fetch(`/api/threats/${id}`, {
         method: 'PATCH',
@@ -99,7 +107,7 @@ export default function ThreatsPage() {
     } catch {
       router.push(`/dashboard/threats/${id}`)
     }
-  }, [router])
+  }, [router, canAct])
 
   const handleDismiss = useCallback(async (id: string) => {
     try {
@@ -146,7 +154,7 @@ export default function ThreatsPage() {
       <div className="space-y-6">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
         <div className="bg-[var(--color-critical-bg)] border border-[var(--color-critical)] rounded-xl p-6">
-          <p className="font-medium" style={{ color: 'var(--color-critical)' }}>{t('failedToLoad')}</p>
+          <p role="alert" className="font-medium text-[var(--text-primary)]">{t('failedToLoad')}</p>
         </div>
       </div>
     )
@@ -166,8 +174,8 @@ export default function ThreatsPage() {
       <div className="flex items-center gap-3">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
         {stats.totalActive > 0 && (
-          <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-[var(--color-critical)] text-white animate-pulse">
-            {stats.totalActive} {t('active')}
+          <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-[var(--color-critical-bg)] text-[color:color-mix(in_srgb,var(--color-critical)_60%,var(--text-primary))] border border-[var(--color-critical)]/40">
+            {t('activeCount', { count: stats.totalActive })}
           </span>
         )}
       </div>
@@ -198,16 +206,18 @@ export default function ThreatsPage() {
           {/* Filter bar */}
           <div className="flex flex-wrap gap-2">
             <select
+              aria-label={t('typeFilter')}
               value={filters.threatType || ''}
               onChange={e => setFilters(p => ({ ...p, threatType: e.target.value || undefined }))}
               className="text-xs px-2 py-1.5 rounded border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-secondary)]"
             >
               <option value="">{t('allTypes')}</option>
               {Object.keys(stats.byThreatType).map(type => (
-                <option key={type} value={type}>{t(`threatTypes.${type}`)}</option>
+                <option key={type} value={type}>{t.has(`threatTypes.${type}`) ? t(`threatTypes.${type}`) : type.replace(/_/g, ' ')}</option>
               ))}
             </select>
             <select
+              aria-label={t('severityFilter')}
               value={filters.severity || ''}
               onChange={e => setFilters(p => ({ ...p, severity: e.target.value || undefined }))}
               className="text-xs px-2 py-1.5 rounded border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-secondary)]"
@@ -218,6 +228,7 @@ export default function ThreatsPage() {
               ))}
             </select>
             <select
+              aria-label={t('statusFilter')}
               value={filters.status || ''}
               onChange={e => setFilters(p => ({ ...p, status: e.target.value || undefined }))}
               className="text-xs px-2 py-1.5 rounded border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-secondary)]"
@@ -230,7 +241,7 @@ export default function ThreatsPage() {
             {Object.keys(filters).some(k => (filters as any)[k]) && (
               <button
                 onClick={() => setFilters({})}
-                className="text-xs px-2 py-1.5 text-[var(--color-info)] hover:underline"
+                className="text-xs px-2 py-1.5 text-[color:color-mix(in_srgb,var(--color-info)_70%,var(--text-primary))] hover:underline"
               >
                 {tCommon('clearFilters')}
               </button>
@@ -239,7 +250,7 @@ export default function ThreatsPage() {
 
           {/* Threat cards */}
           {filteredThreats.length === 0 ? (
-            <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-8 text-center text-[var(--text-muted)]">
+            <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-8 text-center text-[var(--text-secondary)]">
               {t('noThreats')}
             </div>
           ) : (
@@ -248,7 +259,8 @@ export default function ThreatsPage() {
                 key={threat.id}
                 threat={threat}
                 onInvestigate={handleInvestigate}
-                onDismiss={handleDismiss}
+                investigateLabel={canAct ? undefined : t('view')}
+                onDismiss={canAct ? handleDismiss : undefined}
               />
             ))
           )}
@@ -258,6 +270,7 @@ export default function ThreatsPage() {
         <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
           <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4">{t('severityBreakdown')}</h3>
           {severityPieData.length > 0 ? (
+            <div dir="ltr">
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie
@@ -271,14 +284,15 @@ export default function ThreatsPage() {
                   paddingAngle={2}
                 >
                   {severityPieData.map((entry, idx) => (
-                    <Cell key={idx} fill={entry.color} />
+                    <Cell key={idx} fill={entry.color} aria-label={`${entry.name}: ${entry.value}`} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip contentStyle={{ background: 'var(--bg-primary)', border: '1px solid var(--border-default)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)' }} itemStyle={{ color: 'var(--text-primary)' }} />
               </PieChart>
             </ResponsiveContainer>
+            </div>
           ) : (
-            <div className="h-[220px] flex items-center justify-center text-[var(--text-muted)]">
+            <div className="h-[220px] flex items-center justify-center text-[var(--text-secondary)]">
               {t('noThreats')}
             </div>
           )}
@@ -287,7 +301,7 @@ export default function ThreatsPage() {
             {severityPieData.map(entry => (
               <div key={entry.name} className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                  <div aria-hidden className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
                   <span className="text-[var(--text-secondary)]">{entry.name}</span>
                 </div>
                 <span className="font-medium text-[var(--text-primary)]">{entry.value}</span>

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as d3 from 'd3'
+import { useTranslations } from 'next-intl'
 import { Search, ZoomIn, ZoomOut, Maximize2, RotateCcw, Pause, Play, X, Tag } from 'lucide-react'
 
 // ── Generic graph model ──
@@ -33,7 +34,14 @@ export interface ForceGraphProps {
   filterGroups?: FgFilterGroup[]
   onSelect?: (node: FgNode | null) => void
   searchPlaceholder?: string
+  /** Accessible name for the graph canvas */
+  ariaLabel?: string
 }
+
+// Above this many nodes, labels default to "key" mode (focused node, its neighbours,
+// Tier 0 / critical nodes and search matches) so the canvas stays legible.
+const DENSE_GRAPH = 30
+const isKeyNode = (n: FgNode) => n.tier === 'tier_0' || n.severity === 'critical'
 
 const TIER_RING: Record<string, string> = { tier_0: '#DC2626', tier_1: '#EA580C', tier_2: '#64748B' }
 const SEVERITY_RING: Record<string, string> = { critical: '#DC2626', high: '#EA580C', medium: '#D97706', low: '#64748B' }
@@ -43,8 +51,16 @@ function radiusOf(n: FgNode): number {
 }
 
 export function ForceGraph({
-  nodes, links, colorOf, height = 560, filterGroups, onSelect, searchPlaceholder = 'Search nodes…',
+  nodes, links, colorOf, height = 560, filterGroups, onSelect, searchPlaceholder, ariaLabel,
 }: ForceGraphProps) {
+  const t = useTranslations('forceGraph')
+  const tTiers = useTranslations('tiers')
+  const tSev = useTranslations('severity')
+  const tId = useTranslations('identity')
+  const groupLabel = (g: string) => filterGroups?.find((f) => f.key === g)?.label
+    ?? (t.has(`groups.${g}`) ? t(`groups.${g}`) : g.replace(/_/g, ' '))
+  const tierLabel = (tier: string) => (tTiers.has(tier) ? tTiers(tier) : tier.replace('_', ' '))
+  const metaLabel = (k: string) => (t.has(`meta.${k}`) ? t(`meta.${k}`) : k.replace(/_/g, ' '))
   const wrapRef = useRef<HTMLDivElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown> | null>(null)
@@ -62,11 +78,14 @@ export function ForceGraph({
   const [pinned, setPinned] = useState<string | null>(null)
   const [hover, setHover] = useState<string | null>(null)
   const [frozen, setFrozen] = useState(false)
-  const [labelMode, setLabelMode] = useState<'all' | 'focus' | 'off'>('all')
+  const [labelMode, setLabelMode] = useState<'all' | 'focus' | 'off'>(() => (nodes.length > DENSE_GRAPH ? 'focus' : 'all'))
   const [selected, setSelected] = useState<FgNode | null>(null)
   const [tip, setTip] = useState<{ x: number; y: number; n: FgNode } | null>(null)
 
   const focus = pinned ?? hover
+
+  // New data set: pick a label density that keeps it legible.
+  useEffect(() => { setLabelMode(nodes.length > DENSE_GRAPH ? 'focus' : 'all') }, [nodes])
 
   // Adjacency for neighbour highlighting.
   useMemo(() => {
@@ -229,7 +248,8 @@ export function ForceGraph({
       if (q !== '') return matches(d) ? 1 : 0.05
       if (labelMode === 'off') return 0
       if (focus) return d.id === focus || neigh?.has(d.id) ? 1 : (labelMode === 'all' ? 0.08 : 0)
-      return labelMode === 'all' ? 0.92 : 0
+      if (labelMode === 'all') return 0.92
+      return isKeyNode(d) ? 0.92 : 0
     })
 
     link.attr('opacity', (d: any) => {
@@ -275,74 +295,83 @@ export function ForceGraph({
   function reset() { setPinned(null); setSelected(null); setSearch(''); setHidden(new Set()); onSelect?.(null); fitToView() }
   const toggleGroup = (key: string) => setHidden((h) => { const n = new Set(h); n.has(key) ? n.delete(key) : n.add(key); return n })
 
-  const btn = 'p-1.5 rounded-md border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors'
+  const btn = 'p-1.5 rounded-md border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] transition-colors'
+  const metaValue = (k: string, v: unknown) => {
+    const s = String(v)
+    if (k === 'type' || k === 'role') return t.has(`groups.${s}`) ? t(`groups.${s}`) : s.replace(/_/g, ' ')
+    if (k === 'criticality' && tSev.has(s)) return tSev(s)
+    if (k === 'subType') return tId.has(s) ? tId(s) : s.replace(/_/g, ' ')
+    return s
+  }
 
   return (
     <div className="space-y-2">
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[180px] max-w-xs">
-          <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={searchPlaceholder}
-            className="w-full pl-8 pr-7 py-1.5 text-sm rounded-lg border border-[var(--border-primary)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-high)]" />
-          {search && <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]"><X className="w-3.5 h-3.5" /></button>}
+        <div className="relative flex-1 min-w-[160px] max-w-xs">
+          <Search aria-hidden className="w-3.5 h-3.5 absolute start-2.5 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={searchPlaceholder ?? t('searchNodes')}
+            aria-label={searchPlaceholder ?? t('searchNodes')}
+            className="w-full ps-8 pe-7 py-1.5 text-sm rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-info)]" />
+          {search && <button onClick={() => setSearch('')} aria-label={t('clearSearch')} className="absolute end-2 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]"><X aria-hidden className="w-3.5 h-3.5" /></button>}
         </div>
         {filterGroups?.map((f) => (
-          <button key={f.key} onClick={() => toggleGroup(f.key)}
-            className={`text-xs px-2 py-1 rounded-md border flex items-center gap-1.5 transition-colors ${hidden.has(f.key) ? 'opacity-40 border-[var(--border-primary)] text-[var(--text-tertiary)]' : 'border-[var(--border-primary)] text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}>
-            <span className="w-2 h-2 rounded-full" style={{ background: f.color ?? colorOf(f.key) }} />{f.label}
+          <button key={f.key} onClick={() => toggleGroup(f.key)} aria-pressed={!hidden.has(f.key)}
+            className={`text-xs px-2 py-1 rounded-md border flex items-center gap-1.5 transition-colors border-[var(--border-default)] text-[var(--text-secondary)] ${hidden.has(f.key) ? 'line-through decoration-[var(--text-secondary)]' : 'hover:bg-[var(--bg-secondary)]'}`}>
+            <span aria-hidden className={`w-2 h-2 rounded-full ${hidden.has(f.key) ? 'opacity-30' : ''}`} style={{ background: f.color ?? colorOf(f.key) }} />{f.label}
           </button>
         ))}
-        <div className="flex items-center gap-1 ml-auto">
+        <div className="flex items-center gap-1 ms-auto">
           {/* Labels toggle */}
-          <div className="flex items-center rounded-md border border-[var(--border-primary)] overflow-hidden me-1" title="Labels">
-            <Tag className="w-3.5 h-3.5 mx-1.5 text-[var(--text-tertiary)]" />
+          <div role="group" aria-label={t('labels')} title={t('labels')} className="flex items-center rounded-md border border-[var(--border-default)] overflow-hidden me-1">
+            <Tag aria-hidden className="w-3.5 h-3.5 mx-1.5 text-[var(--text-secondary)]" />
             {(['all', 'focus', 'off'] as const).map((m) => (
-              <button key={m} onClick={() => setLabelMode(m)}
-                className={`px-2 py-1 text-xs capitalize border-l border-[var(--border-primary)] transition-colors ${labelMode === m ? 'bg-[var(--color-high)]/10 text-[var(--color-high)]' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}>
-                {m}
+              <button key={m} onClick={() => setLabelMode(m)} aria-pressed={labelMode === m} title={t(`labelModeHint.${m}`)}
+                className={`px-2 py-1 text-xs border-s border-[var(--border-default)] transition-colors ${labelMode === m ? 'bg-[var(--color-info-bg)] text-[color:color-mix(in_srgb,var(--color-info)_60%,var(--text-primary))] font-medium' : 'text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)]'}`}>
+                {t(`labelMode.${m}`)}
               </button>
             ))}
           </div>
-          <button className={btn} onClick={() => zoomBy(1.3)} title="Zoom in"><ZoomIn className="w-4 h-4" /></button>
-          <button className={btn} onClick={() => zoomBy(1 / 1.3)} title="Zoom out"><ZoomOut className="w-4 h-4" /></button>
-          <button className={btn} onClick={fitToView} title="Fit to view"><Maximize2 className="w-4 h-4" /></button>
-          <button className={btn} onClick={() => setFrozen((f) => !f)} title={frozen ? 'Resume layout' : 'Freeze layout'}>{frozen ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}</button>
-          <button className={btn} onClick={reset} title="Reset"><RotateCcw className="w-4 h-4" /></button>
+          <button className={btn} onClick={() => zoomBy(1.3)} title={t('zoomIn')} aria-label={t('zoomIn')}><ZoomIn aria-hidden className="w-4 h-4" /></button>
+          <button className={btn} onClick={() => zoomBy(1 / 1.3)} title={t('zoomOut')} aria-label={t('zoomOut')}><ZoomOut aria-hidden className="w-4 h-4" /></button>
+          <button className={btn} onClick={fitToView} title={t('fitToView')} aria-label={t('fitToView')}><Maximize2 aria-hidden className="w-4 h-4" /></button>
+          <button className={btn} onClick={() => setFrozen((f) => !f)} aria-pressed={frozen} title={frozen ? t('resumeLayout') : t('freezeLayout')} aria-label={frozen ? t('resumeLayout') : t('freezeLayout')}>{frozen ? <Play aria-hidden className="w-4 h-4" /> : <Pause aria-hidden className="w-4 h-4" />}</button>
+          <button className={btn} onClick={reset} title={t('reset')} aria-label={t('reset')}><RotateCcw aria-hidden className="w-4 h-4 rtl:-scale-x-100" /></button>
         </div>
       </div>
 
-      {/* Canvas */}
-      <div ref={wrapRef} className="relative rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] overflow-hidden">
-        <svg ref={svgRef} width="100%" height={height} style={{ display: 'block' }} />
+      {/* Canvas (graph geometry stays left-to-right in both locales; text is bidi-isolated) */}
+      <div ref={wrapRef} className="relative rounded-xl border border-[var(--border-default)] bg-[var(--bg-primary)] overflow-hidden">
+        <svg ref={svgRef} width="100%" height={height} style={{ display: 'block' }} direction="ltr"
+          role="img" aria-label={ariaLabel ?? t('canvasLabel', { nodes: nodes.length, edges: links.length })} />
         {tip && (
-          <div className="pointer-events-none absolute z-10 px-2.5 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-primary)] shadow text-xs max-w-[240px]"
-            style={{ left: Math.min(tip.x + 12, (wrapRef.current?.clientWidth ?? 900) - 240), top: tip.y + 12 }}>
-            <p className="font-semibold text-[var(--text-primary)]">{tip.n.label}</p>
-            <p className="text-[var(--text-tertiary)] capitalize">{tip.n.group.replace(/_/g, ' ')}{tip.n.tier && tip.n.tier !== 'unclassified' ? ` · ${tip.n.tier.replace('_', ' ')}` : ''}</p>
-            {tip.n.riskScore != null && <p className="text-[var(--text-tertiary)]">risk {tip.n.riskScore}</p>}
+          <div className="pointer-events-none absolute z-10 px-2.5 py-1.5 rounded-lg bg-[var(--bg-primary)] border border-[var(--border-default)] shadow text-xs max-w-[240px]"
+            style={{ left: Math.max(0, Math.min(tip.x + 12, (wrapRef.current?.clientWidth ?? 900) - 240)), top: tip.y + 12 }}>
+            <p className="font-semibold text-[var(--text-primary)]"><bdi>{tip.n.label}</bdi></p>
+            <p className="text-[var(--text-secondary)]">{groupLabel(tip.n.group)}{tip.n.tier && tip.n.tier !== 'unclassified' ? ` · ${tierLabel(tip.n.tier)}` : ''}</p>
+            {tip.n.riskScore != null && <p className="text-[var(--text-secondary)]">{t('riskValue', { score: tip.n.riskScore })}</p>}
           </div>
         )}
         {selected && (
-          <div className="absolute top-2 right-2 z-10 w-60 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-primary)] shadow-lg p-3">
+          <div className="absolute top-2 end-2 z-10 w-60 max-w-[calc(100%-1rem)] rounded-xl border border-[var(--border-default)] bg-[var(--bg-primary)] shadow-lg p-3">
             <div className="flex items-start justify-between gap-2">
-              <p className="font-semibold text-sm text-[var(--text-primary)] break-words">{selected.label}</p>
-              <button onClick={() => { setPinned(null); setSelected(null); onSelect?.(null) }} className="text-[var(--text-tertiary)]"><X className="w-4 h-4" /></button>
+              <p className="font-semibold text-sm text-[var(--text-primary)] break-words"><bdi>{selected.label}</bdi></p>
+              <button onClick={() => { setPinned(null); setSelected(null); onSelect?.(null) }} aria-label={t('close')} className="text-[var(--text-secondary)]"><X aria-hidden className="w-4 h-4" /></button>
             </div>
-            <p className="text-xs text-[var(--text-tertiary)] capitalize mt-0.5">{selected.group.replace(/_/g, ' ')}</p>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">{groupLabel(selected.group)}</p>
             <dl className="mt-2 space-y-1 text-xs">
-              {selected.tier && <div className="flex justify-between"><dt className="text-[var(--text-tertiary)]">Tier</dt><dd className="text-[var(--text-secondary)]">{selected.tier.replace('_', ' ')}</dd></div>}
-              {selected.severity && <div className="flex justify-between"><dt className="text-[var(--text-tertiary)]">Severity</dt><dd style={{ color: SEVERITY_RING[selected.severity] }}>{selected.severity}</dd></div>}
-              {selected.riskScore != null && <div className="flex justify-between"><dt className="text-[var(--text-tertiary)]">Risk</dt><dd className="text-[var(--text-secondary)]">{selected.riskScore}</dd></div>}
+              {selected.tier && <div className="flex justify-between gap-2"><dt className="text-[var(--text-secondary)]">{t('tier')}</dt><dd className="text-[var(--text-primary)]">{tierLabel(selected.tier)}</dd></div>}
+              {selected.severity && <div className="flex justify-between gap-2"><dt className="text-[var(--text-secondary)]">{t('severity')}</dt><dd className="font-medium" style={{ color: `color-mix(in srgb, ${SEVERITY_RING[selected.severity]} 65%, var(--text-primary))` }}>{tSev.has(selected.severity) ? tSev(selected.severity) : selected.severity}</dd></div>}
+              {selected.riskScore != null && <div className="flex justify-between gap-2"><dt className="text-[var(--text-secondary)]">{t('risk')}</dt><dd className="text-[var(--text-primary)]">{selected.riskScore}</dd></div>}
               {Object.entries(selected.meta ?? {}).slice(0, 6).map(([k, v]) => (
-                <div key={k} className="flex justify-between gap-2"><dt className="text-[var(--text-tertiary)] capitalize">{k.replace(/_/g, ' ')}</dt><dd className="text-[var(--text-secondary)] text-right break-words">{String(v)}</dd></div>
+                <div key={k} className="flex justify-between gap-2"><dt className="text-[var(--text-secondary)]">{metaLabel(k)}</dt><dd className="text-[var(--text-primary)] text-end break-words"><bdi>{metaValue(k, v)}</bdi></dd></div>
               ))}
             </dl>
-            <p className="text-[10px] text-[var(--text-tertiary)] mt-2">{adjRef.current.get(selected.id)?.size ?? 0} connection(s) · click empty space to unpin</p>
+            <p className="text-[10px] text-[var(--text-secondary)] mt-2">{t('connections', { count: adjRef.current.get(selected.id)?.size ?? 0 })} · {t('unpinHint')}</p>
           </div>
         )}
-        <div className="absolute bottom-2 left-2 text-[10px] text-[var(--text-tertiary)] bg-[var(--bg-primary)]/80 rounded px-1.5 py-0.5">
-          {nodes.length} nodes · {links.length} edges · hover to focus · click to pin
+        <div className="absolute bottom-2 start-2 text-[10px] text-[var(--text-secondary)] bg-[var(--bg-primary)]/90 rounded px-1.5 py-0.5">
+          {t('footer', { nodes: nodes.length, edges: links.length })}
         </div>
       </div>
     </div>

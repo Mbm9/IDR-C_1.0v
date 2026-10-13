@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   GraphLegend,
   ATTACK_PATH_LEGEND_NODES,
@@ -80,6 +81,8 @@ function groupOf(node: AttackPathNode): string {
 // ── Component (now force-directed + draggable via the shared engine) ──
 
 export function AttackPathGraph({ paths, height = 560, onNodeClick, className = '' }: AttackPathGraphProps) {
+  const t = useTranslations('forceGraph')
+  const tAp = useTranslations('attackPaths')
   const { nodes, links, originalById } = useMemo(() => {
     const nMap = new Map<string, FgNode>()
     const originalById = new Map<string, AttackPathNode>()
@@ -96,7 +99,7 @@ export function AttackPathGraph({ paths, height = 560, onNodeClick, className = 
             tier: node.tier,
             riskScore: node.riskScore ?? (node.tier === 'tier_0' ? 90 : node.tier === 'tier_1' ? 60 : 30),
             severity: node.tier === 'tier_0' ? 'critical' : undefined,
-            meta: { type: node.type, ...(node.subType ? { subType: node.subType.replace(/_/g, ' ') } : {}) },
+            meta: { type: node.type, ...(node.subType ? { subType: node.subType } : {}) },
           })
           originalById.set(node.id, node)
         }
@@ -122,18 +125,18 @@ export function AttackPathGraph({ paths, height = 560, onNodeClick, className = 
         links={links}
         colorOf={AP_COLOR_OF}
         height={height}
-        searchPlaceholder="Search nodes…"
+        ariaLabel={tAp('graphAria', { nodes: nodes.length, edges: links.length })}
         onSelect={(n) => { if (n && onNodeClick) { const orig = originalById.get(n.id); if (orig) onNodeClick(orig) } }}
         filterGroups={[
-          { key: 'identity_human', label: 'Human', color: NODE_COLORS.identity_human },
-          { key: 'identity_non_human', label: 'Non-Human', color: NODE_COLORS.identity_non_human },
-          { key: 'group', label: 'Group', color: NODE_COLORS.group },
-          { key: 'resource', label: 'Resource', color: NODE_COLORS.resource },
-          { key: 'computer', label: 'Computer', color: NODE_COLORS.computer },
+          { key: 'identity_human', label: t('groups.identity_human'), color: NODE_COLORS.identity_human },
+          { key: 'identity_non_human', label: t('groups.identity_non_human'), color: NODE_COLORS.identity_non_human },
+          { key: 'group', label: t('groups.group'), color: NODE_COLORS.group },
+          { key: 'resource', label: t('groups.resource'), color: NODE_COLORS.resource },
+          { key: 'computer', label: t('groups.computer'), color: NODE_COLORS.computer },
         ]}
       />
       <GraphLegend
-        title="Attack Path Legend"
+        title="attackPathLegend"
         nodes={ATTACK_PATH_LEGEND_NODES}
         edges={ATTACK_PATH_LEGEND_EDGES}
         tiers={TIER_COLORS}

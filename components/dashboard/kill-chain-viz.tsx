@@ -29,9 +29,9 @@ export function KillChainViz({ phaseCounts, onPhaseClick, selectedPhase }: KillC
 
   return (
     <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
-      <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-4">{t('killChain')}</h3>
-      <div className="flex gap-1 overflow-x-auto pb-2">
-        {PHASES.map((phase, idx) => {
+      <h3 id="kill-chain-title" className="text-sm font-medium text-[var(--text-secondary)] mb-4">{t('killChain')}</h3>
+      <div className="flex gap-1 overflow-x-auto pb-2" tabIndex={0} role="group" aria-labelledby="kill-chain-title">
+        {PHASES.map((phase) => {
           const count = phaseCounts[phase] || 0
           const intensity = count / maxCount
           const isSelected = selectedPhase === phase
@@ -41,6 +41,8 @@ export function KillChainViz({ phaseCounts, onPhaseClick, selectedPhase }: KillC
             <button
               key={phase}
               onClick={() => onPhaseClick?.(phase)}
+              aria-pressed={isSelected}
+              aria-label={t('phaseCount', { phase: phaseLabel, count })}
               className={`
                 flex-1 min-w-[90px] flex flex-col items-center gap-1 p-3 rounded-lg border transition-all
                 ${isSelected
@@ -56,18 +58,12 @@ export function KillChainViz({ phaseCounts, onPhaseClick, selectedPhase }: KillC
                     : undefined,
               }}
             >
-              <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide text-center leading-tight">
+              <span className="text-[10px] font-medium text-[var(--text-secondary)] uppercase tracking-wide text-center leading-tight">
                 {phaseLabel}
               </span>
-              <span className={`text-lg font-bold ${
-                count > 0 ? 'text-[var(--color-critical)]' : 'text-[var(--text-muted)]'
-              }`}>
+              <span className="text-lg font-bold" style={{ color: count > 0 ? 'color-mix(in srgb, var(--color-critical) 70%, var(--text-primary))' : 'var(--text-secondary)' }}>
                 {count}
               </span>
-              {idx < PHASES.length - 1 && (
-                <span className="absolute -end-1 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hidden lg:block" aria-hidden>
-                </span>
-              )}
             </button>
           )
         })}

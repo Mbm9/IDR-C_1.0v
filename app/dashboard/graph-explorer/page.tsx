@@ -10,7 +10,7 @@ export default function GraphExplorerPage() {
     <div className="space-y-4">
       <div>
         <h2 className="text-2xl font-bold text-[var(--text-primary)] flex items-center gap-2">
-          <Compass className="w-6 h-6 text-[var(--color-high)]" />
+          <Compass className="w-6 h-6 text-[color:color-mix(in_srgb,var(--color-high)_70%,var(--text-primary))]" />
           {t('title')}
         </h2>
         <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-2xl">{t('subtitle')}</p>

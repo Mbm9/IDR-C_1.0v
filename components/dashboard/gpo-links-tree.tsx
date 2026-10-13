@@ -1,7 +1,8 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { useTranslations } from 'next-intl'
 import { ChevronRight, ChevronDown, FolderTree, FileText } from 'lucide-react'
 
 interface GpoLink {
@@ -35,11 +36,14 @@ const TIER_COLORS: Record<string, string> = {
   unclassified: '#9CA3AF',
 }
 
-const TIER_BG: Record<string, string> = {
-  tier_0: 'bg-red-500/10 border-red-500/30',
-  tier_1: 'bg-orange-500/10 border-orange-500/30',
-  tier_2: 'bg-gray-500/10 border-gray-500/30',
-  unclassified: 'bg-gray-400/10 border-gray-400/30',
+// Badge tones built from theme tokens so they keep AA contrast in light and dark themes.
+const tone = (c: string) => `bg-[var(--color-${c}-bg)] text-[color:color-mix(in_srgb,var(--color-${c})_60%,var(--text-primary))]`
+const NEUTRAL = 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
+const TIER_BADGE: Record<string, string> = {
+  tier_0: `${tone('critical')} border-[var(--color-critical)]/30`,
+  tier_1: `${tone('high')} border-[var(--color-high)]/30`,
+  tier_2: `${NEUTRAL} border-[var(--border-default)]`,
+  unclassified: `${NEUTRAL} border-[var(--border-default)]`,
 }
 
 function parseDnToPath(dn: string): string[] {
@@ -104,68 +108,67 @@ function buildTree(links: GpoLink[]): OuTreeNode {
 
 function TreeNode({ node, depth = 0 }: { node: OuTreeNode; depth?: number }) {
   const [expanded, setExpanded] = useState(depth < 3)
-  const router = useRouter()
+  const t = useTranslations('gpo')
+  const tTiers = useTranslations('tiers')
   const hasChildren = node.children.length > 0 || node.gpos.length > 0
   const tierColor = TIER_COLORS[node.tier] || TIER_COLORS.unclassified
-  const tierBg = TIER_BG[node.tier] || TIER_BG.unclassified
 
   return (
     <div className="select-none">
-      <div
-        className={`flex items-center gap-2 py-1.5 px-2 rounded-md cursor-pointer hover:bg-[var(--bg-secondary)] transition-colors`}
+      <button
+        type="button"
+        aria-expanded={hasChildren ? expanded : undefined}
+        className="w-full flex items-center gap-2 py-1.5 px-2 rounded-md hover:bg-[var(--bg-secondary)] transition-colors text-start"
         style={{ paddingInlineStart: `${depth * 20 + 8}px` }}
         onClick={() => setExpanded(!expanded)}
       >
         {hasChildren ? (
-          expanded ? <ChevronDown size={14} className="text-[var(--text-tertiary)] flex-shrink-0" /> : <ChevronRight size={14} className="text-[var(--text-tertiary)] flex-shrink-0 rtl:-scale-x-100" />
+          expanded ? <ChevronDown aria-hidden size={14} className="text-[var(--text-secondary)] flex-shrink-0" /> : <ChevronRight aria-hidden size={14} className="text-[var(--text-secondary)] flex-shrink-0 rtl:-scale-x-100" />
         ) : (
-          <span className="w-[14px]" />
+          <span aria-hidden className="w-[14px]" />
         )}
-        <FolderTree size={14} style={{ color: tierColor }} className="flex-shrink-0" />
-        <span className="text-caption font-medium text-[var(--text-primary)] truncate">{node.name}</span>
+        <FolderTree aria-hidden size={14} style={{ color: tierColor }} className="flex-shrink-0" />
+        <bdi className="text-caption font-medium text-[var(--text-primary)] truncate">{node.name}</bdi>
         {node.tier !== 'unclassified' && (
-          <span
-            className={`text-micro px-1.5 py-0.5 rounded border font-medium ${tierBg}`}
-            style={{ color: tierColor }}
-          >
-            {node.tier.replace('_', ' ').toUpperCase()}
+          <span className={`text-micro px-1.5 py-0.5 rounded border font-medium whitespace-nowrap ${TIER_BADGE[node.tier] || TIER_BADGE.unclassified}`}>
+            {tTiers.has(node.tier) ? tTiers(node.tier) : node.tier.replace('_', ' ').toUpperCase()}
           </span>
         )}
         {node.gpos.length > 0 && (
-          <span className="text-micro text-[var(--text-tertiary)]">({node.gpos.length} GPOs)</span>
+          <span className="text-micro text-[var(--text-secondary)]">({t('gposCount', { count: node.gpos.length })})</span>
         )}
-      </div>
+      </button>
 
       {expanded && (
         <div>
           {/* GPOs linked to this OU */}
           {node.gpos.map((gpo) => (
-            <div
+            <Link
               key={`${node.dn}-${gpo.id}`}
-              className={`flex items-center gap-2 py-1 px-2 rounded-md cursor-pointer hover:bg-[var(--bg-secondary)] transition-colors ${gpo.dangerous ? 'bg-red-500/5' : ''}`}
+              href={`/dashboard/gpo/${gpo.id}`}
+              className={`flex items-center gap-2 py-1 px-2 rounded-md hover:bg-[var(--bg-secondary)] transition-colors ${gpo.dangerous ? 'bg-[var(--color-critical-bg)]' : ''}`}
               style={{ paddingInlineStart: `${(depth + 1) * 20 + 8}px` }}
-              onClick={() => router.push(`/dashboard/gpo/${gpo.id}`)}
             >
-              <FileText size={13} className="flex-shrink-0" style={{ color: TIER_COLORS[gpo.tier] || '#6B7280' }} />
-              <span className={`text-caption truncate ${gpo.dangerous ? 'text-[var(--color-critical)] font-medium' : 'text-[var(--text-secondary)]'}`}>
+              <FileText aria-hidden size={13} className="flex-shrink-0" style={{ color: TIER_COLORS[gpo.tier] || '#6B7280' }} />
+              <bdi className={`text-caption truncate ${gpo.dangerous ? 'text-[color:color-mix(in_srgb,var(--color-critical)_70%,var(--text-primary))] font-medium' : 'text-[var(--text-secondary)]'}`}>
                 {gpo.name}
-              </span>
+              </bdi>
               {gpo.enforced && (
-                <span className="text-micro px-1 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/30 font-medium">
-                  ENFORCED
+                <span className={`text-micro px-1 py-0.5 rounded border border-[var(--color-info)]/30 font-medium ${tone('info')}`}>
+                  {t('treeEnforced')}
                 </span>
               )}
               {!gpo.linkEnabled && (
-                <span className="text-micro px-1 py-0.5 rounded bg-gray-500/10 text-gray-500 border border-gray-500/30 font-medium">
-                  DISABLED
+                <span className={`text-micro px-1 py-0.5 rounded border border-[var(--border-default)] font-medium ${NEUTRAL}`}>
+                  {t('treeDisabled')}
                 </span>
               )}
               {gpo.dangerous && (
-                <span className="text-micro px-1 py-0.5 rounded bg-red-500/10 text-red-500 border border-red-500/30 font-medium">
-                  RISK
+                <span className={`text-micro px-1 py-0.5 rounded border border-[var(--color-critical)]/30 font-medium ${tone('critical')}`}>
+                  {t('treeRisk')}
                 </span>
               )}
-            </div>
+            </Link>
           ))}
           {/* Child OUs */}
           {node.children.map((child) => (
@@ -179,12 +182,13 @@ function TreeNode({ node, depth = 0 }: { node: OuTreeNode; depth?: number }) {
 
 export function GpoLinksTree({ links }: GpoLinksTreeProps) {
   const tree = useMemo(() => buildTree(links), [links])
+  const t = useTranslations('gpo')
 
   if (links.length === 0) {
     return (
-      <div className="text-center py-12 text-[var(--text-tertiary)]">
-        <FolderTree size={40} className="mx-auto mb-3 opacity-40" />
-        <p className="text-body">No GPO links found</p>
+      <div className="text-center py-12 text-[var(--text-secondary)]">
+        <FolderTree aria-hidden size={40} className="mx-auto mb-3 opacity-40" />
+        <p className="text-body">{t('noLinks')}</p>
       </div>
     )
   }

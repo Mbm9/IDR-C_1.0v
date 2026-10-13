@@ -58,6 +58,16 @@ function computeHighestTier(rings: BlastResult['rings']): string {
   return 'tier_2'
 }
 
+// Badge tones built from theme tokens so they keep AA contrast in light and dark themes.
+const TONE = {
+  critical: 'bg-[var(--color-critical-bg)] text-[color:color-mix(in_srgb,var(--color-critical)_60%,var(--text-primary))]',
+  high: 'bg-[var(--color-high-bg)] text-[color:color-mix(in_srgb,var(--color-high)_60%,var(--text-primary))]',
+  medium: 'bg-[var(--color-medium-bg)] text-[color:color-mix(in_srgb,var(--color-medium)_60%,var(--text-primary))]',
+  low: 'bg-[var(--color-low-bg)] text-[color:color-mix(in_srgb,var(--color-low)_60%,var(--text-primary))]',
+  info: 'bg-[var(--color-info-bg)] text-[color:color-mix(in_srgb,var(--color-info)_60%,var(--text-primary))]',
+  neutral: 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]',
+} as const
+
 function transformToGraphData(data: BlastResult): BlastRadiusGraphProps['data'] {
   const blastScore = computeBlastRadiusScore(data.stats)
   const highestTier = computeHighestTier(data.rings)
@@ -97,6 +107,19 @@ function transformToGraphData(data: BlastResult): BlastRadiusGraphProps['data'] 
 export default function BlastRadiusPage() {
   const t = useTranslations('blastRadius')
   const tCommon = useTranslations('common')
+  const tTiers = useTranslations('tiers')
+  const tId = useTranslations('identity')
+  const tEnum = useTranslations('securityEnums')
+  const tierLabel = (tier?: string) => (tier ? (tTiers.has(tier) ? tTiers(tier) : tier.replace('_', ' ').toUpperCase()) : tCommon('na'))
+  const typeLabel = (type: string, subType?: string) => {
+    const main = tEnum.has(`nodeTypes.${type}`) ? tEnum(`nodeTypes.${type}`) : type
+    if (!subType) return main
+    const sub = tId.has(subType) ? tId(subType)
+      : tEnum.has(`resourceTypes.${subType}`) ? tEnum(`resourceTypes.${subType}`)
+      : tEnum.has(`groupTypes.${subType}`) ? tEnum(`groupTypes.${subType}`)
+      : subType.replace(/_/g, ' ')
+    return `${main} / ${sub}`
+  }
 
   // Primary identity
   const [searchQuery, setSearchQuery] = useState('')
@@ -200,9 +223,10 @@ export default function BlastRadiusPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <h2 className="text-2xl font-bold text-[var(--text-primary)]">{t('title')}</h2>
         <button
+          aria-pressed={compareMode}
           onClick={() => {
             setCompareMode(!compareMode)
             if (compareMode) {
@@ -216,8 +240,8 @@ export default function BlastRadiusPage() {
               : 'bg-[var(--bg-primary)] text-[var(--text-secondary)] border-[var(--border-default)] hover:bg-[var(--bg-secondary)]'
           }`}
         >
-          <GitCompare size={16} />
-          {compareMode ? 'Exit Compare' : 'Compare Mode'}
+          <GitCompare size={16} aria-hidden />
+          {compareMode ? t('exitCompare') : t('compareMode')}
         </button>
       </div>
 
@@ -225,10 +249,11 @@ export default function BlastRadiusPage() {
       <div className={`grid gap-4 ${compareMode ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
         {/* Primary Search */}
         <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
-          <label className="text-sm font-medium text-[var(--text-secondary)] mb-2 block">
-            {compareMode ? 'Identity A' : t('selectIdentity')}
+          <label htmlFor="br-search-a" className="text-sm font-medium text-[var(--text-secondary)] mb-2 block">
+            {compareMode ? t('identityA') : t('selectIdentity')}
           </label>
           <IdentitySearchInput
+            id="br-search-a"
             query={searchQuery}
             results={searchResults}
             searching={searching}
@@ -241,14 +266,15 @@ export default function BlastRadiusPage() {
         {/* Compare Search */}
         {compareMode && (
           <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
-            <label className="text-sm font-medium text-[var(--text-secondary)] mb-2 block">Identity B</label>
+            <label htmlFor="br-search-b" className="text-sm font-medium text-[var(--text-secondary)] mb-2 block">{t('identityB')}</label>
             <IdentitySearchInput
+              id="br-search-b"
               query={compareSearchQuery}
               results={compareSearchResults}
               searching={compareSearching}
               onChange={(q) => { setCompareSearchQuery(q); searchIdentities(q, true) }}
               onSelect={(id) => analyzeBlastRadius(id, true)}
-              placeholder="Search for second identity..."
+              placeholder={t('searchSecond')}
             />
           </div>
         )}
@@ -256,8 +282,8 @@ export default function BlastRadiusPage() {
 
       {/* Loading */}
       {(loading || compareLoading) && (
-        <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-12 text-center">
-          <div className="animate-spin h-8 w-8 border-4 border-[var(--color-info)] border-t-transparent rounded-full mx-auto mb-4" />
+        <div role="status" className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-12 text-center">
+          <div aria-hidden className="animate-spin h-8 w-8 border-4 border-[var(--color-info)] border-t-transparent rounded-full mx-auto mb-4" />
           <p className="text-[var(--text-secondary)]">{t('computing')}</p>
         </div>
       )}
@@ -268,11 +294,11 @@ export default function BlastRadiusPage() {
           {/* Stats row */}
           <div className={`grid gap-4 ${compareMode && compareGraphData ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1 md:grid-cols-4'}`}>
             <MetricCard label={t('totalReachable')} value={primaryGraphData.stats.totalReachable} color="blue" />
-            <MetricCard label="T0 Reachable" value={primaryGraphData.stats.t0Reachable} color="red" />
-            <MetricCard label="Blast Score" value={primaryGraphData.stats.blastRadiusScore} color="orange" />
+            <MetricCard label={t('t0Reachable')} value={primaryGraphData.stats.t0Reachable} color="red" />
+            <MetricCard label={t('blastScore')} value={primaryGraphData.stats.blastRadiusScore} color="orange" />
             <MetricCard
-              label="Highest Tier"
-              value={primaryGraphData.stats.highestTier?.replace('_', ' ').toUpperCase() || 'N/A'}
+              label={t('highestTier')}
+              value={tierLabel(primaryGraphData.stats.highestTier)}
               color={primaryGraphData.stats.highestTier === 'tier_0' ? 'red' : 'blue'}
             />
           </div>
@@ -280,12 +306,12 @@ export default function BlastRadiusPage() {
           {/* Compare stats */}
           {compareMode && compareGraphData && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <MetricCard label={`B: ${t('totalReachable')}`} value={compareGraphData.stats.totalReachable} color="blue" />
-              <MetricCard label="B: T0 Reachable" value={compareGraphData.stats.t0Reachable} color="red" />
-              <MetricCard label="B: Blast Score" value={compareGraphData.stats.blastRadiusScore} color="orange" />
+              <MetricCard label={t('bLabel', { label: t('totalReachable') })} value={compareGraphData.stats.totalReachable} color="blue" />
+              <MetricCard label={t('bLabel', { label: t('t0Reachable') })} value={compareGraphData.stats.t0Reachable} color="red" />
+              <MetricCard label={t('bLabel', { label: t('blastScore') })} value={compareGraphData.stats.blastRadiusScore} color="orange" />
               <MetricCard
-                label="B: Highest Tier"
-                value={compareGraphData.stats.highestTier?.replace('_', ' ').toUpperCase() || 'N/A'}
+                label={t('bLabel', { label: t('highestTier') })}
+                value={tierLabel(compareGraphData.stats.highestTier)}
                 color={compareGraphData.stats.highestTier === 'tier_0' ? 'red' : 'blue'}
               />
             </div>
@@ -303,7 +329,7 @@ export default function BlastRadiusPage() {
           <div className={`grid gap-6 ${compareMode && compareGraphData ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'}`}>
             {/* Primary Graph */}
             <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-4" style={{ boxShadow: 'var(--shadow-card)' }}>
-              {compareMode && <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">Identity A: {primaryGraphData.center.name}</h3>}
+              {compareMode && <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">{t('identityA')}: <bdi>{primaryGraphData.center.name}</bdi></h3>}
               {!compareMode && <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">{t('blastRadiusMap')}</h3>}
               <BlastRadiusGraph data={primaryGraphData} />
             </div>
@@ -311,7 +337,7 @@ export default function BlastRadiusPage() {
             {/* Compare Graph */}
             {compareMode && compareGraphData && (
               <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-4" style={{ boxShadow: 'var(--shadow-card)' }}>
-                <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">Identity B: {compareGraphData.center.name}</h3>
+                <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">{t('identityB')}: <bdi>{compareGraphData.center.name}</bdi></h3>
                 <BlastRadiusGraph data={compareGraphData} />
               </div>
             )}
@@ -321,9 +347,9 @@ export default function BlastRadiusPage() {
           {blastData && blastData.rings.map((ring) => (
             <div key={ring.depth} className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] p-6" style={{ boxShadow: 'var(--shadow-card)' }}>
               <h3 className="text-sm font-medium text-[var(--text-secondary)] mb-3">
-                {t('ringDepth', { depth: ring.depth })} ({ring.nodes.length} {t('nodes')})
+                {t('ringDepth', { depth: ring.depth })} ({t('nodesCount', { count: ring.nodes.length })})
               </h3>
-              <div className="overflow-x-auto">
+              <div tabIndex={0} role="region" aria-label={t('ringDepth', { depth: ring.depth })} className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[var(--border-default)]">
@@ -334,31 +360,21 @@ export default function BlastRadiusPage() {
                   </thead>
                   <tbody>
                     {ring.nodes.slice(0, 20).map((node) => (
-                      <tr key={node.id} className="border-b border-[var(--border-subtle)]">
-                        <td className="py-2 px-3 text-[var(--text-primary)]">{node.name}</td>
+                      <tr key={node.id} className="border-b border-[var(--border-default)]">
+                        <td className="py-2 px-3 text-[var(--text-primary)]"><bdi>{node.name}</bdi></td>
                         <td className="py-2 px-3">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                            node.type === 'identity' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                            node.type === 'resource' ? 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300' :
-                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300'
+                            node.type === 'identity' ? TONE.info : node.type === 'resource' ? TONE.neutral : TONE.medium
                           }`}>
-                            {node.type}{node.subType ? ` / ${node.subType}` : ''}
+                            {typeLabel(node.type, node.subType)}
                           </span>
                         </td>
                         <td className="py-2 px-3">
-                          {node.tier === 'tier_0' && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">
-                              T0
-                            </span>
-                          )}
-                          {node.tier === 'tier_1' && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300">
-                              T1
-                            </span>
-                          )}
-                          {node.tier === 'tier_2' && (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300">
-                              T2
+                          {node.tier && node.tier !== 'unclassified' && (
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${
+                              node.tier === 'tier_0' ? TONE.critical : node.tier === 'tier_1' ? TONE.high : TONE.low
+                            }`}>
+                              {tierLabel(node.tier)}
                             </span>
                           )}
                         </td>
@@ -368,7 +384,7 @@ export default function BlastRadiusPage() {
                 </table>
                 {ring.nodes.length > 20 && (
                   <p className="text-xs text-[var(--text-secondary)] mt-2 px-3">
-                    +{ring.nodes.length - 20} {t('moreNodes')}
+                    {t('moreNodesCount', { count: ring.nodes.length - 20 })}
                   </p>
                 )}
               </div>
@@ -383,6 +399,7 @@ export default function BlastRadiusPage() {
 // ── Reusable search input ──
 
 function IdentitySearchInput({
+  id,
   query,
   results,
   searching,
@@ -390,6 +407,7 @@ function IdentitySearchInput({
   onSelect,
   placeholder,
 }: {
+  id: string
   query: string
   results: SearchResult[]
   searching: boolean
@@ -397,11 +415,14 @@ function IdentitySearchInput({
   onSelect: (id: string) => void
   placeholder: string
 }) {
+  const tId = useTranslations('identity')
+  const tTiers = useTranslations('tiers')
   return (
     <div className="relative">
       <div className="relative">
-        <Search size={16} className="absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" />
+        <Search size={16} aria-hidden className="absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)]" />
         <input
+          id={id}
           type="text"
           value={query}
           onChange={(e) => onChange(e.target.value)}
@@ -410,20 +431,23 @@ function IdentitySearchInput({
         />
         {searching && (
           <div className="absolute end-3 top-1/2 -translate-y-1/2">
-            <div className="w-4 h-4 border-2 border-[var(--color-info)] border-t-transparent rounded-full animate-spin" />
+            <div aria-hidden className="w-4 h-4 border-2 border-[var(--color-info)] border-t-transparent rounded-full animate-spin" />
           </div>
         )}
       </div>
       {results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
+        <div className="absolute top-full start-0 end-0 mt-1 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-lg shadow-lg z-10 max-h-60 overflow-y-auto">
           {results.map((identity) => (
             <button
               key={identity.id}
               onClick={() => onSelect(identity.id)}
-              className="w-full text-start px-4 py-2 hover:bg-[var(--bg-secondary)] text-sm flex items-center justify-between"
+              className="w-full text-start px-4 py-2 hover:bg-[var(--bg-secondary)] text-sm flex items-center justify-between gap-2"
             >
-              <span className="text-[var(--text-primary)]">{identity.displayName}</span>
-              <span className="text-xs text-[var(--text-secondary)] capitalize">{identity.type} / {identity.adTier?.replace('_', ' ')}</span>
+              <bdi className="text-[var(--text-primary)] truncate">{identity.displayName}</bdi>
+              <span className="text-xs text-[var(--text-secondary)] shrink-0">
+                {tId.has(identity.type) ? tId(identity.type) : identity.type}
+                {identity.adTier ? ` / ${tTiers.has(identity.adTier) ? tTiers(identity.adTier) : identity.adTier.replace('_', ' ')}` : ''}
+              </span>
             </button>
           ))}
         </div>

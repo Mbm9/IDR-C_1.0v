@@ -1,11 +1,19 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { MetricCard } from '@/components/ui/metric-card'
-import { AD_TIER_CONFIG, IDENTITY_STATUS_CONFIG, getRiskLevel } from '@/lib/utils/constants'
-import { formatDate, formatRelativeTime } from '@/lib/utils/formatters'
 import Link from 'next/link'
+
+// Badge tones built from theme tokens so they keep AA contrast in light and dark themes.
+const tone = (c: string) => `bg-[var(--color-${c}-bg)] text-[color:color-mix(in_srgb,var(--color-${c})_60%,var(--text-primary))]`
+const NEUTRAL = 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
+const TIER_TONE: Record<string, string> = { tier_0: tone('critical'), tier_1: tone('high'), tier_2: tone('info') }
+const STATUS_TONE: Record<string, string> = {
+  active: tone('low'), disabled: tone('critical'), dormant: tone('medium'), orphaned: tone('high'), suspended: tone('high'),
+}
+const riskColor = (score: number) =>
+  `color-mix(in srgb, var(--color-${score >= 80 ? 'critical' : score >= 60 ? 'high' : score >= 30 ? 'medium' : 'low'}) 60%, var(--text-primary))`
 
 export default function NHIPage() {
   const { data, isLoading } = useQuery({
@@ -18,6 +26,11 @@ export default function NHIPage() {
   })
   const t = useTranslations('nhi')
   const tCommon = useTranslations('common')
+  const tTiers = useTranslations('tiers')
+  const tStatus = useTranslations('status')
+  const tId = useTranslations('identity')
+  const locale = useLocale()
+  const formatDate = (d: string) => new Date(d).toLocaleDateString(locale, { year: 'numeric', month: 'short', day: 'numeric' })
 
   if (isLoading || !data) {
     return (
@@ -56,7 +69,7 @@ export default function NHIPage() {
       </div>
 
       {/* NHI table */}
-      <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] overflow-x-auto" style={{ boxShadow: 'var(--shadow-card)' }}>
+      <div className="bg-[var(--bg-primary)] rounded-xl border border-[var(--border-default)] overflow-x-auto" style={{ boxShadow: 'var(--shadow-card)' }} tabIndex={0} role="region" aria-label={t('title')}>
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border-default)]">
@@ -71,36 +84,36 @@ export default function NHIPage() {
           </thead>
           <tbody className="divide-y divide-[var(--border-default)]">
             {data.nhis.map((nhi: any) => {
-              const tierConfig = AD_TIER_CONFIG[nhi.adTier as keyof typeof AD_TIER_CONFIG]
-              const risk = getRiskLevel(nhi.riskScore)
-              const statusConfig = IDENTITY_STATUS_CONFIG[nhi.status as keyof typeof IDENTITY_STATUS_CONFIG]
+              const tier = String(nhi.adTier ?? 'unclassified')
+              const status = String(nhi.status ?? '')
+              const subType = String(nhi.subType ?? '')
               return (
                 <tr key={nhi.id} className="hover:bg-[var(--bg-secondary)]">
                   <td className="px-4 py-3">
-                    <Link href={`/dashboard/identities/${nhi.id}`} className="font-medium text-[var(--color-info)] hover:underline">
-                      {nhi.displayName}
+                    <Link href={`/dashboard/identities/${nhi.id}`} className="font-medium text-[color:color-mix(in_srgb,var(--color-info)_70%,var(--text-primary))] hover:underline">
+                      <bdi>{nhi.displayName}</bdi>
                     </Link>
                   </td>
-                  <td className="px-4 py-3 text-[var(--text-secondary)] text-xs capitalize">{nhi.subType.replace(/_/g, ' ')}</td>
+                  <td className="px-4 py-3 text-[var(--text-secondary)] text-xs">{tId.has(subType) ? tId(subType) : subType.replace(/_/g, ' ')}</td>
                   <td className="px-4 py-3">
-                    <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ color: tierConfig?.color, backgroundColor: tierConfig?.bgColor }}>
-                      {tierConfig?.label}
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${TIER_TONE[tier] ?? NEUTRAL}`}>
+                      {tTiers.has(tier) ? tTiers(tier) : tier}
                     </span>
                   </td>
-                  <td className="px-4 py-3"><span className="font-semibold" style={{ color: risk.color }}>{nhi.riskScore}</span></td>
+                  <td className="px-4 py-3"><span className="font-semibold" style={{ color: riskColor(nhi.riskScore ?? 0) }}>{nhi.riskScore}</span></td>
                   <td className="px-4 py-3">
-                    <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ color: statusConfig?.color, backgroundColor: `${statusConfig?.color}15` }}>
-                      {statusConfig?.label}
+                    <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_TONE[status] ?? NEUTRAL}`}>
+                      {tStatus.has(status) ? tStatus(status) : status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-xs text-[var(--text-secondary)]">
+                  <td className="px-4 py-3 text-xs text-[var(--text-secondary)] whitespace-nowrap">
                     {nhi.expiryAt ? formatDate(nhi.expiryAt) : '—'}
                   </td>
                   <td className="px-4 py-3 text-xs">
                     {nhi.ownerIdentityId ? (
-                      <span style={{ color: 'var(--color-low)' }}>{tCommon('assigned')}</span>
+                      <span style={{ color: 'color-mix(in srgb, var(--color-low) 60%, var(--text-primary))' }}>{tCommon('assigned')}</span>
                     ) : (
-                      <span className="font-medium" style={{ color: 'var(--color-critical)' }}>{tCommon('none')}</span>
+                      <span className="font-medium" style={{ color: 'color-mix(in srgb, var(--color-critical) 70%, var(--text-primary))' }}>{tCommon('none')}</span>
                     )}
                   </td>
                 </tr>

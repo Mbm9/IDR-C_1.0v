@@ -209,7 +209,7 @@ export function BlastRadiusViz({ center, rings }: Props) {
             {tooltip.node.type}{tooltip.node.subType ? ` / ${tooltip.node.subType}` : ''}
           </p>
           {tooltip.node.tier && (
-            <p className={`text-xs font-medium ${tooltip.node.tier === 'tier_0' ? 'text-[var(--color-critical)]' : ''}`}>
+            <p className={`text-xs font-medium ${tooltip.node.tier === 'tier_0' ? 'text-[color:color-mix(in_srgb,var(--color-critical)_70%,var(--text-primary))]' : ''}`}>
               {tooltip.node.tier.replace('_', ' ')}
             </p>
           )}
