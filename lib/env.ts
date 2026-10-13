@@ -34,6 +34,9 @@ const envSchema = z.object({
   OLLAMA_URL: z.string().url().optional(),
   OLLAMA_MODEL: z.string().optional(),
   ANTHROPIC_API_KEY: z.string().optional(),
+  ANTHROPIC_MODEL: z.string().optional(),
+  AI_MODEL_ENDPOINT: z.string().url('AI_MODEL_ENDPOINT must be a valid URL').optional(),
+  AI_MODEL: z.string().optional(),
 
   // Credential encryption (required in production)
   CREDENTIALS_KEY: z

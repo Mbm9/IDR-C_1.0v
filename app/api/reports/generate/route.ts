@@ -4,11 +4,20 @@ import { db } from '@/lib/db'
 import { actionLog, identities, users, policyViolations, policies, organizations } from '@/lib/db/schema'
 import { eq, and, desc, count, gte, lte, sql, SQL } from 'drizzle-orm'
 import ReactPDF from '@react-pdf/renderer'
+import { z } from 'zod'
+import { parseJsonBody } from '@/lib/actions/helpers'
 import {
   AuditTrailDocument,
   RiskSummaryDocument,
   ComplianceDocument,
 } from '@/lib/reports/pdf-templates'
+
+const isoDate = z.string().refine((v) => !Number.isNaN(Date.parse(v)), 'must be a date')
+const reportRequestSchema = z.object({
+  // compliance_<framework> (e.g. compliance_ncaecc from the compliance page, compliance_nca from the export button)
+  type: z.union([z.enum(['audit_trail', 'risk_summary']), z.string().regex(/^compliance_[a-z]{2,20}$/)]),
+  dateRange: z.object({ from: isoDate, to: isoDate }).optional(),
+})
 
 export async function POST(req: NextRequest) {
   const session = await auth()
@@ -17,15 +26,9 @@ export async function POST(req: NextRequest) {
   }
 
   const orgId = session.user.orgId
-  const body = await req.json()
-  const { type, dateRange } = body as {
-    type: 'audit_trail' | 'compliance_nca' | 'compliance_sama' | 'compliance_pdpl' | 'risk_summary'
-    dateRange?: { from: string; to: string }
-  }
-
-  if (!type) {
-    return NextResponse.json({ error: 'Missing report type' }, { status: 400 })
-  }
+  const body = await parseJsonBody(req, reportRequestSchema)
+  if (!body.ok) return body.response
+  const { type, dateRange } = body.data
 
   // Fetch org name
   const [org] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, orgId))

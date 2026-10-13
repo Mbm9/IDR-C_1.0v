@@ -364,7 +364,7 @@ else
   h_status="$(echo "$health_json" | sed -n 's/.*"status":"\([a-z]*\)".*/\1/p' | head -n1)"
   case "$h_status" in
     healthy)  ok "App health: healthy" ;;
-    degraded) warn "App health: degraded (database OK, AI provider not configured)" "set OLLAMA_URL or ANTHROPIC_API_KEY" ;;
+    degraded) warn "App health: degraded (database OK, configured AI provider unreachable)" "check: docker logs idr-ollama  and that OLLAMA_MODEL is pulled (docker exec idr-ollama ollama list); set AI_PROVIDER=none to run without AI" ;;
     *)        err "App health: ${h_status:-unknown} — $(echo "$health_json" | tr -d "\n" | cut -c1-120)" "check DATABASE_URL and 'docker logs idr-app'" ;;
   esac
   login_code="$(curl -ks -o /dev/null -w '%{http_code}' -m 8 http://localhost:3000/login 2>/dev/null)"

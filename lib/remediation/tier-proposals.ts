@@ -251,7 +251,8 @@ export async function executeApprovedActions(
             .set({
               status: 'remediated',
               remediatedAt: new Date(),
-              remediatedBy: approvedBy,
+              // remediated_by is a foreign key to identities, but approvedBy is
+              // an app user id; the approver is recorded in action_log below.
             })
             .where(and(
               eq(policyViolations.identityId, action.targetIdentityId),
