@@ -265,7 +265,9 @@ done
 section "5. Containers"
 # -----------------------------------------------------------------------------
 ERROR_PATTERN='(error|fatal|panic|exception|ECONNREFUSED|ENOTFOUND|EADDRINUSE|out of memory|OOM|killed|not found|permission denied|no space left)'
-IGNORE_PATTERN='(0 errors|error_count|errorBoundary|NEXT_REDIRECT|"level":"info")'
+# Benign lines: Postgres refusing connections while it boots (before its health
+# check passes), and the Alpine image lacking the `locale` binary.
+IGNORE_PATTERN='(0 errors|error_count|errorBoundary|NEXT_REDIRECT|"level":"info"|the database system is starting up|locale: not found)'
 
 if $DOCKER_OK; then
   for c in idr-db idr-ollama idr-init idr-app idr-caddy; do
@@ -361,7 +363,9 @@ health_json="$(http_get http://localhost:3000/api/health)"
 if [[ -z "$health_json" ]]; then
   err "App not reachable at http://localhost:3000/api/health" "docker logs idr-app"
 else
-  h_status="$(echo "$health_json" | sed -n 's/.*"status":"\([a-z]*\)".*/\1/p' | head -n1)"
+  # The overall status is one of three values; nested checks also carry a
+  # "status" ("up"/"down"), so match only the overall values, first occurrence.
+  h_status="$(echo "$health_json" | grep -oE '"status":"(healthy|degraded|unhealthy)"' | head -n1 | cut -d'"' -f4)"
   case "$h_status" in
     healthy)  ok "App health: healthy" ;;
     degraded) warn "App health: degraded (database OK, configured AI provider unreachable)" "check: docker logs idr-ollama  and that OLLAMA_MODEL is pulled (docker exec idr-ollama ollama list); set AI_PROVIDER=none to run without AI" ;;
