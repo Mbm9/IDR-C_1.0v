@@ -54,6 +54,7 @@ Wait for the "healthy" message at the end.
 ## 5. Optional: start over with a clean database
 
 Only do this if you want to wipe all data, including users and imported identities.
+It also deletes the downloaded AI model, so the next start downloads it again.
 
 ```bash
 ./scripts/docker-up.sh --reset
