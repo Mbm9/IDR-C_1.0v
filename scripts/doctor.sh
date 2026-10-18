@@ -266,8 +266,9 @@ section "5. Containers"
 # -----------------------------------------------------------------------------
 ERROR_PATTERN='(error|fatal|panic|exception|ECONNREFUSED|ENOTFOUND|EADDRINUSE|out of memory|OOM|killed|not found|permission denied|no space left)'
 # Benign lines: Postgres refusing connections while it boots (before its health
-# check passes), and the Alpine image lacking the `locale` binary.
-IGNORE_PATTERN='(0 errors|error_count|errorBoundary|NEXT_REDIRECT|"level":"info"|the database system is starting up|locale: not found)'
+# check passes), the Alpine image lacking the `locale` binary, and Auth.js
+# logging a sign-in with a wrong password (expected; failed logins are audited).
+IGNORE_PATTERN='(0 errors|error_count|errorBoundary|NEXT_REDIRECT|"level":"info"|the database system is starting up|locale: not found|CredentialsSignin)'
 
 if $DOCKER_OK; then
   for c in idr-db idr-ollama idr-init idr-app idr-caddy; do
