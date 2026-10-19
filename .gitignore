@@ -45,3 +45,7 @@ node_modules.nosync/
 # Playwright output (contains cached session cookies in test-results/.auth)
 /test-results/
 /playwright-report/
+
+# Database backups (scripts/backup.sh, backup container)
+backups/
+docker/backups/

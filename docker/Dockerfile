@@ -62,6 +62,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
 COPY --from=builder --chown=nextjs:nodejs /app/seed ./seed
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+# Scheduler for /api/cron/* jobs (runs as its own container from this image)
+COPY --chown=nextjs:nodejs docker/scheduler.mjs ./scheduler.mjs
 
 # Install only the runtime deps needed for migrations (tsx, drizzle-kit, etc.)
 COPY --from=deps /app/node_modules ./node_modules

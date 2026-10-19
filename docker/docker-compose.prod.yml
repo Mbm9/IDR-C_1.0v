@@ -1,6 +1,11 @@
 # =============================================================================
 # Identity Radar — Production Docker Compose
-# Services: app (Next.js), db (PostgreSQL 16), caddy (reverse proxy + HTTPS)
+# Services: db (PostgreSQL 16), init (schema; demo data only with SEED_DEMO=true),
+#           app (Next.js), scheduler (/api/cron/* scans), backup (daily pg_dump),
+#           caddy (reverse proxy + HTTPS)
+#
+# Used by scripts/deploy.sh (from the repository) and by the offline bundle's
+# install.sh (images pre-loaded as identity-radar:latest / identity-radar-init:latest).
 # =============================================================================
 
 services:
@@ -34,30 +39,67 @@ services:
       - internal
 
   # ---------------------------------------------------------------------------
-  # Next.js Application
+  # Init — one-shot: schema push + views; demo data only when SEED_DEMO=true.
+  # Safe to re-run (idempotent).
   # ---------------------------------------------------------------------------
-  app:
+  init:
+    image: identity-radar-init:latest
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    container_name: idr-app
-    restart: unless-stopped
+      target: init
+    container_name: idr-init
     depends_on:
       db:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-identity_radar}
+      PGHOST: db
+      PGPORT: "5432"
+      PGUSER: ${POSTGRES_USER:-postgres}
+      SEED_DEMO: ${SEED_DEMO:-false}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+    restart: "no"
+    networks:
+      - internal
+
+  # ---------------------------------------------------------------------------
+  # Next.js Application
+  # ---------------------------------------------------------------------------
+  app:
+    image: identity-radar:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      target: runner
+    container_name: idr-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    # Local-only port for health checks and diagnostics; users go through Caddy.
+    ports:
+      - "127.0.0.1:3000:3000"
+    # Lets OLLAMA_URL=http://host.docker.internal:11434 reach Ollama on the host (Linux too).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-identity_radar}
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-https://localhost}
       AUTH_TRUST_HOST: ${AUTH_TRUST_HOST:-true}
+      # ollama | anthropic | none; unset = Ollama first, then Anthropic if a key is set
+      AI_PROVIDER: ${AI_PROVIDER:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OLLAMA_URL: ${OLLAMA_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:7b}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://localhost}
-      # Bearer token for the external scheduler calling /api/cron/*
-      CRON_SECRET: ${CRON_SECRET:-}
+      # Bearer token the scheduler sends to /api/cron/*; jobs are refused without it
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required}
       # 64 hex chars; connector credentials are refused without it in production
-      CREDENTIALS_KEY: ${CREDENTIALS_KEY:-}
+      CREDENTIALS_KEY: ${CREDENTIALS_KEY:?CREDENTIALS_KEY is required}
       NODE_ENV: production
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
@@ -72,6 +114,62 @@ services:
           cpus: "2.0"
         reservations:
           memory: 512M
+    networks:
+      - internal
+
+  # ---------------------------------------------------------------------------
+  # Scheduler — calls the /api/cron/* scans on their cadence (app image)
+  # ---------------------------------------------------------------------------
+  scheduler:
+    image: identity-radar:latest
+    container_name: idr-scheduler
+    restart: unless-stopped
+    command: ["node", "scheduler.mjs"]
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      APP_URL: http://app:3000
+      CRON_SECRET: ${CRON_SECRET:?CRON_SECRET is required}
+      SCHEDULE_TZ: ${SCHEDULE_TZ:-UTC}
+    healthcheck:
+      disable: true
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    networks:
+      - internal
+
+  # ---------------------------------------------------------------------------
+  # Backup — daily pg_dump to ./backups next to this file (restore.sh-compatible)
+  # ---------------------------------------------------------------------------
+  backup:
+    image: postgres:16-alpine
+    container_name: idr-backup
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/backup-loop.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: ${POSTGRES_DB:-identity_radar}
+      BACKUP_HOUR: ${BACKUP_HOUR:-2}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      - ./backup-loop.sh:/backup-loop.sh:ro
+      - ./backups:/backups
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     networks:
       - internal
 

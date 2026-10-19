@@ -18,7 +18,9 @@ echo "[init] Views created."
 # Check if data already exists to avoid duplicate seeding
 ROW_COUNT=$(psql "$(echo "$DATABASE_URL")" -t -A -c "SELECT COUNT(*) FROM organizations;" 2>/dev/null || echo "0")
 
-if [ "$ROW_COUNT" -gt 0 ]; then
+if [ "${SEED_DEMO:-true}" = "false" ]; then
+  echo "[init] SEED_DEMO=false: no demo data loaded. Create the first account at /signup."
+elif [ "$ROW_COUNT" -gt 0 ]; then
   echo "[init] Data already exists ($ROW_COUNT organizations). Skipping seed."
 else
   echo "[init] Seeding sample data..."

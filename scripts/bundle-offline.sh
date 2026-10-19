@@ -63,8 +63,10 @@ success "Model ${MODEL} pulled"
 # ---------------------------------------------------------------------------
 info "Step 3/5: Building Identity Radar Docker image..."
 cd "$PROJECT_DIR"
-docker build -f docker/Dockerfile -t identity-radar:latest .
-success "Identity Radar image built"
+# Two targets: the web app (also runs the scheduler) and the one-shot database init.
+docker build -f docker/Dockerfile --target runner -t identity-radar:latest .
+docker build -f docker/Dockerfile --target init -t identity-radar-init:latest .
+success "Identity Radar images built (identity-radar, identity-radar-init)"
 
 # ---------------------------------------------------------------------------
 # Step 4: Create the bundle directory
@@ -79,6 +81,8 @@ mkdir -p "$BUNDLE_DIR/config"
 # Save Docker images as tarballs
 info "  Saving identity-radar image..."
 docker save identity-radar:latest | gzip > "$BUNDLE_DIR/images/identity-radar.tar.gz"
+info "  Saving identity-radar-init image..."
+docker save identity-radar-init:latest | gzip > "$BUNDLE_DIR/images/identity-radar-init.tar.gz"
 
 info "  Saving postgres image..."
 docker save postgres:16-alpine | gzip > "$BUNDLE_DIR/images/postgres-16-alpine.tar.gz"
@@ -106,6 +110,7 @@ fi
 # Copy config files
 cp "$PROJECT_DIR/docker/docker-compose.prod.yml" "$BUNDLE_DIR/config/"
 cp "$PROJECT_DIR/docker/Caddyfile" "$BUNDLE_DIR/config/"
+cp "$PROJECT_DIR/docker/backup-loop.sh" "$BUNDLE_DIR/config/"
 cp "$PROJECT_DIR/.env.example" "$BUNDLE_DIR/config/"
 
 # Copy deployment scripts
@@ -187,13 +192,22 @@ info "Step 4/6: Setting up ${INSTALL_DIR}..."
 mkdir -p "$INSTALL_DIR"
 cp "$SCRIPT_DIR/config/docker-compose.prod.yml" "$INSTALL_DIR/"
 cp "$SCRIPT_DIR/config/Caddyfile" "$INSTALL_DIR/"
+cp "$SCRIPT_DIR/config/backup-loop.sh" "$INSTALL_DIR/"
+mkdir -p "$INSTALL_DIR/backups"
 cp -r "$SCRIPT_DIR/scripts/"* "$INSTALL_DIR/" 2>/dev/null || true
 chmod +x "$INSTALL_DIR/"*.sh 2>/dev/null || true
 
 # Step 5: Generate config
 info "Step 5/6: Generating configuration..."
-NEXTAUTH_SECRET=$(openssl rand -base64 32)
-POSTGRES_PASSWORD=$(openssl rand -hex 20)
+# Re-installs keep existing secrets (the database keeps its original password,
+# and CREDENTIALS_KEY decrypts stored connector credentials).
+ENV_PROD="$INSTALL_DIR/.env.production"
+env_get() { [ -f "$ENV_PROD" ] && grep -E "^$1=" "$ENV_PROD" | tail -n1 | cut -d= -f2- || true; }
+POSTGRES_PASSWORD="$(env_get POSTGRES_PASSWORD)"; [ -n "$POSTGRES_PASSWORD" ] || POSTGRES_PASSWORD=$(openssl rand -hex 20)
+NEXTAUTH_SECRET="$(env_get NEXTAUTH_SECRET)";     [ -n "$NEXTAUTH_SECRET" ]   || NEXTAUTH_SECRET=$(openssl rand -base64 32)
+CRON_SECRET="$(env_get CRON_SECRET)";             [ -n "$CRON_SECRET" ]       || CRON_SECRET=$(openssl rand -hex 32)
+CREDENTIALS_KEY="$(env_get CREDENTIALS_KEY)";     [ -n "$CREDENTIALS_KEY" ]   || CREDENTIALS_KEY=$(openssl rand -hex 32)
+[ -f "$ENV_PROD" ] && cp "$ENV_PROD" "$ENV_PROD.bak"
 
 if [ "$DOMAIN" = "localhost" ]; then
   APP_URL="http://localhost"
@@ -213,10 +227,18 @@ AUTH_TRUST_HOST=true
 NEXT_PUBLIC_APP_URL=${APP_URL}
 NODE_ENV=production
 DOMAIN=${DOMAIN}
+NEXT_PUBLIC_DEMO_MODE=false
+CRON_SECRET=${CRON_SECRET}
+CREDENTIALS_KEY=${CREDENTIALS_KEY}
+SEED_DEMO=false
+SCHEDULE_TZ=UTC
+BACKUP_HOUR=2
+BACKUP_KEEP=14
 AI_PROVIDER=ollama
 OLLAMA_URL=http://host.docker.internal:11434
 OLLAMA_MODEL=qwen2.5:1.5b
 EOF
+chmod 600 "$ENV_PROD"
 success "Configuration generated"
 
 # Step 6: Start services
@@ -227,7 +249,7 @@ ollama serve &>/dev/null &
 sleep 3
 
 cd "$INSTALL_DIR"
-docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-build
 
 # Wait for health
 info "Waiting for services to start..."
@@ -250,7 +272,8 @@ echo "║       Identity Radar is running!             ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 info "URL:              ${APP_URL}"
-info "Default login:    admin@acmefs.sa / admin123"
+info "First admin:      open ${APP_URL}/signup; the first account becomes the admin"
+info "Scans:            run on schedule by idr-scheduler; backups daily to ${INSTALL_DIR}/backups"
 info "AI Model:         qwen2.5:1.5b (running locally)"
 echo ""
 info "Management:"
@@ -298,7 +321,7 @@ INSTALLATION:
      ./install.sh identityradar.company.com
 
   4. Open http://localhost:3000 in your browser
-  5. Login: admin@acmefs.sa / admin123
+  5. Create the first account at /signup (it becomes the organization admin)
   6. Go to "Import Data" to upload your AD data
 
 NO INTERNET REQUIRED:
@@ -317,7 +340,7 @@ IMPORTING YOUR DATA:
   Then upload both files in Identity Radar → Import Data
 
 MANAGEMENT:
-  Start:    cd /opt/identity-radar && docker compose --env-file .env.production -f docker-compose.prod.yml up -d
+  Start:    cd /opt/identity-radar && docker compose --env-file .env.production -f docker-compose.prod.yml up -d --no-build
   Stop:     cd /opt/identity-radar && docker compose --env-file .env.production -f docker-compose.prod.yml down
   Backup:   cd /opt/identity-radar && ./backup.sh
   Restore:  cd /opt/identity-radar && ./restore.sh backups/<file>.sql.gz

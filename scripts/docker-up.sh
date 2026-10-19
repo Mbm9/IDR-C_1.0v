@@ -11,6 +11,7 @@
 #   ./scripts/docker-up.sh --no-caddy      # skip Caddy (no ports 80/443 needed)
 #   ./scripts/docker-up.sh --no-cache      # rebuild images from scratch
 #   ./scripts/docker-up.sh --reset         # wipe volumes (DB, model) first
+#   ./scripts/docker-up.sh --no-demo       # no Acme demo data; create the first account at /signup
 #   ./scripts/docker-up.sh --model qwen2.5:7b
 #   ./scripts/docker-up.sh --logs          # follow logs after start
 #
@@ -33,17 +34,19 @@ cd "$PROJECT_DIR"
 NO_CACHE=false
 NO_CADDY=false
 RESET=false
+NO_DEMO=false
 FOLLOW_LOGS=false
 MODEL=""
 APP_TIMEOUT=900   # seconds to wait for the app (first run pulls the AI model)
 
-usage() { sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-cache) NO_CACHE=true ;;
     --no-caddy) NO_CADDY=true ;;
     --reset)    RESET=true ;;
+    --no-demo)  NO_DEMO=true ;;
     --logs)     FOLLOW_LOGS=true ;;
     --model)    MODEL="${2:?--model needs a value}"; shift ;;
     --timeout)  APP_TIMEOUT="${2:?--timeout needs a value}"; shift ;;
@@ -168,6 +171,13 @@ EOF
   success ".env created"
 fi
 
+if $NO_DEMO; then
+  grep -v '^SEED_DEMO=' .env > .env.tmp.$$ || true
+  cat .env.tmp.$$ > .env; rm -f .env.tmp.$$
+  echo "SEED_DEMO=false" >> .env
+  info "SEED_DEMO=false: the database starts empty (no Acme demo data)"
+fi
+
 if [[ -n "$MODEL" ]]; then
   grep -v '^OLLAMA_MODEL=' .env > .env.tmp.$$ || true
   cat .env.tmp.$$ > .env; rm -f .env.tmp.$$
@@ -194,7 +204,7 @@ step "Building images (first build takes several minutes)"
 BUILD_ARGS=()
 $NO_CACHE && BUILD_ARGS+=(--no-cache)
 # ${arr[@]+...} form: an empty array under `set -u` is an error on bash < 4.4 (macOS /bin/bash 3.2)
-docker compose build ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"} init app || fail "Image build failed (see output above)."
+docker compose build ${BUILD_ARGS[@]+"${BUILD_ARGS[@]}"} init app scheduler || fail "Image build failed (see output above)."
 success "Images built"
 
 # ---------------------------------------------------------------------------
@@ -214,7 +224,7 @@ for _ in $(seq 1 300); do
   if [[ "$state" == exited* ]]; then
     code="${state#*|}"
     if [[ "$code" == "0" ]]; then
-      success "Schema pushed and data seeded"
+      success "Database schema ready"
       break
     fi
     docker logs --tail 40 idr-init 2>&1 | sed 's/^/        /'
@@ -246,7 +256,8 @@ while :; do
 done
 
 step "Starting the app"
-SERVICES=(app)
+# scheduler runs the /api/cron/* scans; backup writes a daily dump to ./backups
+SERVICES=(app scheduler backup)
 $NO_CADDY || SERVICES+=(caddy)
 docker compose up -d "${SERVICES[@]}" || fail "docker compose up failed."
 success "Containers started: db ollama init ${SERVICES[*]}"
@@ -282,8 +293,14 @@ echo -e "${GREEN}${BOLD}Identity Radar is running.${NC}"
 echo -e "  App:    ${BOLD}http://localhost:3000${NC}"
 domain="$(env_get DOMAIN)"
 $NO_CADDY || echo -e "  HTTPS:  ${BOLD}https://${domain:-localhost}${NC} (self-signed for localhost)"
-echo -e "  Login:  ${BOLD}admin@acmefs.sa${NC} / ${BOLD}${admin_pw:-admin123}${NC}"
-echo -e "          (only applies to the first seed; existing data keeps its password)"
+if [[ "$(env_get SEED_DEMO)" == "false" ]]; then
+  echo -e "  Login:  create the first account at ${BOLD}http://localhost:3000/signup${NC} (it becomes the admin)"
+else
+  echo -e "  Login:  ${BOLD}admin@acmefs.sa${NC} / ${BOLD}${admin_pw:-admin123}${NC}"
+  echo -e "          (only applies to the first seed; existing data keeps its password)"
+fi
+echo -e "  Scans:  run on schedule by idr-scheduler (docker logs idr-scheduler)"
+echo -e "  Backup: daily to ./backups (restore: ./scripts/restore.sh <file>)"
 echo
 echo -e "  Diagnose: ./scripts/doctor.sh     Logs: docker compose logs -f app"
 echo -e "  Stop:     docker compose down     Wipe: docker compose down -v"

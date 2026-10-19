@@ -57,11 +57,12 @@ while [[ $# -gt 0 ]]; do
       echo ""
       echo "Options:"
       echo "  --domain <fqdn>        Domain for HTTPS (default: localhost)"
-      echo "  --admin-email <email>  Admin user email (default: admin@example.com)"
-      echo "  --org-name <name>      Organization name (default: My Organization)"
+      echo "  --admin-email, --org-name  Ignored (kept for compatibility); the first account"
+      echo "                         created at /signup becomes the organization admin"
       echo "  --ai-provider <type>   AI backend: ollama, anthropic, none (default: none)"
       echo "  --anthropic-key <key>  Anthropic API key (required if ai-provider=anthropic)"
-      echo "  --seed                 Load sample data for demo"
+      echo "  --seed                 Load the Acme demo data (empty database only)"
+      echo "  Re-running updates in place and keeps the secrets in .env.production."
       echo "  --help                 Show this help"
       exit 0
       ;;
@@ -77,8 +78,6 @@ echo "║      Identity Radar — Production Deploy      ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 info "Domain:       ${DOMAIN}"
-info "Admin Email:  ${ADMIN_EMAIL}"
-info "Organization: ${ORG_NAME}"
 info "AI Provider:  ${AI_PROVIDER}"
 info "Seed Data:    ${SEED}"
 echo ""
@@ -117,36 +116,51 @@ if command -v free >/dev/null 2>&1; then
   fi
 fi
 
-# Check ports 80 and 443
+# Check ports 80 and 443 (skipped when our own Caddy holds them: a re-run/update)
+OWN_CADDY=false
+docker ps --format '{{.Names}}' 2>/dev/null | grep -qx idr-caddy && OWN_CADDY=true
 for PORT in 80 443; do
+  $OWN_CADDY && break
   if ss -tlnp 2>/dev/null | grep -q ":${PORT} " || netstat -tlnp 2>/dev/null | grep -q ":${PORT} "; then
     fail "Port ${PORT} is already in use. Stop the conflicting service first."
   fi
 done
-success "Ports 80 and 443 are available"
+$OWN_CADDY && success "Ports 80/443 held by the existing idr-caddy (update in place)" || success "Ports 80 and 443 are available"
 
 # Check required files exist
 [ -f "$COMPOSE_FILE" ] || fail "Missing: ${COMPOSE_FILE}. Are you in the project root?"
 [ -f "docker/Dockerfile" ] || fail "Missing: docker/Dockerfile"
 [ -f "docker/Caddyfile" ] || fail "Missing: docker/Caddyfile"
+[ -f "docker/backup-loop.sh" ] || fail "Missing: docker/backup-loop.sh"
 [ -f ".env.example" ] || fail "Missing: .env.example"
 success "All required files present"
 
 # =============================================================================
 # Step 2: Generate secrets
 # =============================================================================
-step "2/9" "Generating secrets"
+step "2/9" "Secrets"
 
-NEXTAUTH_SECRET=$(openssl rand -base64 32)
-POSTGRES_PASSWORD=$(openssl rand -hex 20)
-
-success "NEXTAUTH_SECRET generated (base64, 32 bytes)"
-success "POSTGRES_PASSWORD generated (hex, 20 bytes)"
+# Re-runs must keep existing secrets: the database volume keeps the password it
+# was created with, and CREDENTIALS_KEY decrypts stored connector credentials.
+env_get() { [ -f "$ENV_FILE" ] && grep -E "^$1=" "$ENV_FILE" | tail -n1 | cut -d= -f2- | tr -d '\r' || true; }
+keep_or_new() {  # keep_or_new VAR "generator command"
+  local cur; cur="$(env_get "$1")"
+  if [ -n "$cur" ]; then printf -v "$1" '%s' "$cur"; success "$1 kept from ${ENV_FILE}"
+  else printf -v "$1" '%s' "$(eval "$2")"; success "$1 generated"; fi
+}
+keep_or_new POSTGRES_PASSWORD "openssl rand -hex 20"
+keep_or_new NEXTAUTH_SECRET   "openssl rand -base64 32"
+keep_or_new CRON_SECRET       "openssl rand -hex 32"
+keep_or_new CREDENTIALS_KEY   "openssl rand -hex 32"
+keep_or_new SEED_ADMIN_PASSWORD "openssl rand -hex 8"
+# An existing install keeps its demo-data choice unless --seed is given now.
+[ "$SEED" = true ] || [ "$(env_get SEED_DEMO)" != "true" ] || SEED=true
+[ -f "$ENV_FILE" ] && cp "$ENV_FILE" "${ENV_FILE}.bak" && info "Previous settings saved to ${ENV_FILE}.bak"
 
 # =============================================================================
 # Step 3: Create .env.production
 # =============================================================================
-step "3/9" "Creating ${ENV_FILE}"
+step "3/9" "Writing ${ENV_FILE}"
 
 if [ "$DOMAIN" = "localhost" ]; then
   APP_URL="http://localhost"
@@ -197,6 +211,21 @@ AUTH_TRUST_HOST=true
 # --- Application ---
 NEXT_PUBLIC_APP_URL=${APP_URL}
 NODE_ENV=production
+NEXT_PUBLIC_DEMO_MODE=false
+
+# --- Security (keep these; changing CREDENTIALS_KEY breaks stored connector credentials) ---
+CRON_SECRET=${CRON_SECRET}
+CREDENTIALS_KEY=${CREDENTIALS_KEY}
+
+# --- Data ---
+# true loads the Acme demo organization into an EMPTY database (use --seed)
+SEED_DEMO=${SEED}
+SEED_ADMIN_PASSWORD=${SEED_ADMIN_PASSWORD}
+
+# --- Scheduling and backups ---
+SCHEDULE_TZ=${SCHEDULE_TZ:-UTC}
+BACKUP_HOUR=${BACKUP_HOUR:-2}
+BACKUP_KEEP=${BACKUP_KEEP:-14}
 
 # --- AI Provider ---
 AI_PROVIDER=${AI_PROVIDER_ENV}
@@ -208,21 +237,22 @@ ANTHROPIC_API_KEY=${ANTHROPIC_KEY}
 DOMAIN=${DOMAIN}
 EOF
 
-success "Created ${ENV_FILE}"
+chmod 600 "$ENV_FILE" 2>/dev/null || true
+success "Wrote ${ENV_FILE}"
 
 # =============================================================================
 # Step 4: Build Docker image
 # =============================================================================
-step "4/9" "Building Docker image"
+step "4/9" "Building Docker images"
 
 info "This may take 3-5 minutes on first build..."
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build --no-cache app
-success "Docker image built"
+docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" build --no-cache init app
+success "Docker images built (identity-radar, identity-radar-init)"
 
 # =============================================================================
 # Step 5: Start services
 # =============================================================================
-step "5/9" "Starting services (PostgreSQL, App, Caddy)"
+step "5/9" "Starting services (PostgreSQL, init, App, scheduler, backup, Caddy)"
 
 docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" up -d
 success "All containers started"
@@ -263,16 +293,15 @@ success "Application is healthy"
 # =============================================================================
 # Step 7: Run database migrations
 # =============================================================================
-step "7/9" "Running database migrations"
+step "7/9" "Database schema"
 
-docker exec idr-app npx drizzle-kit push 2>&1 | tail -5
-success "Schema applied"
-
-# Apply views if they exist
-if docker exec idr-app test -f drizzle/0001_create_views.sql 2>/dev/null; then
-  info "Creating database views..."
-  docker exec idr-app sh -c 'cat drizzle/0001_create_views.sql | PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U postgres -d identity_radar' 2>/dev/null || true
-  success "Views created"
+# The init container pushes the schema and views before the app starts.
+INIT_STATE="$(docker inspect -f '{{.State.Status}}|{{.State.ExitCode}}' idr-init 2>/dev/null || echo missing)"
+if [ "$INIT_STATE" = "exited|0" ]; then
+  success "Schema and views applied (idr-init)"
+else
+  docker logs --tail 30 idr-init 2>&1 || true
+  fail "Database initialisation did not complete (${INIT_STATE}). See the log above."
 fi
 
 # =============================================================================
@@ -281,12 +310,13 @@ fi
 step "8/9" "Data initialization"
 
 if [ "$SEED" = true ]; then
-  info "Seeding sample data (this may take 30-60 seconds)..."
-  docker exec idr-app npx tsx seed/index.ts 2>&1 | tail -5
-  success "Sample data seeded"
+  docker logs idr-init 2>&1 | grep -E "Seed complete|Skipping seed" | tail -n1 | sed 's/^/        /' || true
+  success "Demo data: loaded into an empty database (existing data is never overwritten)"
 else
-  info "Skipping seed data (use --seed to load sample data)"
+  success "No demo data loaded (production). Create the first account at ${APP_URL}/signup"
 fi
+docker ps --format '{{.Names}}' | grep -qx idr-scheduler && success "Scheduler running: scans start now and repeat on schedule" || warn "Scheduler is not running: docker logs idr-scheduler"
+docker ps --format '{{.Names}}' | grep -qx idr-backup && success "Daily backups to docker/backups/" || warn "Backup container is not running: docker logs idr-backup"
 
 # =============================================================================
 # Step 9: Done
@@ -304,8 +334,13 @@ echo "╚═══════════════════════�
 echo ""
 info "URL:              ${APP_URL}"
 info "Health Status:    ${STATUS}"
-info "Admin Email:      ${ADMIN_EMAIL}"
-info "Default Password: [set during first login]"
+if [ "$SEED" = true ]; then
+  info "Demo login:       admin@acmefs.sa / ${SEED_ADMIN_PASSWORD} (first seed only)"
+else
+  info "First admin:      open ${APP_URL}/signup; the first account becomes the organization admin"
+fi
+info "Backups:          docker/backups/ (restore: ./scripts/restore.sh <file>)"
+info "Scan log:         docker logs idr-scheduler"
 echo ""
 info "Env file:         ${ENV_FILE}"
 info "Compose file:     ${COMPOSE_FILE}"
@@ -315,6 +350,6 @@ echo "  Status:   docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} ps"
 echo "  Logs:     docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} logs -f"
 echo "  Stop:     docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} down"
 echo "  Restart:  docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} restart"
-echo "  Backup:   ./scripts/backup.sh"
+echo "  Backup:   automatic daily (docker/backups/); on demand: ./scripts/backup.sh"
 echo ""
 echo -e "${GREEN}Deployment complete.${NC}"

@@ -51,6 +51,10 @@ cp ~/idr-env-backup .env
 `--no-cache` rebuilds every image, so nothing from the old build is reused.
 Wait for the "healthy" message at the end.
 
+To start without the Acme demo data (an empty database where the first account
+created at `/signup` becomes the admin), use `./scripts/docker-up.sh --no-cache --no-demo`
+instead. This only matters for an empty database; existing data is never changed.
+
 ## 5. Optional: start over with a clean database
 
 Only do this if you want to wipe all data, including users and imported identities.
@@ -66,7 +70,11 @@ It also deletes the downloaded AI model, so the next start downloads it again.
 ./scripts/doctor.sh
 ```
 
-Expected summary: **0 error(s), 0 warning(s)**.
+Expected summary: **0 error(s), 0 warning(s)**. The doctor also reports:
+
+- **Scheduled scans running**: the `idr-scheduler` container runs the background scans.
+  Right after a fresh start it may say no scan has finished yet; run the doctor again after a few minutes.
+- **Latest backup**: the `idr-backup` container writes a daily dump to the `backups` folder.
 
 If a `MISSING_MESSAGE` line or any other error appears, take a screenshot of the
 doctor output and send it for a fix.
@@ -87,18 +95,28 @@ kept your existing database, your existing password still works.
 - Sidebar shows **Reports**; open **Reports → GPO & Policy Validation**.
 - **AD Tiering** shows five cards, including **Top Tier Identities**.
 - Cards have a status dot beside the label instead of a coloured side stripe.
+- `docker ps` lists `idr-scheduler` and `idr-backup`.
 
 ---
 
 ## Before production with real data
 
-This setup (`docker-up.sh`) is for demo and pilot use: it loads the demo
-organization (Acme Financial Services) into an empty database. For production:
+`docker-up.sh` is for demo and pilot use. For a production server with real data,
+use the production script on a Linux server (or WSL) with ports 80 and 443 open:
 
-1. Deploy with `./scripts/deploy.sh --domain radar.yourcompany.sa`. It loads no demo data unless you pass `--seed`.
-2. Use strong, unique values in `.env` for `NEXTAUTH_SECRET`, `CRON_SECRET`, `CREDENTIALS_KEY` (64 hex characters), `POSTGRES_PASSWORD` and `SEED_ADMIN_PASSWORD`, and set `NEXT_PUBLIC_DEMO_MODE=false`.
-3. Set up a scheduler to call the background scans (`/api/cron/*` with `CRON_SECRET`). The Docker setup does not include one yet, so dashboards only update when a scan is run by hand.
-4. Schedule backups with `scripts/backup.sh`. See [Backup and restore](../admin-guide/backup-restore.md).
+```bash
+./scripts/deploy.sh --domain radar.yourcompany.sa
+```
+
+It does the following:
+
+- Generates strong secrets on the first run (`.env.production`) and keeps them on later runs.
+- Loads no demo data. Open `https://radar.yourcompany.sa/signup`; the first account becomes the organization admin.
+- Starts the scheduler (background scans) and daily backups to `docker/backups/`.
+- Gets an HTTPS certificate through Caddy (DNS for the domain must point at the server).
+
+Re-run the same command to update to newer code; data and secrets are kept.
+Keep a copy of `.env.production` somewhere safe. See [Backup and restore](../admin-guide/backup-restore.md) to restore a backup.
 
 ## Useful commands
 

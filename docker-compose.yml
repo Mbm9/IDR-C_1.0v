@@ -72,6 +72,8 @@ services:
       PGPORT: "5432"
       PGUSER: ${POSTGRES_USER:-postgres}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      # true (default here) loads the Acme demo organization into an empty database
+      SEED_DEMO: ${SEED_DEMO:-true}
     restart: "no"
 
   # ---------------------------------------------------------------------------
@@ -101,6 +103,8 @@ services:
       NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required - run ./scripts/docker-up.sh or add it to .env}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       AUTH_TRUST_HOST: "true"
+      # ollama | anthropic | none; unset = Ollama first, then Anthropic if a key is set
+      AI_PROVIDER: ${AI_PROVIDER:-}
       OLLAMA_URL: http://ollama:11434
       OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -113,6 +117,51 @@ services:
   # Caddy — reverse proxy with automatic HTTPS (Let's Encrypt)
   # Set DOMAIN env var to your FQDN (e.g., identityradar.alialmoharif.com)
   # ---------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # Scheduler — calls the /api/cron/* scans on their cadence (same image as app)
+  # ---------------------------------------------------------------------------
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      target: runner
+    container_name: idr-scheduler
+    restart: unless-stopped
+    command: ["node", "scheduler.mjs"]
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      APP_URL: http://app:3000
+      CRON_SECRET: ${CRON_SECRET:-}
+      SCHEDULE_TZ: ${SCHEDULE_TZ:-UTC}
+    healthcheck:
+      disable: true
+
+  # ---------------------------------------------------------------------------
+  # Backup — daily pg_dump to ./backups (restore with scripts/restore.sh)
+  # ---------------------------------------------------------------------------
+  backup:
+    image: postgres:16-alpine
+    container_name: idr-backup
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/backup-loop.sh"]
+    depends_on:
+      db:
+        condition: service_healthy
+      init:
+        condition: service_completed_successfully
+    environment:
+      PGHOST: db
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      PGDATABASE: ${POSTGRES_DB:-identity_radar}
+      BACKUP_HOUR: ${BACKUP_HOUR:-2}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      - ./docker/backup-loop.sh:/backup-loop.sh:ro
+      - ./backups:/backups
+
   caddy:
     image: caddy:2-alpine
     container_name: idr-caddy

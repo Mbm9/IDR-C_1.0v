@@ -105,10 +105,13 @@ What it does:
    `NEXTAUTH_SECRET`, `CRON_SECRET`, `CREDENTIALS_KEY`, `SEED_ADMIN_PASSWORD`).
    It keeps an existing `.env`, only adding `NEXTAUTH_SECRET`, `CRON_SECRET` or
    `CREDENTIALS_KEY` when they are missing.
-4. Validates the compose file, then builds the `init` and `app` images.
-5. Starts `db` and `init`, and shows the init logs if seeding fails.
+4. Validates the compose file, then builds the `init`, `app` and `scheduler` images (the scheduler reuses the app image).
+5. Starts `db` and `init`, and shows the init logs if seeding fails. Init loads the Acme demo
+   organization into an empty database unless you pass `--no-demo`.
 6. Starts `ollama` and reports progress while the model downloads.
-7. Starts `app` (and `caddy`), then waits for the app container's health check to pass.
+7. Starts `app`, `scheduler`, `backup` (and `caddy`), then waits for the app container's health check to pass.
+   - `scheduler` runs the 16 background scans (`/api/cron/*`) on their schedule, and the six-hourly scans once at start.
+   - `backup` writes a daily database dump to `./backups` and keeps the newest 14.
 8. Prints the URL and the admin login.
 
 The first run takes a while: the image build (~5–10 min) plus the AI model
@@ -122,6 +125,7 @@ download (~1 GB for `qwen2.5:1.5b`, ~4.4 GB for `qwen2.5:7b`). Later runs start 
 | `--model qwen2.5:7b` | Pick the Ollama model (saved to `.env`) |
 | `--no-cache` | Rebuild the images from scratch |
 | `--reset` | **Deletes all data** (database, model cache, certificates) before starting |
+| `--no-demo` | Start with an empty database (no Acme demo data); create the first account at `/signup`. Saved to `.env` as `SEED_DEMO=false` |
 | `--timeout 1800` | Seconds to wait for the app (default 900; raise it on slow connections) |
 | `--logs` | Follow the container logs after starting |
 
@@ -199,7 +203,9 @@ docker compose restart app            # restart one service
 docker compose down                   # stop (data is kept in volumes)
 docker compose down -v                # stop and DELETE all data
 git pull && ./scripts/docker-up.sh    # update to the latest code and rebuild
-./scripts/backup.sh                   # database backup (see scripts/backup.sh)
+./scripts/backup.sh                   # extra on-demand backup (daily backups are automatic)
+docker logs idr-scheduler             # scheduled scan results
+ls backups/                           # automatic daily backups
 ```
 
 ---
@@ -210,5 +216,10 @@ git pull && ./scripts/docker-up.sh    # update to the latest code and rebuild
   `NEXT_PUBLIC_APP_URL=https://radar.example.com` in `.env`. Point DNS at the host and open
   ports 80/443. Caddy then gets a Let's Encrypt certificate automatically.
 - Keep `.env` secret and backed up. If you lose `CREDENTIALS_KEY`, the stored connector credentials can't be decrypted.
+- For a production server, use `./scripts/deploy.sh --domain radar.example.com` instead of `docker-up.sh`.
+  It loads no demo data, generates every secret on the first run and keeps them on later runs, and starts
+  the scheduler and daily backups (`docker/backups/`).
+- Scan times use UTC; set `SCHEDULE_TZ=Asia/Riyadh` (or another time zone) in the env file to change that.
+  Backups run at `BACKUP_HOUR` (UTC, default 2) and keep `BACKUP_KEEP` files (default 14).
 - For hardened or air-gapped installs see [hardened-environment.md](./hardened-environment.md)
   and [../getting-started/install-airgap.md](../getting-started/install-airgap.md).

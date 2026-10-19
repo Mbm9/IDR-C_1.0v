@@ -186,7 +186,7 @@ fi
 # -----------------------------------------------------------------------------
 section "3. Project files"
 # -----------------------------------------------------------------------------
-for f in docker-compose.yml docker/Dockerfile docker/init-db.sh docker/ollama-entrypoint.sh docker/Caddyfile package-lock.json; do
+for f in docker-compose.yml docker/Dockerfile docker/init-db.sh docker/ollama-entrypoint.sh docker/Caddyfile docker/scheduler.mjs docker/backup-loop.sh package-lock.json; do
   [[ -f "$f" ]] && ok "$f present" || err "$f missing" "re-clone the repository"
 done
 
@@ -271,10 +271,14 @@ ERROR_PATTERN='(error|fatal|panic|exception|ECONNREFUSED|ENOTFOUND|EADDRINUSE|ou
 IGNORE_PATTERN='(0 errors|error_count|errorBoundary|NEXT_REDIRECT|"level":"info"|the database system is starting up|locale: not found|CredentialsSignin)'
 
 if $DOCKER_OK; then
-  for c in idr-db idr-ollama idr-init idr-app idr-caddy; do
+  for c in idr-db idr-ollama idr-init idr-app idr-scheduler idr-backup idr-caddy; do
     if ! docker inspect "$c" >/dev/null 2>&1; then
       if [[ "$c" == "idr-caddy" ]]; then
         note "$c not created (optional HTTPS proxy; skipped with --no-caddy)"
+      elif [[ "$c" == "idr-scheduler" ]]; then
+        warn "$c does not exist: scans will not run on schedule" "update to the latest code and run ./scripts/docker-up.sh"
+      elif [[ "$c" == "idr-backup" ]]; then
+        warn "$c does not exist: no automatic daily backups" "update to the latest code and run ./scripts/docker-up.sh"
       else
         err "$c does not exist" "run ./scripts/docker-up.sh"
       fi
@@ -377,6 +381,30 @@ else
   else err "Login page returned HTTP $login_code" "docker logs idr-app"; fi
 fi
 
+# Scheduler: did recent scheduled scans succeed?
+if $DOCKER_OK && [[ "$(docker inspect -f '{{.State.Running}}' idr-scheduler 2>/dev/null)" == "true" ]]; then
+  sched_log="$(docker logs --tail 200 idr-scheduler 2>&1)"
+  runs_ok="$(echo "$sched_log" | grep -c '"job".*"ok":true' || true)"
+  runs_bad="$(echo "$sched_log" | grep -c '"job".*"ok":false' || true)"
+  if echo "$sched_log" | grep -q 'CRON_SECRET is not set'; then
+    err "Scheduler has no CRON_SECRET; scans are not running" "add CRON_SECRET to .env, then: docker compose up -d scheduler app"
+  elif (( runs_bad > 0 )); then
+    warn "Scheduled scans: $runs_ok succeeded, $runs_bad failed (last 200 log lines)" "docker logs idr-scheduler"
+  elif (( runs_ok > 0 )); then
+    ok "Scheduled scans running ($runs_ok recent runs succeeded)"
+  else
+    note "Scheduler started; no scan has finished yet"
+  fi
+fi
+
+# Backups: newest file in ./backups
+if $DOCKER_OK && [[ "$(docker inspect -f '{{.State.Running}}' idr-backup 2>/dev/null)" == "true" ]]; then
+  # docker-up.sh writes to ./backups; deploy.sh (production compose) to docker/backups
+  newest="$(ls -1t backups/identity-radar-*.sql.gz docker/backups/identity-radar-*.sql.gz 2>/dev/null | head -n1)"
+  if [[ -n "$newest" ]]; then ok "Latest backup: $newest"
+  else note "Backup container running; first backup not written yet (docker logs idr-backup)"; fi
+fi
+
 if $DOCKER_OK && [[ "$(docker inspect -f '{{.State.Running}}' idr-caddy 2>/dev/null)" == "true" ]]; then
   domain="$(env_get DOMAIN)"; domain="${domain:-localhost}"
   code="$(curl -ks -o /dev/null -w '%{http_code}' -m 8 --resolve "$domain:443:127.0.0.1" "https://$domain/api/health" 2>/dev/null)"
@@ -395,7 +423,7 @@ else
   done
   echo
   echo -e "  ${BOLD}${ERRORS} error(s), ${WARNINGS} warning(s)${NC}"
-  echo -e "  ${DIM}Full logs: docker compose logs --tail 200 <db|ollama|init|app|caddy>${NC}"
+  echo -e "  ${DIM}Full logs: docker compose logs --tail 200 <db|ollama|init|app|scheduler|backup|caddy>${NC}"
 fi
 [[ -n "$REPORT" ]] && echo -e "  Report saved to: $REPORT"
 

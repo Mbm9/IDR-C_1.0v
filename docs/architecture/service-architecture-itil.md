@@ -608,7 +608,7 @@ graph LR
 |---|---|---|---|
 | ADCS/GPO/secret exposures show no live data | Empty (or sample) categories | Categories labelled **preview** in the UI | Build collectors (CSI-01) |
 | Tier 0 Live shows sample sessions | Not real-time | Labelled **preview** | Logon-telemetry/EDR collector (CSI-01) |
-| Scans never run after install | No fresh data | Configure scheduler manually | Ship scheduler templates (CSI-02) |
+| Scans never run after install | No fresh data | Check `docker logs idr-scheduler` and `CRON_SECRET` | Resolved: `scheduler` container ships in both compose files (CSI-02) |
 | Residual dev-only dependency CVEs | Audit noise | Not runtime-exposed; documented | Upstream majors (Next 15, Vite 7) |
 | Weak Arabic in AI reports on small models | Low-quality board report | Use `qwen2.5:7b`+ | Validate/ship larger or Arabic-tuned model |
 
@@ -698,7 +698,7 @@ administer them from a PAW, and hold them to the organisation's PAM standard.
 | ID | Improvement | Driver | Priority | Owner |
 |---|---|---|---|---|
 | **CSI-01** | Build logon-telemetry/EDR session collector + ADCS/SYSVOL collectors | Removes the two preview gaps; makes Tier 0 Live real | High | Engineering |
-| **CSI-02** | Ship scheduler templates (systemd timer / cron / k8s CronJob) | Scans don't run until ops build this by hand | High | Engineering |
+| **CSI-02** | ~~Ship scheduler templates~~ Done: `scheduler` container (`docker/scheduler.mjs`) runs all 16 `/api/cron/*` jobs | Resolved | — | Engineering |
 | **CSI-03** | Write operational runbooks (restore, failover, cert renewal, scan failure, secret rotation) | Reduces MTTR; L1/L2 enablement | High | Platform ops |
 | **CSI-04** | Establish the KEDB from §6.3 in the ticketing tool | Faster L1 resolution | Medium | Service desk |
 | **CSI-05** | Build and load-test the HA reference topology | Availability targets currently unproven | Medium | Platform ops |
