@@ -150,9 +150,23 @@ export function rateLimitKey(
 /**
  * Build a 429 Response with standard rate-limit headers.
  */
-export function rateLimitResponse(result: RateLimitResult): Response {
+/**
+ * 429 response. For sign-in requests pass `signInPageUrl` (the login page):
+ * the next-auth client reads `url` from every sign-in response and throws when
+ * it is missing, so the body carries the login page URL with
+ * `error=RateLimited&code=<seconds>`. signIn() then resolves with
+ * `{ error: 'RateLimited', code: '<seconds>', status: 429 }`.
+ */
+export function rateLimitResponse(result: RateLimitResult, signInPageUrl?: string): Response {
+  let url: string | undefined
+  if (signInPageUrl) {
+    const u = new URL(signInPageUrl)
+    u.searchParams.set('error', 'RateLimited')
+    u.searchParams.set('code', String(result.retryAfterSeconds))
+    url = u.href
+  }
   return new Response(
-    JSON.stringify({ error: 'Too many requests. Please try again later.' }),
+    JSON.stringify({ error: 'Too many requests. Please try again later.', ...(url && { url }) }),
     {
       status: 429,
       headers: {

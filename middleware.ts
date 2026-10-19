@@ -31,7 +31,8 @@ export default auth((req) => {
 
     const result = checkRateLimit(key, bucket)
     if (!result.allowed) {
-      return rateLimitResponse(result)
+      // Sign-in POSTs get a body the next-auth client can parse (see rateLimitResponse).
+      return rateLimitResponse(result, bucket === 'auth' ? new URL('/login', req.nextUrl.origin).href : undefined)
     }
     // API-key traffic is also limited per client IP: otherwise a caller could
     // rotate random key prefixes to get a fresh per-key budget each request.

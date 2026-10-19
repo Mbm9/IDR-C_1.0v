@@ -76,6 +76,11 @@ function SignupForm() {
       })
 
       const data = await res.json().catch(() => ({}))
+      if (res.status === 429) {
+        setError(t('errorRateLimited', { seconds: Number(res.headers.get('Retry-After')) || 60 }))
+        setLoading(false)
+        return
+      }
       if (!res.ok) {
         setError(data.error || t('errorCreate'))
         setLoading(false)
@@ -90,7 +95,9 @@ function SignupForm() {
 
       if (result?.error) {
         setJoined(null)
-        setError(t('errorSignIn'))
+        setError(result.error === 'RateLimited' || result.status === 429
+          ? t('errorRateLimited', { seconds: Number(result.code) || 60 })
+          : t('errorSignIn'))
       } else if (!joinedOrg) {
         // New organization: set it up in onboarding. Invited users already
         // belong to an organization and go straight to the dashboard.

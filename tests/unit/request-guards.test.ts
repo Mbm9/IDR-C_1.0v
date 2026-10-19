@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach, vi } from 'vitest'
 import { validateContentType, validateRequestSize } from '@/lib/middleware/security'
-import { clientIp, getBucket, rateLimitKey } from '@/lib/middleware/rate-limit'
+import { clientIp, getBucket, rateLimitKey, rateLimitResponse } from '@/lib/middleware/rate-limit'
 import { verifyCronSecret } from '@/lib/auth/cron'
 
 function req(method: string, headers: Record<string, string> = {}) {
@@ -106,5 +106,27 @@ describe('rate-limit buckets and keys', () => {
     expect(rateLimitKey('ai', h, 'u-1')).toBe('user:u-1')
     expect(rateLimitKey('auth', h, 'u-1')).toBe('ip:10.1.1.1')
     expect(rateLimitKey('api', h, null)).toBe('ip:10.1.1.1')
+  })
+})
+
+describe('rateLimitResponse', () => {
+  const limited = { allowed: false, limit: 30, remaining: 0, retryAfterSeconds: 42 }
+
+  it('returns 429 with Retry-After', async () => {
+    const res = rateLimitResponse(limited)
+    expect(res.status).toBe(429)
+    expect(res.headers.get('Retry-After')).toBe('42')
+    expect(await res.json()).toEqual({ error: 'Too many requests. Please try again later.' })
+  })
+
+  it('gives sign-in requests a url the next-auth client parses as RateLimited', async () => {
+    const res = rateLimitResponse(limited, 'http://localhost:3000/login')
+    const data = await res.json()
+    // Mirrors next-auth/react signIn(): it reads error and code from data.url
+    // and throws when url is missing.
+    const url = new URL(data.url)
+    expect(url.pathname).toBe('/login')
+    expect(url.searchParams.get('error')).toBe('RateLimited')
+    expect(url.searchParams.get('code')).toBe('42')
   })
 })

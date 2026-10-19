@@ -52,8 +52,13 @@ function LoginForm() {
 
     try {
       const result = await signIn('credentials', { email, password, redirect: false })
-      if (result?.error) {
+      if (result?.error === 'RateLimited' || result?.status === 429) {
+        setError(t('rateLimited', { seconds: Number(result.code) || 60 }))
+      } else if (result?.error === 'CredentialsSignin') {
         setError(t('invalidCredentials'))
+      } else if (result?.error) {
+        // CSRF, configuration or database failures: not the user's credentials.
+        setError(t('serverError'))
       } else {
         router.push(callbackUrl)
       }

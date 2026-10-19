@@ -996,7 +996,9 @@
     "noAccount": "Don't have an account?",
     "signUp": "Sign up",
     "demoHint": "Demo account:",
-    "switchLanguage": "Switch language"
+    "switchLanguage": "Switch language",
+    "rateLimited": "Too many sign-in attempts. Try again in {seconds, plural, one {# second} other {# seconds}}.",
+    "serverError": "Sign-in failed because of a problem on the server. Try again in a moment, and contact your administrator if it keeps happening."
   },
   "search": {
     "placeholder": "Search identities, pages, actions...",
@@ -1978,7 +1980,8 @@
       "ciso": "CISO",
       "admin": "Admin"
     },
-    "invitedFromLink": "You are accepting an invitation. Sign up with the email address the invitation was sent to."
+    "invitedFromLink": "You are accepting an invitation. Sign up with the email address the invitation was sent to.",
+    "errorRateLimited": "Too many attempts. Try again in {seconds, plural, one {# second} other {# seconds}}."
   },
   "executiveReport": {
     "title": "Identity Radar Executive Report",
