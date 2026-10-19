@@ -1,9 +1,10 @@
+import { brandName, isPdfLogo } from '@/lib/branding-shared'
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { actionLog, identities, users, policyViolations, policies, organizations } from '@/lib/db/schema'
 import { eq, and, desc, count, gte, lte, sql, SQL } from 'drizzle-orm'
-import ReactPDF from '@react-pdf/renderer'
+import { renderToBuffer } from '@react-pdf/renderer'
 import { z } from 'zod'
 import { parseJsonBody } from '@/lib/actions/helpers'
 import { tierRank } from '@/lib/utils/tiers'
@@ -32,8 +33,11 @@ export async function POST(req: NextRequest) {
   const { type, dateRange } = body.data
 
   // Fetch org name
-  const [org] = await db.select({ name: organizations.name }).from(organizations).where(eq(organizations.id, orgId))
+  const [org] = await db.select({ name: organizations.name, brandName: organizations.brandName, brandLogo: organizations.brandLogo })
+    .from(organizations).where(eq(organizations.id, orgId))
   const orgName = org?.name || 'Organization'
+  // Branding: display name in the footer, logo in the header (PDF supports PNG/JPEG only)
+  const brand = { brandName: brandName({ name: org?.brandName ?? null }), brandLogo: isPdfLogo(org?.brandLogo) ? org!.brandLogo : null }
 
   const from = dateRange?.from ? new Date(dateRange.from) : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
   const to = dateRange?.to ? new Date(dateRange.to) : new Date()
@@ -64,9 +68,10 @@ export async function POST(req: NextRequest) {
         .orderBy(desc(actionLog.createdAt))
         .limit(500)
 
-      pdfBuffer = await ReactPDF.renderToBuffer(
+      pdfBuffer = await renderToBuffer(
         AuditTrailDocument({
           orgName,
+          ...brand,
           dateFrom: from.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
           dateTo: to.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }),
           generatedAt: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
@@ -130,9 +135,10 @@ export async function POST(req: NextRequest) {
         ? Math.round(topRisky.reduce((s, i) => s + i.riskScore, 0) / topRisky.length)
         : 0
 
-      pdfBuffer = await ReactPDF.renderToBuffer(
+      pdfBuffer = await renderToBuffer(
         RiskSummaryDocument({
           orgName,
+          ...brand,
           generatedAt: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
           overallRiskScore: avgRisk,
           identityByTier: Object.fromEntries([...identityByTier].sort((a, b) => tierRank(a.tier) - tierRank(b.tier)).map(t => [t.tier, Number(t.count)])),
@@ -179,9 +185,10 @@ export async function POST(req: NextRequest) {
           lte(actionLog.createdAt, to),
         ))
 
-      pdfBuffer = await ReactPDF.renderToBuffer(
+      pdfBuffer = await renderToBuffer(
         ComplianceDocument({
           orgName,
+          ...brand,
           frameworkName: frameworkNames[framework] || framework,
           frameworkKey: framework,
           generatedAt: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),

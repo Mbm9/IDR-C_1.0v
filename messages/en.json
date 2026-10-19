@@ -455,7 +455,8 @@
     "updateThreatStatus": "Update Threat Status",
     "updateFindingStatus": "Update Finding Status",
     "runScan": "Run Scan",
-    "manageRemediation": "Manage Remediation"
+    "manageRemediation": "Manage Remediation",
+    "manageBranding": "Manage Branding"
   },
   "integrations": {
     "title": "Integration Health",
@@ -952,7 +953,27 @@
     "inviteLinkOnce": "This link is shown only once. Copy it now.",
     "copyLink": "Copy link",
     "linkCopied": "Copied!",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "notSet": "Not set",
+    "branding": {
+      "title": "Branding",
+      "description": "Your organization's logo and name appear in the sidebar, on the sign-in page, in the browser tab and on PDF reports. Only admins can change them.",
+      "displayName": "Display name",
+      "displayNameHint": "Up to 60 characters. Leave empty to show Identity Radar.",
+      "logo": "Logo",
+      "logoHint": "PNG, JPEG, WebP or SVG, up to 256 KB. A square logo with a transparent background works best. PDF reports show PNG and JPEG logos.",
+      "upload": "Upload logo",
+      "replace": "Replace logo",
+      "removeLogo": "Remove logo",
+      "save": "Save branding",
+      "saving": "Saving…",
+      "saved": "Branding saved.",
+      "saveFailed": "Could not save branding. Try again.",
+      "errorType": "Choose a PNG, JPEG, WebP or SVG image.",
+      "errorSize": "The logo is larger than 256 KB. Use a smaller image.",
+      "preview": "Preview",
+      "previewTagline": "IAM Posture"
+    }
   },
   "login": {
     "title": "Identity Radar",
@@ -2362,7 +2383,8 @@
       "change_role": "Role Changed",
       "invite_user": "User Invited",
       "manage_integration": "Integration Updated",
-      "manage_api_key": "API Key Updated"
+      "manage_api_key": "API Key Updated",
+      "manage_branding": "Branding Updated"
     },
     "actionSource": {
       "manual": "Manual",

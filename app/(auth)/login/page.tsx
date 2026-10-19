@@ -4,13 +4,16 @@ import { signIn, useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { Shield, Eye, EyeOff, Languages } from 'lucide-react'
+import { Eye, EyeOff, Languages } from 'lucide-react'
+import { BrandMark } from '@/components/ui/brand-mark'
+import { usePublicBranding } from '@/lib/hooks/use-organization'
 import { useLocale, useTranslations } from 'next-intl'
 import { setLocale, type Locale } from '@/lib/locale'
 
 function LoginForm() {
   const { data: session, status } = useSession()
   const t = useTranslations('login')
+  const branding = usePublicBranding().data
   const tCommon = useTranslations('common')
   const locale = useLocale() as Locale
   const router = useRouter()
@@ -77,11 +80,9 @@ function LoginForm() {
       <div className="hidden lg:flex lg:w-1/2 bg-slate-900 items-center justify-center p-12">
         <div className="max-w-md">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-[var(--color-info)] flex items-center justify-center">
-              <Shield size={24} className="text-white" aria-hidden="true" />
-            </div>
+            <BrandMark logo={branding?.logo} size={48} />
             <div>
-              <p className="text-2xl font-semibold text-white">{t('title')}</p>
+              <p className="text-2xl font-semibold text-white">{branding?.name || t('title')}</p>
               <p className="text-sm text-slate-300">{t('subtitle')}</p>
             </div>
           </div>
@@ -105,10 +106,8 @@ function LoginForm() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-[var(--color-info)] flex items-center justify-center">
-              <Shield size={20} className="text-white" aria-hidden="true" />
-            </div>
-            <p className="text-xl font-semibold text-[var(--text-primary)]">{t('title')}</p>
+            <BrandMark logo={branding?.logo} size={40} />
+            <p className="text-xl font-semibold text-[var(--text-primary)]">{branding?.name || t('title')}</p>
           </div>
 
           <h1 className="text-title text-[var(--text-primary)] mb-1">{t('signInTitle')}</h1>

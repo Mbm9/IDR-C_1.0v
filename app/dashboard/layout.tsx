@@ -1,4 +1,7 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
+import { auth } from '@/lib/auth/config'
+import { getOrgBranding } from '@/lib/branding'
 import { useTranslations } from 'next-intl'
 import { Sidebar } from '@/components/dashboard/sidebar'
 import { Header } from '@/components/dashboard/header'
@@ -8,6 +11,14 @@ import { KeyboardShortcutsProvider } from '@/components/dashboard/keyboard-short
 import { TONE_TEXT } from '@/components/ui/tone'
 
 const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+
+/** Browser tab title: the organization's display name when it has set one. */
+export async function generateMetadata(): Promise<Metadata> {
+  const session = await auth()
+  if (!session?.user?.orgId) return {}
+  const branding = await getOrgBranding(session.user.orgId).catch(() => null)
+  return branding?.name ? { title: branding.name } : {}
+}
 
 export default function DashboardLayout({
   children,

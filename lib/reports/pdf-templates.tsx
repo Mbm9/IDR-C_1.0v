@@ -1,9 +1,19 @@
 import React from 'react'
-import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
 import { AD_TIER_CONFIG } from '@/lib/utils/constants'
 
 const tierLabel = (tier: string) =>
   AD_TIER_CONFIG[tier as keyof typeof AD_TIER_CONFIG]?.label ?? tier.replace(/_/g, ' ')
+
+/** Organization branding (Settings -> Organization). Logo must be PNG/JPEG. */
+interface BrandProps {
+  brandName?: string
+  brandLogo?: string | null
+}
+
+const BrandLogo = ({ logo }: { logo?: string | null }) =>
+  // eslint-disable-next-line jsx-a11y/alt-text -- react-pdf Image has no alt
+  logo ? <Image src={logo} style={{ height: 28, maxWidth: 140, objectFit: 'contain', marginBottom: 8 }} /> : null
 
 const styles = StyleSheet.create({
   page: {
@@ -126,7 +136,7 @@ const severityColors: Record<string, { bg: string; text: string }> = {
 
 // ------ Audit Trail Report ------
 
-interface AuditTrailProps {
+interface AuditTrailProps extends BrandProps {
   orgName: string
   dateFrom: string
   dateTo: string
@@ -146,6 +156,7 @@ export function AuditTrailDocument(props: AuditTrailProps) {
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
+          <BrandLogo logo={props.brandLogo} />
           <Text style={styles.title}>Audit Trail Report</Text>
           <Text style={styles.orgName}>{props.orgName}</Text>
           <Text style={styles.subtitle}>
@@ -181,7 +192,7 @@ export function AuditTrailDocument(props: AuditTrailProps) {
         ))}
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Identity Radar - Audit Trail Report</Text>
+          <Text style={styles.footerText}>{props.brandName || 'Identity Radar'} - Audit Trail Report</Text>
           <Text style={styles.footerText}>Confidential</Text>
         </View>
       </Page>
@@ -191,7 +202,7 @@ export function AuditTrailDocument(props: AuditTrailProps) {
 
 // ------ Risk Summary Report ------
 
-interface RiskSummaryProps {
+interface RiskSummaryProps extends BrandProps {
   orgName: string
   generatedAt: string
   overallRiskScore: number
@@ -215,6 +226,7 @@ export function RiskSummaryDocument(props: RiskSummaryProps) {
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
+          <BrandLogo logo={props.brandLogo} />
           <Text style={styles.title}>Risk Summary Report</Text>
           <Text style={styles.orgName}>{props.orgName}</Text>
           <Text style={styles.subtitle}>Generated: {props.generatedAt}</Text>
@@ -292,7 +304,7 @@ export function RiskSummaryDocument(props: RiskSummaryProps) {
         ))}
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Identity Radar - Risk Summary Report</Text>
+          <Text style={styles.footerText}>{props.brandName || 'Identity Radar'} - Risk Summary Report</Text>
           <Text style={styles.footerText}>Confidential</Text>
         </View>
       </Page>
@@ -302,7 +314,7 @@ export function RiskSummaryDocument(props: RiskSummaryProps) {
 
 // ------ Compliance Report ------
 
-interface ComplianceProps {
+interface ComplianceProps extends BrandProps {
   orgName: string
   frameworkName: string
   frameworkKey: string
@@ -362,6 +374,7 @@ export function ComplianceDocument(props: ComplianceProps) {
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
+          <BrandLogo logo={props.brandLogo} />
           <Text style={styles.title}>Compliance Report</Text>
           <Text style={styles.orgName}>{props.orgName}</Text>
           <Text style={styles.subtitle}>{props.frameworkName}</Text>
@@ -447,7 +460,7 @@ export function ComplianceDocument(props: ComplianceProps) {
         </View>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Identity Radar - {props.frameworkName}</Text>
+          <Text style={styles.footerText}>{props.brandName || 'Identity Radar'} - {props.frameworkName}</Text>
           <Text style={styles.footerText}>Confidential</Text>
         </View>
       </Page>

@@ -2,6 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { BrandMark } from '@/components/ui/brand-mark'
+import { useOrganization } from '@/lib/hooks/use-organization'
+import { brandName } from '@/lib/branding-shared'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
@@ -68,16 +71,15 @@ export function Sidebar() {
   }
 
   const sidebarWidth = collapsed ? 'w-16' : 'w-60'
+  const branding = useOrganization().data?.branding
 
   const navContent = (showLabels: boolean) => (
     <>
       <div className={`flex items-center ${showLabels ? 'px-5 py-5' : 'px-2 py-5 justify-center'}`}>
-        <div className="w-8 h-8 rounded-lg bg-[var(--color-info)] flex items-center justify-center flex-shrink-0">
-          <Shield size={18} className="text-white" aria-hidden="true" />
-        </div>
+        <BrandMark logo={branding?.logo} size={32} />
         {showLabels && (
-          <div className="ms-3">
-            <h1 className="text-body font-semibold text-white leading-tight">Identity Radar</h1>
+          <div className="ms-3 min-w-0">
+            <h1 className="text-body font-semibold text-white leading-tight truncate" title={brandName(branding)}>{brandName(branding)}</h1>
             <p className="text-micro text-slate-400">{tSidebar('tagline')}</p>
           </div>
         )}

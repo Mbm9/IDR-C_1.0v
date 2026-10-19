@@ -34,6 +34,7 @@ const ACTION_TYPE_KEYS: Record<string, string> = {
   update_finding_status: 'updateFindingStatus',
   run_scan: 'runScan',
   manage_remediation: 'manageRemediation',
+  manage_branding: 'manageBranding',
 }
 
 const SOURCE_STYLES: Record<string, string> = {

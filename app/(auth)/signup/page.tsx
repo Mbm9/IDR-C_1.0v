@@ -5,7 +5,9 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Shield, Eye, EyeOff, Users } from 'lucide-react'
+import { Eye, EyeOff, Users } from 'lucide-react'
+import { BrandMark } from '@/components/ui/brand-mark'
+import { usePublicBranding } from '@/lib/hooks/use-organization'
 
 interface JoinedOrganization {
   id: string
@@ -22,6 +24,7 @@ function SignupForm() {
   // Token from the invite link; required to join the inviting organization.
   const inviteToken = useSearchParams().get('invite') || undefined
   const t = useTranslations('signup')
+  const branding = usePublicBranding().data
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -105,11 +108,9 @@ function SignupForm() {
       <div className="hidden lg:flex lg:w-1/2 bg-slate-900 items-center justify-center p-12">
         <div className="max-w-md">
           <div className="flex items-center gap-3 mb-8">
-            <div className="w-12 h-12 rounded-xl bg-[var(--color-info)] flex items-center justify-center">
-              <Shield size={24} className="text-white" />
-            </div>
+            <BrandMark logo={branding?.logo} size={48} />
             <div>
-              <h1 className="text-2xl font-semibold text-white">{t('brand')}</h1>
+              <h1 className="text-2xl font-semibold text-white">{branding?.name || t('brand')}</h1>
               <p className="text-sm text-slate-400">{t('brandSubtitle')}</p>
             </div>
           </div>
@@ -143,10 +144,8 @@ function SignupForm() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-[var(--color-info)] flex items-center justify-center">
-              <Shield size={20} className="text-white" />
-            </div>
-            <h1 className="text-xl font-semibold text-[var(--text-primary)]">{t('brand')}</h1>
+            <BrandMark logo={branding?.logo} size={40} />
+            <h1 className="text-xl font-semibold text-[var(--text-primary)]">{branding?.name || t('brand')}</h1>
           </div>
 
           {joined ? (

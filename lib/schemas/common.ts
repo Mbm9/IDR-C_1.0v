@@ -40,7 +40,7 @@ export const actionTypeSchema = z.enum([
   'change_role', 'invite_user', 'manage_integration', 'manage_api_key',
   'manage_canary', 'manage_detection_rule', 'manage_automation_rule', 'manage_webhook',
   'manage_gpo', 'import_data', 'data_quality_action', 'update_threat_status',
-  'update_finding_status', 'run_scan', 'manage_remediation',
+  'update_finding_status', 'run_scan', 'manage_remediation', 'manage_branding',
 ])
 export const actionSourceSchema = z.enum(['manual', 'automated', 'ai_recommended'])
 

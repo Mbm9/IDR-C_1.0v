@@ -8,6 +8,8 @@ const nextConfig = {
   experimental: {
     // Runs instrumentation.ts at server start (startup env validation).
     instrumentationHook: true,
+    // Load @react-pdf/renderer from node_modules instead of bundling it (PDF reports).
+    serverComponentsExternalPackages: ['@react-pdf/renderer'],
   },
   async headers() {
     return [

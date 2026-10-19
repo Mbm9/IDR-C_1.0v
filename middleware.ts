@@ -56,7 +56,8 @@ export default auth((req) => {
   // Authentication guards
   // ------------------------------------------------------------------
   const isAuthApi = pathname.startsWith('/api/auth')
-  const isPublicApi = pathname === '/api/health'
+  // /api/branding: name + logo for the sign-in page (single-organization installs only)
+  const isPublicApi = pathname === '/api/health' || pathname === '/api/branding'
   // Cron jobs are called by an external scheduler with
   // `Authorization: Bearer $CRON_SECRET` and no session cookie; each route
   // verifies the secret itself via verifyCronSecret().

@@ -118,7 +118,7 @@ SYSTEM_PROMPT, ATTACK_PATH_NARRATION_PROMPT, THREAT_TRIAGE_PROMPT, PEER_ANOMALY_
 | analyst | + acknowledge violations, trigger reviews |
 | iam_admin | + certify, revoke, update tiers, manage integrations |
 | ciso | + approve exceptions, approve AI plans, manage policies |
-| admin | + org settings, user management |
+| admin | + org settings, user management, branding (logo + display name, Settings → Organization) |
 
 Enforced at: API route middleware (role checks) + UI conditional rendering.
 
@@ -190,4 +190,4 @@ DOMAIN=localhost
 
 - Framework: Vitest (unit/integration) + Playwright (E2E)
 - Run: `npm test` (unit) / `npm run test:e2e` (E2E)
-- 410 unit/integration tests, 45 E2E tests (E2E needs the uat.<role> users: tests/uat/create-role-users.sql)
+- 415 unit/integration tests, 45 E2E tests (E2E needs the uat.<role> users: tests/uat/create-role-users.sql)

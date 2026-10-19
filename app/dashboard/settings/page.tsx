@@ -13,6 +13,9 @@ import {
 } from 'lucide-react'
 import type { AppRole } from '@/lib/utils/rbac'
 import type { Locale } from '@/lib/locale'
+import { BrandMark } from '@/components/ui/brand-mark'
+import { useOrganization, useUpdateBranding } from '@/lib/hooks/use-organization'
+import { DEFAULT_BRAND_NAME, MAX_LOGO_BYTES } from '@/lib/branding-shared'
 
 const ROLES: AppRole[] = ['viewer', 'analyst', 'iam_admin', 'ciso', 'admin']
 
@@ -190,25 +193,127 @@ function OrgTab() {
   const t = useTranslations('settings')
   const tAccess = useTranslations('access')
   const role = ((session?.user as any)?.appRole || 'viewer') as AppRole
+  const { data } = useOrganization()
+  const org = data?.organization
+  const frameworks = org?.regulatoryFrameworks?.filter(Boolean).map(f => f.replace(/_/g, ' ')).join(', ')
   return (
-    <div>
-      <h3 className="text-heading text-[var(--text-primary)] mb-4">{t('organization')}</h3>
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {[
-          { key: 'name', label: t('orgName'), value: 'Acme Financial Services' },
-          { key: 'domain', label: t('orgDomain'), value: 'acmefs.sa' },
-          { key: 'frameworks', label: t('orgFrameworks'), value: 'NCA ECC, SAMA CSF, PDPL' },
-          { key: 'forest', label: t('orgAdForest'), value: 'acmefs.local' },
-          { key: 'role', label: t('orgYourRole'), value: tAccess(`roles.${role}`) },
-          { key: 'email', label: t('orgEmail'), value: session?.user?.email || '' },
-        ].map(f => (
-          <div key={f.key} className="p-3 rounded-md bg-[var(--bg-secondary)]">
-            <dt className="text-micro text-[var(--text-secondary)] uppercase tracking-wider">{f.label}</dt>
-            <dd className="text-body text-[var(--text-primary)] mt-0.5 break-words"><bdi>{f.value}</bdi></dd>
-          </div>
-        ))}
-      </dl>
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-heading text-[var(--text-primary)] mb-4">{t('organization')}</h3>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            { key: 'name', label: t('orgName'), value: org?.name },
+            { key: 'domain', label: t('orgDomain'), value: org?.domain },
+            { key: 'frameworks', label: t('orgFrameworks'), value: frameworks },
+            { key: 'forest', label: t('orgAdForest'), value: org?.adForestName },
+            { key: 'role', label: t('orgYourRole'), value: tAccess(`roles.${role}`) },
+            { key: 'email', label: t('orgEmail'), value: session?.user?.email || '' },
+          ].map(f => (
+            <div key={f.key} className="p-3 rounded-md bg-[var(--bg-secondary)]">
+              <dt className="text-micro text-[var(--text-secondary)] uppercase tracking-wider">{f.label}</dt>
+              <dd className="text-body text-[var(--text-primary)] mt-0.5 break-words"><bdi>{f.value || t('notSet')}</bdi></dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      {hasRole(role, 'admin') && data && <BrandingSection initial={data.branding} />}
     </div>
+  )
+}
+
+/** Admin-only: organization display name and logo (sidebar, sign-in page, browser tab, PDF reports). */
+function BrandingSection({ initial }: { initial: { name: string | null; logo: string | null } }) {
+  const t = useTranslations('settings.branding')
+  const update = useUpdateBranding()
+  const [name, setName] = useState(initial.name ?? '')
+  const [logo, setLogo] = useState<string | null>(initial.logo)
+  const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const nameValue = name.trim() || null
+  const dirty = nameValue !== (initial.name ?? null) || logo !== initial.logo
+
+  const onFile = (file: File | undefined) => {
+    setMessage(null)
+    if (!file) return
+    if (!['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+      setMessage({ tone: 'error', text: t('errorType') }); return
+    }
+    if (file.size > MAX_LOGO_BYTES) { setMessage({ tone: 'error', text: t('errorSize') }); return }
+    const reader = new FileReader()
+    reader.onload = () => setLogo(String(reader.result))
+    reader.readAsDataURL(file)
+  }
+
+  const save = () => {
+    setMessage(null)
+    const body: { name?: string | null; logo?: string | null } = {}
+    if (nameValue !== (initial.name ?? null)) body.name = nameValue
+    if (logo !== initial.logo) body.logo = logo
+    update.mutate(body, {
+      onSuccess: () => setMessage({ tone: 'ok', text: t('saved') }),
+      onError: (e) => setMessage({ tone: 'error', text: e instanceof Error ? e.message : t('saveFailed') }),
+    })
+  }
+
+  return (
+    <section aria-labelledby="branding-title" className="border-t border-[var(--border-default)] pt-6">
+      <h3 id="branding-title" className="text-heading text-[var(--text-primary)]">{t('title')}</h3>
+      <p className="text-caption text-[var(--text-secondary)] mt-1 mb-5 max-w-2xl">{t('description')}</p>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_260px]">
+        <div className="space-y-5 min-w-0">
+          <div>
+            <label htmlFor="brand-name" className="block text-caption font-medium text-[var(--text-primary)] mb-1.5">{t('displayName')}</label>
+            <input id="brand-name" type="text" maxLength={60} value={name} onChange={e => setName(e.target.value)}
+              placeholder={DEFAULT_BRAND_NAME} className={`${inputClass} w-full max-w-md`} />
+            <p className="text-micro text-[var(--text-secondary)] mt-1">{t('displayNameHint')}</p>
+          </div>
+
+          <div>
+            <p className="text-caption font-medium text-[var(--text-primary)] mb-1.5">{t('logo')}</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <BrandMark logo={logo} size={48} />
+              <input ref={fileRef} id="brand-logo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                aria-label={t('logo')} tabIndex={-1} className="sr-only" onChange={e => { onFile(e.target.files?.[0]); e.target.value = '' }} />
+              <button type="button" onClick={() => fileRef.current?.click()}
+                className="px-3 py-2 rounded-[var(--radius-button)] text-caption font-medium border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] hover:border-[var(--border-hover)]">
+                {logo ? t('replace') : t('upload')}
+              </button>
+              {logo && (
+                <button type="button" onClick={() => { setLogo(null); setMessage(null) }}
+                  className="px-3 py-2 rounded-[var(--radius-button)] text-caption font-medium text-[var(--color-critical-text)] hover:bg-[var(--color-critical-bg)]">
+                  {t('removeLogo')}
+                </button>
+              )}
+            </div>
+            <p className="text-micro text-[var(--text-secondary)] mt-1.5">{t('logoHint')}</p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" onClick={save} disabled={!dirty || update.isPending}
+              className="px-4 py-2 rounded-[var(--radius-button)] text-caption font-medium bg-[var(--color-info)] text-white disabled:opacity-50 inline-flex items-center gap-2">
+              {update.isPending && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+              {update.isPending ? t('saving') : t('save')}
+            </button>
+            {message && (
+              <p role="status" className={`text-caption ${message.tone === 'ok' ? 'text-[var(--color-low-text)]' : 'text-[var(--color-critical-text)]'}`}>{message.text}</p>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-micro font-medium uppercase tracking-wider text-[var(--text-secondary)] mb-2">{t('preview')}</p>
+          <div className="rounded-[var(--radius-card)] bg-[#0f172b] p-4 flex items-center gap-3 min-w-0">
+            <BrandMark logo={logo} size={32} />
+            <div className="min-w-0">
+              <p className="text-body font-semibold text-white leading-tight truncate"><bdi>{nameValue || DEFAULT_BRAND_NAME}</bdi></p>
+              <p className="text-micro text-slate-400">{t('previewTagline')}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   )
 }
 

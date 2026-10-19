@@ -455,7 +455,8 @@
     "updateThreatStatus": "تحديث حالة التهديد",
     "updateFindingStatus": "تحديث حالة النتيجة",
     "runScan": "تشغيل الفحص",
-    "manageRemediation": "إدارة خطة المعالجة"
+    "manageRemediation": "إدارة خطة المعالجة",
+    "manageBranding": "إدارة الهوية البصرية"
   },
   "integrations": {
     "title": "صحة التكاملات",
@@ -952,7 +953,27 @@
     "inviteLinkOnce": "يُعرض هذا الرابط مرة واحدة فقط. انسخه الآن.",
     "copyLink": "نسخ الرابط",
     "linkCopied": "تم النسخ!",
-    "dismiss": "إغلاق"
+    "dismiss": "إغلاق",
+    "notSet": "غير محدد",
+    "branding": {
+      "title": "الهوية البصرية",
+      "description": "يظهر شعار جهتك واسمها في الشريط الجانبي وصفحة تسجيل الدخول وعنوان علامة تبويب المتصفح وتقارير PDF. يمكن لمديري النظام فقط تغييرهما.",
+      "displayName": "الاسم المعروض",
+      "displayNameHint": "حتى 60 حرفًا. اتركه فارغًا لعرض Identity Radar.",
+      "logo": "الشعار",
+      "logoHint": "PNG أو JPEG أو WebP أو SVG بحجم أقصاه 256 كيلوبايت. يُفضّل شعار مربع بخلفية شفافة. تعرض تقارير PDF شعارات PNG وJPEG.",
+      "upload": "رفع الشعار",
+      "replace": "استبدال الشعار",
+      "removeLogo": "إزالة الشعار",
+      "save": "حفظ الهوية البصرية",
+      "saving": "جارٍ الحفظ…",
+      "saved": "تم حفظ الهوية البصرية.",
+      "saveFailed": "تعذّر حفظ الهوية البصرية. حاول مرة أخرى.",
+      "errorType": "اختر صورة PNG أو JPEG أو WebP أو SVG.",
+      "errorSize": "حجم الشعار أكبر من 256 كيلوبايت. استخدم صورة أصغر.",
+      "preview": "معاينة",
+      "previewTagline": "وضع إدارة الهويات"
+    }
   },
   "login": {
     "title": "Identity Radar",
@@ -2362,7 +2383,8 @@
       "change_role": "تغيير الدور",
       "invite_user": "دعوة مستخدم",
       "manage_integration": "تحديث تكامل",
-      "manage_api_key": "تحديث مفتاح API"
+      "manage_api_key": "تحديث مفتاح API",
+      "manage_branding": "تم تحديث الهوية البصرية"
     },
     "actionSource": {
       "manual": "يدوي",
