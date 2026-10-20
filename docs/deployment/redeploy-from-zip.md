@@ -25,10 +25,10 @@ Adjust the path if your old folder is elsewhere. The folder that holds `.env` al
 This removes containers only. Your data lives in a separate Docker volume and is kept.
 
 ```bash
-docker rm -f idr-app idr-init idr-caddy idr-ollama idr-db
+docker rm -f idr-app idr-init idr-scheduler idr-backup idr-caddy idr-ollama idr-db
 ```
 
-"No such container" messages are fine.
+"No such container" messages are fine. (`idr-ollama` is from older versions; Ollama now runs on the host.)
 
 ## 3. Download and extract the new code
 

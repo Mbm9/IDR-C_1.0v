@@ -55,7 +55,7 @@ function NodeShape({ shape, color, borderColor, size = 12 }: { shape: LegendNode
   if (shape === 'diamond') {
     return (
       <svg aria-hidden width={s} height={s} viewBox={`0 0 ${s} ${s}`} className="flex-shrink-0">
-        <rect x={1} y={1} width={s - 2} height={s - 2} rx={1} fill={color} transform={`rotate(45 ${half} ${half})`} stroke={borderColor || 'none'} strokeWidth={borderColor ? 1.5 : 0} />
+        <polygon points={`${half},1 ${s - 1},${half} ${half},${s - 1} 1,${half}`} fill={color} stroke={borderColor || 'none'} strokeWidth={borderColor ? 1.5 : 0} strokeLinejoin="round" />
       </svg>
     )
   }
@@ -73,7 +73,7 @@ function NodeShape({ shape, color, borderColor, size = 12 }: { shape: LegendNode
   if (shape === 'triangle') {
     return (
       <svg aria-hidden width={s} height={s} viewBox={`0 0 ${s} ${s}`} className="flex-shrink-0">
-        <path d={`M${half},1 L${s - 1},${s - 1} L1,${s - 1} Z`} fill={color} stroke={borderColor || 'none'} strokeWidth={borderColor ? 1.5 : 0} />
+        <path d={`M${half},1 L${s - 1},${s - 1} L1,${s - 1} Z`} fill={color} stroke={borderColor || 'none'} strokeWidth={borderColor ? 1.5 : 0} strokeLinejoin="round" />
       </svg>
     )
   }

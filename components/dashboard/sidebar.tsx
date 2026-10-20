@@ -5,10 +5,10 @@ import { usePathname } from 'next/navigation'
 import { BrandMark } from '@/components/ui/brand-mark'
 import { useOrganization } from '@/lib/hooks/use-organization'
 import { brandName } from '@/lib/branding-shared'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
-  LayoutDashboard, Users, Shield, Key, AlertTriangle, Plug, ScrollText, Settings,
+  LayoutDashboard, Users, Shield, Key, AlertTriangle, Settings,
   ChevronLeft, ChevronRight, Menu, X, Network, Route, Radar,
   Upload, Scale, ShieldAlert, Compass, ListChecks, Radio, FileText,
 } from 'lucide-react'
@@ -49,8 +49,6 @@ const NAV_SECTIONS = [
     labelKey: 'operations' as const,
     items: [
       { href: '/dashboard/import', labelKey: 'import' as const, icon: Upload },
-      { href: '/dashboard/integrations', labelKey: 'integrations' as const, icon: Plug },
-      { href: '/dashboard/audit', labelKey: 'audit' as const, icon: ScrollText },
       { href: '/dashboard/settings', labelKey: 'settings' as const, icon: Settings },
     ],
   },
@@ -67,16 +65,23 @@ export function Sidebar() {
 
   const isActive = (href: string) => {
     if (href === '/dashboard') return pathname === '/dashboard'
-    return pathname.startsWith(href)
+    // Whole segments only: /dashboard/graph must not match /dashboard/graph-explorer
+    return pathname === href || pathname.startsWith(`${href}/`)
   }
 
   const sidebarWidth = collapsed ? 'w-16' : 'w-60'
+
+  // The dashboard layout offsets its content by this width (lg:ps-[var(--sidebar-width)]),
+  // so collapsing the sidebar widens the page instead of leaving a gap.
+  useEffect(() => {
+    document.documentElement.style.setProperty('--sidebar-width', collapsed ? '4rem' : '15rem')
+  }, [collapsed])
   const branding = useOrganization().data?.branding
 
   const navContent = (showLabels: boolean) => (
     <>
       <div className={`flex items-center ${showLabels ? 'px-5 py-5' : 'px-2 py-5 justify-center'}`}>
-        <BrandMark logo={branding?.logo} size={32} />
+        <BrandMark logo={branding?.logo} background={branding?.logoBackground} size={32} />
         {showLabels && (
           <div className="ms-3 min-w-0">
             <h1 className="text-body font-semibold text-white leading-tight truncate" title={brandName(branding)}>{brandName(branding)}</h1>

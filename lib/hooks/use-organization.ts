@@ -10,7 +10,7 @@ export interface OrganizationData {
     regulatoryFrameworks: string[] | null
     adForestName: string | null
   }
-  branding: { name: string | null; logo: string | null; updatedAt: string | null }
+  branding: { name: string | null; logo: string | null; logoBackground: boolean; updatedAt: string | null }
 }
 
 export const ORGANIZATION_QUERY_KEY = ['organization'] as const
@@ -32,7 +32,7 @@ export function useOrganization() {
 export function useUpdateBranding() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: async (body: { name?: string | null; logo?: string | null }) => {
+    mutationFn: async (body: { name?: string | null; logo?: string | null; logoBackground?: boolean }) => {
       const res = await fetch('/api/settings/organization', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -48,11 +48,11 @@ export function useUpdateBranding() {
 
 /** Branding for the sign-in and sign-up pages (single-organization installs only). */
 export function usePublicBranding() {
-  return useQuery<{ name: string | null; logo: string | null }>({
+  return useQuery<{ name: string | null; logo: string | null; logoBackground: boolean }>({
     queryKey: ['public-branding'],
     queryFn: async () => {
       const res = await fetch('/api/branding')
-      if (!res.ok) return { name: null, logo: null }
+      if (!res.ok) return { name: null, logo: null, logoBackground: false }
       return res.json()
     },
     staleTime: 5 * 60_000,

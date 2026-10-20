@@ -42,7 +42,23 @@ export interface ForceGraphProps {
 // Above this many nodes, labels default to "key" mode (focused node, its neighbours,
 // Tier 0 / Top Tier / critical nodes and search matches) so the canvas stays legible.
 const DENSE_GRAPH = 30
-const isKeyNode = (n: FgNode) => isControlPlaneTier(n.tier) || n.severity === 'critical'
+const isKeyNode = (n: FgNode) =>
+  isControlPlaneTier(n.tier) || n.severity === 'critical' || n.severity === 'high' || (n.riskScore ?? 0) >= 80
+
+// Labels are counter-scaled against the zoom so they stay this size on screen.
+const LABEL_PX = 11
+const EDGE_LABEL_PX = 10
+const LABEL_MAX = 24
+// In "key" mode, zooming in past this multiple of the fitted scale reveals every label.
+const ZOOM_ALL_LABELS = 1.5
+// On-screen label box height (text + halo) and the gap between a node's outer ring and its label.
+const LINE_PX = LABEL_PX + 3
+const LABEL_GAP = 3
+// Fallback glyph width when a label can't be measured yet (e.g. the canvas isn't laid out).
+const CHAR_PX = LABEL_PX * 0.58
+// Spatial-grid cell size (screen px) for the label/node collision check.
+const GRID_PX = 48
+const truncate = (s: string, max: number) => (s.length > max ? s.slice(0, max - 1) + '…' : s)
 
 const TIER_RING: Record<string, string> = { tier_0: '#DC2626', tier_top: '#BE123C', tier_1: '#EA580C', tier_2: '#64748B' }
 const SEVERITY_RING: Record<string, string> = { critical: '#DC2626', high: '#EA580C', medium: '#D97706', low: '#64748B' }
@@ -55,6 +71,67 @@ export function riskForTier(tier?: string | null): number {
 
 function radiusOf(n: FgNode): number {
   return Math.max(7, Math.min(22, 7 + (n.riskScore ?? 20) / 6))
+}
+/** Outer extent of a node (body + tier/severity rings + stroke), in graph units. */
+function extentOf(n: FgNode): number {
+  return radiusOf(n) + (n.severity ? 5 : n.tier && n.tier !== 'unclassified' ? 2.5 : 0.75)
+}
+
+/**
+ * Candidate label slots around a node, tried in order: below, above, right, left.
+ * x/y are graph units (× the node extent, so they follow the zoomed circle); dx/dy are em,
+ * so they track the counter-scaled font and stay constant on screen. Boxes are computed
+ * in screen space by `slotBox`.
+ */
+const SLOTS = [
+  { x: 0, y: 1, dx: '0', dy: `${(LABEL_GAP + LABEL_PX * 0.95) / LABEL_PX}em`, anchor: 'middle' },
+  { x: 0, y: -1, dx: '0', dy: `${-(LABEL_GAP + LABEL_PX * 0.3) / LABEL_PX}em`, anchor: 'middle' },
+  { x: 1, y: 0, dx: `${LABEL_GAP / LABEL_PX}em`, dy: '0.35em', anchor: 'start' },
+  { x: -1, y: 0, dx: `${-LABEL_GAP / LABEL_PX}em`, dy: '0.35em', anchor: 'end' },
+] as const
+type Box = { x0: number; y0: number; x1: number; y1: number }
+function slotBox(slot: number, cx: number, cy: number, ext: number, w: number): Box {
+  const h = LINE_PX
+  switch (slot) {
+    case 0: return { x0: cx - w / 2, y0: cy + ext + LABEL_GAP - 1, x1: cx + w / 2, y1: cy + ext + LABEL_GAP - 1 + h }
+    case 1: return { x0: cx - w / 2, y0: cy - ext - LABEL_GAP - h + 1, x1: cx + w / 2, y1: cy - ext - LABEL_GAP + 1 }
+    case 2: return { x0: cx + ext + LABEL_GAP - 1, y0: cy - h / 2, x1: cx + ext + LABEL_GAP - 1 + w, y1: cy + h / 2 }
+    default: return { x0: cx - ext - LABEL_GAP + 1 - w, y0: cy - h / 2, x1: cx - ext - LABEL_GAP + 1, y1: cy + h / 2 }
+  }
+}
+
+/** Measured on-screen label widths (px incl. halo), keyed by font size + text. On-screen size is zoom-independent. */
+const labelWidthCache = new Map<string, number>()
+const widthKey = (text: string) => `${LABEL_PX}|${text}`
+
+/** Uniform grid over the viewport: obstacles (node circles, placed labels) bucketed by cell. */
+class CollisionGrid {
+  private cells = new Map<number, { b: Box; owner: string }[]>()
+  constructor(private cols: number, private rows: number) {}
+  private range(b: Box) {
+    const c0 = Math.max(0, Math.floor(b.x0 / GRID_PX)), c1 = Math.min(this.cols - 1, Math.floor(b.x1 / GRID_PX))
+    const r0 = Math.max(0, Math.floor(b.y0 / GRID_PX)), r1 = Math.min(this.rows - 1, Math.floor(b.y1 / GRID_PX))
+    return { c0, c1, r0, r1 }
+  }
+  add(b: Box, owner: string) {
+    const { c0, c1, r0, r1 } = this.range(b)
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const k = r * this.cols + c
+      const cell = this.cells.get(k)
+      if (cell) cell.push({ b, owner }); else this.cells.set(k, [{ b, owner }])
+    }
+  }
+  /** True if `b` intersects anything not owned by `owner` (a label may touch its own node). */
+  hits(b: Box, owner: string) {
+    const { c0, c1, r0, r1 } = this.range(b)
+    for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+      const cell = this.cells.get(r * this.cols + c)
+      if (cell) for (const o of cell) {
+        if (o.owner !== owner && b.x0 < o.b.x1 && b.x1 > o.b.x0 && b.y0 < o.b.y1 && b.y1 > o.b.y0) return true
+      }
+    }
+    return false
+  }
 }
 
 export function ForceGraph({
@@ -79,6 +156,15 @@ export function ForceGraph({
     linkLabel?: d3.Selection<SVGTextElement, any, SVGGElement, unknown>
   }>({})
   const adjRef = useRef<Map<string, Set<string>>>(new Map())
+  // Scale chosen by the last fit-to-view; "zoomed in" is measured relative to it.
+  const fitKRef = useRef(1)
+  // Latest label inputs, read by the rAF-throttled label pass (zoom/tick don't re-render React).
+  const labelStateRef = useRef<{ mode: 'all' | 'focus' | 'off'; focus: string | null; q: string; hidden: Set<string> }>(
+    { mode: 'all', focus: null, q: '', hidden: new Set() })
+  const labelRafRef = useRef<number | null>(null)
+  // Label <text> per node id, and the slot each currently uses (-1 = hidden), so a pass only touches what changed.
+  const labelElRef = useRef<Map<string, SVGTextElement>>(new Map())
+  const labelSlotRef = useRef<Map<string, number>>(new Map())
 
   const [search, setSearch] = useState('')
   const [hidden, setHidden] = useState<Set<string>>(new Set())
@@ -120,10 +206,13 @@ export function ForceGraph({
         .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', m.color)
     }
 
-    const g = svg.append('g')
+    const g = svg.append('g').style('--fg-k', '1')
 
     const zoom = d3.zoom<SVGSVGElement, unknown>().scaleExtent([0.2, 4])
-      .on('zoom', (e) => g.attr('transform', e.transform.toString()))
+      .on('zoom', (e) => {
+        g.attr('transform', e.transform.toString()).style('--fg-k', String(e.transform.k))
+        scheduleLabels()
+      })
     svg.call(zoom)
     zoomRef.current = zoom
 
@@ -151,11 +240,11 @@ export function ForceGraph({
     const linkLabel = g.append('g')
       .selectAll<SVGTextElement, any>('text').data(simLinks.filter((l) => l.label)).join('text')
       .attr('class', 'fg-elabel')
-      .text((d) => (d.label!.length > 18 ? d.label!.slice(0, 17) + '…' : d.label!))
-      .attr('font-size', 8.5).attr('font-weight', 600)
+      .text((d) => truncate(d.label!, 18))
+      .style('font-size', `calc(${EDGE_LABEL_PX}px / var(--fg-k, 1))`).attr('font-weight', 600)
       .attr('fill', (d) => (d.dangerous ? '#DC2626' : 'var(--text-tertiary)'))
       .attr('text-anchor', 'middle').attr('paint-order', 'stroke')
-      .attr('stroke', 'var(--bg-primary)').attr('stroke-width', 3)
+      .attr('stroke', 'var(--bg-primary)').style('stroke-width', 'calc(3px / var(--fg-k, 1))')
       .style('pointer-events', 'none').attr('opacity', 0)
 
     const node = g.append('g')
@@ -182,13 +271,19 @@ export function ForceGraph({
     node.filter((d) => d.badge != null).append('text')
       .text((d) => String(d.badge)).attr('text-anchor', 'middle').attr('dy', 3)
       .attr('font-size', 9).attr('font-weight', 700).attr('fill', '#fff').style('pointer-events', 'none')
-    // label (with halo for legibility over edges/nodes)
+    // label: constant on-screen size (font/halo divided by the zoom scale), halo for
+    // legibility over edges/nodes; the full name lives in the hover tooltip.
+    // Position (slot around the node) is chosen per frame by updateLabels.
+    const labelEls = new Map<string, SVGTextElement>()
     node.append('text').attr('class', 'fg-label')
-      .text((d) => (d.label.length > 22 ? d.label.slice(0, 21) + '…' : d.label))
-      .attr('x', (d) => radiusOf(d) + 4).attr('dy', 4)
-      .attr('font-size', 10).attr('font-weight', 500).attr('fill', 'var(--text-primary)')
-      .attr('paint-order', 'stroke').attr('stroke', 'var(--bg-primary)').attr('stroke-width', 3)
-      .style('pointer-events', 'none')
+      .text((d) => truncate(d.label, LABEL_MAX))
+      .style('font-size', `calc(${LABEL_PX}px / var(--fg-k, 1))`).attr('font-weight', 500).attr('fill', 'var(--text-primary)')
+      .attr('paint-order', 'stroke').attr('stroke', 'var(--bg-primary)')
+      .style('stroke-width', 'calc(3px / var(--fg-k, 1))').attr('stroke-linejoin', 'round')
+      .style('pointer-events', 'none').attr('opacity', 0)
+      .each(function (d) { labelEls.set(d.id, this) })
+    labelElRef.current = labelEls
+    labelSlotRef.current = new Map()
 
     node
       .on('mouseenter', (e, d) => { setHover(d.id); setTip({ x: e.offsetX, y: e.offsetY, n: d }) })
@@ -208,19 +303,152 @@ export function ForceGraph({
       linkLabel.attr('x', (d: any) => (d.source.x + d.target.x) / 2)
         .attr('y', (d: any) => (d.source.y + d.target.y) / 2 - 3)
       node.attr('transform', (d) => `translate(${d.x},${d.y})`)
+      scheduleLabels()
     })
 
     selRef.current = { node, link, linkLabel }
+    scheduleLabels()
 
     // fit after settle
     const fit = setTimeout(() => fitToView(), 600)
-    return () => { clearTimeout(fit); sim.stop() }
+    return () => {
+      clearTimeout(fit); sim.stop()
+      if (labelRafRef.current != null) { cancelAnimationFrame(labelRafRef.current); labelRafRef.current = null }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nodes, links, height])
 
+  /** Coalesce label passes (zoom events, sim ticks, state changes) into one per frame. */
+  function scheduleLabels() {
+    if (labelRafRef.current != null) return
+    labelRafRef.current = requestAnimationFrame(() => { labelRafRef.current = null; updateLabels() })
+  }
+
+  /**
+   * Decide which node labels show and where. Off → none (search matches still show).
+   * Key → the focused node + neighbours, search matches and key nodes (Tier 0 / Top Tier /
+   * high-risk); past ZOOM_ALL_LABELS × the fitted scale every node is a candidate.
+   * All → every node is a candidate. Candidates are placed greedily by priority (key nodes
+   * first) into the first free slot (below, above, right, left) that clears every placed label
+   * and every other fully-drawn node circle; otherwise skipped. The hovered/pinned node and
+   * search matches always draw, ignoring collisions. Collisions use a screen-space grid, O(n).
+   */
+  function updateLabels() {
+    const { node } = selRef.current
+    const svg = svgRef.current
+    if (!node || !svg) return
+    const { mode, focus, q, hidden } = labelStateRef.current
+    const tr = d3.zoomTransform(svg)
+    const zoomedIn = tr.k >= fitKRef.current * ZOOM_ALL_LABELS
+    const neigh = focus ? adjRef.current.get(focus) : null
+    const matches = (n: FgNode) => q !== '' && n.label.toLowerCase().includes(q)
+    const width = wrapRef.current?.clientWidth ?? 900
+    const els = labelElRef.current
+    const slotOf = new Map<string, number>() // id → slot for labels that draw
+    const { linkLabel } = selRef.current
+    const edgeOp = new Map<SVGTextElement, number>() // edge labels that draw → opacity
+
+    if (mode !== 'off' || q !== '') {
+      type Cand = { n: FgNode; prio: number; force: boolean }
+      const cands: Cand[] = []
+      const grid = new CollisionGrid(Math.ceil(width / GRID_PX) + 1, Math.ceil(height / GRID_PX) + 1)
+      node.each((n) => {
+        if (hidden.has(n.group)) return
+        const sx = tr.x + tr.k * (n.x ?? 0), sy = tr.y + tr.k * (n.y ?? 0), se = tr.k * extentOf(n)
+        // Fully drawn nodes are obstacles; ones dimmed by focus/search aren't.
+        const dimmed = (q !== '' && !matches(n)) || (!!focus && n.id !== focus && !neigh?.has(n.id))
+        if (!dimmed) grid.add({ x0: sx - se, y0: sy - se, x1: sx + se, y1: sy + se }, n.id)
+        if (q !== '') { if (matches(n)) cands.push({ n, prio: 4, force: true }); return }
+        if (focus) {
+          if (n.id === focus) cands.push({ n, prio: 5, force: true })
+          else if (neigh?.has(n.id)) cands.push({ n, prio: 3, force: false })
+          return
+        }
+        if (isKeyNode(n)) cands.push({ n, prio: 2, force: false })
+        else if (mode === 'all' || zoomedIn) cands.push({ n, prio: 1, force: false })
+      })
+      cands.sort((a, b) => b.prio - a.prio || (b.n.riskScore ?? 0) - (a.n.riskScore ?? 0))
+
+      // Measure unmeasured labels in one read batch (no DOM writes in between). The font is
+      // LABEL_PX / k user units, so on-screen width = computed length × k.
+      for (const { n } of cands) {
+        const el = els.get(n.id)
+        const key = widthKey(el?.textContent ?? '')
+        if (!el || labelWidthCache.has(key)) continue
+        const len = el.getComputedTextLength() * tr.k
+        if (len > 0) labelWidthCache.set(key, len + 3) // + halo
+      }
+
+      for (const { n, force } of cands) {
+        const text = els.get(n.id)?.textContent ?? ''
+        const w = labelWidthCache.get(widthKey(text)) ?? Math.min(n.label.length, LABEL_MAX) * CHAR_PX
+        const sx = tr.x + tr.k * (n.x ?? 0), sy = tr.y + tr.k * (n.y ?? 0), se = tr.k * extentOf(n)
+        let chosen = -1
+        for (let s = 0; s < SLOTS.length; s++) {
+          const b = slotBox(s, sx, sy, se, w)
+          if (b.x1 < 0 || b.x0 > width || b.y1 < 0 || b.y0 > height) continue // off-screen
+          if (!force && grid.hits(b, n.id)) continue
+          chosen = s; grid.add(b, n.id); break
+        }
+        if (chosen < 0 && force) chosen = 0
+        if (chosen >= 0) slotOf.set(n.id, chosen)
+      }
+
+      // Edge labels go through the same grid after node labels: ones touching the focused node
+      // always draw; in "All" the rest draw only where they fit.
+      if (mode !== 'off' && linkLabel) {
+        const edgeEls = linkLabel.nodes()
+        const ends = (d: any): [FgNode, FgNode] => [d.source, d.target]
+        const want = (d: any) => {
+          const [a, b] = ends(d)
+          if (hidden.has(a.group) || hidden.has(b.group)) return 0
+          if (focus) return a.id === focus || b.id === focus ? 2 : 0
+          return mode === 'all' ? 1 : 0
+        }
+        for (const el of edgeEls) {
+          const key = `${EDGE_LABEL_PX}|${el.textContent ?? ''}`
+          if (labelWidthCache.has(key) || !want(d3.select(el).datum())) continue
+          const len = el.getComputedTextLength() * tr.k
+          if (len > 0) labelWidthCache.set(key, len + 3)
+        }
+        edgeEls.forEach((el, i) => {
+          const d = d3.select(el).datum() as any
+          const w = want(d)
+          if (!w) return
+          const [a, b] = ends(d)
+          const cx = tr.x + tr.k * ((a.x ?? 0) + (b.x ?? 0)) / 2, base = tr.y + tr.k * (((a.y ?? 0) + (b.y ?? 0)) / 2 - 3)
+          const tw = labelWidthCache.get(`${EDGE_LABEL_PX}|${el.textContent ?? ''}`) ?? (el.textContent?.length ?? 0) * EDGE_LABEL_PX * 0.58
+          const box = { x0: cx - tw / 2, y0: base - EDGE_LABEL_PX, x1: cx + tw / 2, y1: base + 3 }
+          if (box.x1 < 0 || box.x0 > width || box.y1 < 0 || box.y0 > height) return
+          if (w === 1 && grid.hits(box, `e${i}`)) return
+          grid.add(box, `e${i}`)
+          edgeOp.set(el, w === 2 ? 1 : 0.85)
+        })
+      }
+    }
+
+    // Write only labels whose slot/visibility changed.
+    const prev = labelSlotRef.current
+    for (const [id, el] of els) {
+      const slot = slotOf.get(id) ?? -1
+      if (prev.get(id) === slot) continue
+      prev.set(id, slot)
+      if (slot < 0) { el.setAttribute('opacity', '0'); continue }
+      const sl = SLOTS[slot]
+      const ext = extentOf((d3.select(el.parentNode as SVGGElement).datum() as FgNode))
+      el.setAttribute('x', String(sl.x * ext)); el.setAttribute('y', String(sl.y * ext))
+      el.setAttribute('dx', sl.dx); el.setAttribute('dy', sl.dy)
+      el.setAttribute('text-anchor', sl.anchor); el.setAttribute('opacity', '1')
+    }
+    linkLabel?.each(function () {
+      const op = String(edgeOp.get(this) ?? 0)
+      if (this.getAttribute('opacity') !== op) this.setAttribute('opacity', op)
+    })
+  }
+
   // ── Emphasis: focus/neighbours, search, filters ──
   useEffect(() => {
-    const { node, link, linkLabel } = selRef.current
+    const { node, link } = selRef.current
     if (!node || !link) return
     const q = search.trim().toLowerCase()
     const neigh = focus ? adjRef.current.get(focus) : null
@@ -245,19 +473,16 @@ export function ForceGraph({
       return 1
     }).style('pointer-events', (d) => (isVisible(d) ? 'all' : 'none'))
 
+    // Hovered/pinned node (and its label) draws on top of its neighbours.
+    if (focus) node.filter((d) => d.id === focus).raise()
+
     node.select<SVGCircleElement>('circle.fg-body')
       .attr('stroke', (d) => (q !== '' && matches(d) ? '#F59E0B' : 'var(--bg-primary)'))
       .attr('stroke-width', (d) => (q !== '' && matches(d) ? 3 : 1.5))
 
-    // labels honour the Labels toggle (all / focus / off); search always reveals matches
-    node.select<SVGTextElement>('text.fg-label').attr('opacity', (d) => {
-      if (!isVisible(d)) return 0
-      if (q !== '') return matches(d) ? 1 : 0.05
-      if (labelMode === 'off') return 0
-      if (focus) return d.id === focus || neigh?.has(d.id) ? 1 : (labelMode === 'all' ? 0.08 : 0)
-      if (labelMode === 'all') return 0.92
-      return isKeyNode(d) ? 0.92 : 0
-    })
+    // node + edge labels honour the Labels toggle (all / key / off) and zoom; search always reveals matches
+    labelStateRef.current = { mode: labelMode, focus, q, hidden }
+    scheduleLabels()
 
     link.attr('opacity', (d: any) => {
       if (endsHidden(d)) return 0
@@ -265,13 +490,6 @@ export function ForceGraph({
       return 0.75
     })
 
-    // Edge labels honour the same toggle
-    linkLabel?.attr('opacity', (d: any) => {
-      if (endsHidden(d)) return 0
-      if (labelMode === 'off') return 0
-      if (focus) return touchesFocus(d) ? 1 : (labelMode === 'all' ? 0.06 : 0)
-      return labelMode === 'all' ? 0.85 : 0
-    })
   }, [focus, search, hidden, nodes, links, labelMode])
 
   // Freeze/unfreeze
@@ -295,6 +513,7 @@ export function ForceGraph({
     if (!b.width || !b.height) return
     const width = wrapRef.current?.clientWidth ?? 900
     const scale = Math.min(2, 0.85 / Math.max(b.width / width, b.height / height))
+    fitKRef.current = scale
     const tx = width / 2 - scale * (b.x + b.width / 2)
     const ty = height / 2 - scale * (b.y + b.height / 2)
     d3.select(svg).transition().duration(300).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale))
@@ -325,7 +544,7 @@ export function ForceGraph({
         {filterGroups?.map((f) => (
           <button key={f.key} onClick={() => toggleGroup(f.key)} aria-pressed={!hidden.has(f.key)}
             className={`text-xs px-2 py-1 rounded-md border flex items-center gap-1.5 transition-colors border-[var(--border-default)] text-[var(--text-secondary)] ${hidden.has(f.key) ? 'line-through decoration-[var(--text-secondary)]' : 'hover:bg-[var(--bg-secondary)]'}`}>
-            <span aria-hidden className={`w-2 h-2 rounded-full ${hidden.has(f.key) ? 'opacity-30' : ''}`} style={{ background: f.color ?? colorOf(f.key) }} />{f.label}
+            <span aria-hidden className={`shrink-0 w-2 h-2 rounded-full ${hidden.has(f.key) ? 'opacity-30' : ''}`} style={{ background: f.color ?? colorOf(f.key) }} />{f.label}
           </button>
         ))}
         <div className="flex items-center gap-1 ms-auto">

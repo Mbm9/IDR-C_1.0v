@@ -207,7 +207,7 @@ export default function DashboardOverview() {
         {/* Compliance gauge (2 cols) */}
         <div className="lg:col-span-2 rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-5 flex flex-col items-center justify-center" style={{ boxShadow: 'var(--shadow-card)' }}>
           <h3 className="text-caption font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-4 self-start">{t('tierCompliance')}</h3>
-          <RiskGauge score={data.tierCompliancePercentage} size="lg" label={t('identitiesWithoutViolations')} />
+          <RiskGauge score={data.tierCompliancePercentage} size="lg" label={t('identitiesWithoutViolations')} higherIsBetter />
 
           {/* Risk distribution */}
           <div className="grid grid-cols-4 gap-2 w-full mt-6">

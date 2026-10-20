@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import type { MouseEvent } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { Bot, User } from 'lucide-react'
 import { formatRelativeTime } from '@/lib/utils/formatters'
 import { useEnumLabel } from '@/components/ui/enum-label'
 import { TONE_TEXT, toneBadge, riskTone, statusTone, tierTone } from '@/components/ui/tone'
@@ -121,8 +122,12 @@ export function IdentityTable({ data, sortBy, sortOrder, onSort }: IdentityTable
                   )}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="text-base me-1" aria-hidden="true">{identity.type === 'human' ? '👤' : '🤖'}</span>
-                  <span className="text-[var(--text-secondary)]">{label('identityType', identity.type)}</span>
+                  <span className="inline-flex items-center gap-1.5 text-[var(--text-secondary)]">
+                    {identity.type === 'human'
+                      ? <User size={16} className="shrink-0 text-[var(--color-human)]" aria-hidden="true" />
+                      : <Bot size={16} className="shrink-0 text-[var(--color-nhi)]" aria-hidden="true" />}
+                    {label('identityType', identity.type)}
+                  </span>
                 </td>
                 <td className="px-4 py-3 text-[var(--text-secondary)]">{label('subType', identity.subType)}</td>
                 <td className="px-4 py-3">

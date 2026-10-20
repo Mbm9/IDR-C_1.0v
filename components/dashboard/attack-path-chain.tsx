@@ -1,40 +1,57 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import * as d3 from 'd3'
+import { useTranslations } from 'next-intl'
+import {
+  User, Server, Users, FolderTree, Globe, Monitor, FileCog, Circle,
+  type LucideIcon,
+} from 'lucide-react'
 
-// Reuse color constants from identity-graph
-const NODE_COLORS: Record<string, string> = {
-  identity: '#2563EB',
-  resource: '#5F6B7A',
-  group: '#CA8A04',
-  ou: '#7C3AED',
-  domain: '#DC2626',
-  computer: '#4F46E5',
-  gpo: '#059669',
-  unknown: '#94a3b8',
+// Node fills match identity-graph; identity uses the shared --color-human token.
+// White icons sit on these fills, so they stay the same in light and dark themes.
+const NODE_STYLE: Record<string, { fill: string; Icon: LucideIcon }> = {
+  identity: { fill: 'var(--color-human)', Icon: User },
+  resource: { fill: '#5F6B7A', Icon: Server },
+  group: { fill: '#CA8A04', Icon: Users },
+  ou: { fill: '#7C3AED', Icon: FolderTree },
+  domain: { fill: '#DC2626', Icon: Globe },
+  computer: { fill: '#4F46E5', Icon: Monitor },
+  gpo: { fill: '#059669', Icon: FileCog },
+  unknown: { fill: '#94A3B8', Icon: Circle },
 }
 
-const TIER_RING: Record<string, string> = {
-  tier_0: '#DC2626',
-  tier_top: '#BE123C',
-  tier_1: '#EA580C',
-  tier_2: '#5F6B7A',
+const TIER_COLOR: Record<string, string> = {
+  tier_0: 'var(--color-tier0)',
+  tier_top: 'var(--color-tier-top)',
+  tier_1: 'var(--color-tier1)',
+  tier_2: 'var(--color-tier2)',
 }
 
-const TECHNIQUE_COLORS: Record<string, string> = {
-  GenericAll: '#DC2626',
-  WriteDACL: '#EA580C',
-  WriteOwner: '#EA580C',
-  DCSync: '#DC2626',
-  AddMember: '#D97706',
-  ForceChangePassword: '#D97706',
-  GroupMembership: '#CA8A04',
-  Entitlement: '#2563EB',
-  OwnerOf: '#7C3AED',
-  Delegation: '#EA580C',
-  ACLAbuse: '#DC2626',
+// Technique -> severity tone. `line` is the stroke/fill colour, `text` the AA-legible text colour.
+type Tone = { line: string; text: string }
+const tone = (k: 'critical' | 'high' | 'medium' | 'info'): Tone => ({ line: `var(--color-${k})`, text: `var(--color-${k}-text)` })
+const NEUTRAL: Tone = { line: 'var(--text-tertiary)', text: 'var(--text-secondary)' }
+const TECHNIQUE_TONE: Record<string, Tone> = {
+  GenericAll: tone('critical'),
+  DCSync: tone('critical'),
+  ACLAbuse: tone('critical'),
+  WriteDACL: tone('high'),
+  WriteOwner: tone('high'),
+  Delegation: tone('high'),
+  AddMember: tone('medium'),
+  ForceChangePassword: tone('medium'),
+  GroupMembership: tone('medium'),
+  Entitlement: tone('info'),
+  OwnerOf: { line: 'var(--color-nhi)', text: 'var(--color-nhi)' },
 }
+
+const R = 20 // node radius
+const RING = 5 // tier ring offset + gap before the arrow tip
+const MIN_SPACING = 140 // below this, the chain scrolls horizontally instead of squashing
+const MAX_SPACING = 260
+const PAD = 70 // room for the first/last node's name label
+const CY = 52
+const DEFAULT_HEIGHT = 112
 
 interface PathNode {
   id: string
@@ -54,219 +71,139 @@ interface PathEdge {
 interface AttackPathChainProps {
   pathNodes: PathNode[]
   pathEdges: PathEdge[]
-  width?: number
   height?: number
 }
 
-export function AttackPathChain({
-  pathNodes,
-  pathEdges,
-  width = 900,
-  height = 200,
-}: AttackPathChainProps) {
-  const svgRef = useRef<SVGSVGElement>(null)
+function truncate(s: string, maxChars: number): string {
+  return s.length > maxChars ? s.slice(0, Math.max(maxChars - 1, 1)) + '…' : s
+}
+
+export function AttackPathChain({ pathNodes, pathEdges, height = DEFAULT_HEIGHT }: AttackPathChainProps) {
+  const t = useTranslations('attackPaths')
+  const tTiers = useTranslations('tiers')
+  const tEnum = useTranslations('securityEnums')
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [measured, setMeasured] = useState(0)
   const [tooltip, setTooltip] = useState<{ x: number; y: number; content: string } | null>(null)
 
   useEffect(() => {
-    if (!svgRef.current || pathNodes.length === 0) return
+    const el = wrapRef.current
+    if (!el) return
+    const ro = new ResizeObserver((entries) => {
+      const w = Math.floor(entries[0].contentRect.width)
+      if (w > 0) setMeasured((prev) => (prev === w ? prev : w))
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
-    const svg = d3.select(svgRef.current)
-    svg.selectAll('*').remove()
+  if (pathNodes.length === 0) return null
 
-    const nodeRadius = 24
-    const padding = 60
-    const usableWidth = width - padding * 2
-    const spacing = usableWidth / Math.max(pathNodes.length - 1, 1)
-    const centerY = height / 2
+  const tierLabel = (tier: string) => (tTiers.has(tier) ? tTiers(tier) : tier.replace(/_/g, ' '))
+  const nodeTypeLabel = (type: string) => (tEnum.has(`nodeTypes.${type}`) ? tEnum(`nodeTypes.${type}`) : t('unknown'))
+  const edgeTypeLabel = (type: string) => (tEnum.has(`edgeTypes.${type}`) ? tEnum(`edgeTypes.${type}`) : type.replace(/_/g, ' '))
 
-    const g = svg.append('g')
+  const gaps = Math.max(pathNodes.length - 1, 1)
+  const available = measured || MIN_SPACING * gaps + PAD * 2
+  const spacing = Math.min(MAX_SPACING, Math.max(MIN_SPACING, (available - PAD * 2) / gaps))
+  const chainWidth = spacing * (pathNodes.length - 1)
+  const svgWidth = Math.max(available, chainWidth + PAD * 2)
+  const x0 = (svgWidth - chainWidth) / 2
+  const xs = pathNodes.map((_, i) => x0 + i * spacing)
 
-    // Zoom
-    const zoom = d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.5, 3])
-      .on('zoom', (event) => g.attr('transform', event.transform))
-    svg.call(zoom)
+  // ~6px per char at 10px; ~5.5px at 9px semibold.
+  const nameChars = Math.floor((spacing - 12) / 6)
+  const labelWidth = spacing - 2 * (R + RING) - 6
+  const techChars = Math.floor((labelWidth - 10) / 5.5)
 
-    // Defs: arrow markers
-    const defs = svg.append('defs')
-    defs.append('marker')
-      .attr('id', 'chain-arrow')
-      .attr('viewBox', '0 -5 10 10')
-      .attr('refX', nodeRadius + 8)
-      .attr('refY', 0)
-      .attr('markerWidth', 8)
-      .attr('markerHeight', 8)
-      .attr('orient', 'auto')
-      .append('path')
-      .attr('fill', '#94a3b8')
-      .attr('d', 'M0,-5L10,0L0,5')
-
-    // Position nodes horizontally
-    const nodePositions = pathNodes.map((n, i) => ({
-      ...n,
-      x: padding + i * spacing,
-      y: centerY,
-    }))
-
-    // Draw edges
-    for (let i = 0; i < pathEdges.length; i++) {
-      const edge = pathEdges[i]
-      const from = nodePositions[i]
-      const to = nodePositions[i + 1]
-      if (!from || !to) continue
-
-      const techniqueColor = TECHNIQUE_COLORS[edge.technique] || '#94a3b8'
-
-      // Edge line
-      g.append('line')
-        .attr('x1', from.x + nodeRadius + 4)
-        .attr('y1', from.y)
-        .attr('x2', to.x - nodeRadius - 4)
-        .attr('y2', to.y)
-        .attr('stroke', techniqueColor)
-        .attr('stroke-width', 2.5)
-        .attr('marker-end', 'url(#chain-arrow)')
-        .attr('opacity', 0.8)
-        .on('mouseenter', function (event) {
-          setTooltip({
-            x: event.pageX,
-            y: event.pageY,
-            content: `${edge.technique}: ${edge.label}`,
-          })
-          d3.select(this).attr('stroke-width', 4).attr('opacity', 1)
-        })
-        .on('mouseleave', function () {
-          setTooltip(null)
-          d3.select(this).attr('stroke-width', 2.5).attr('opacity', 0.8)
-        })
-
-      // Edge technique label
-      const midX = (from.x + to.x) / 2
-      const midY = (from.y + to.y) / 2
-
-      g.append('rect')
-        .attr('x', midX - 40)
-        .attr('y', midY - 22)
-        .attr('width', 80)
-        .attr('height', 16)
-        .attr('rx', 3)
-        .attr('fill', techniqueColor)
-        .attr('opacity', 0.15)
-
-      g.append('text')
-        .text(edge.technique.length > 14 ? edge.technique.slice(0, 14) + '..' : edge.technique)
-        .attr('x', midX)
-        .attr('y', midY - 12)
-        .attr('text-anchor', 'middle')
-        .attr('fill', techniqueColor)
-        .attr('font-size', '9px')
-        .attr('font-weight', '600')
-        .attr('pointer-events', 'none')
-    }
-
-    // Draw nodes
-    for (const node of nodePositions) {
-      const el = g.append('g')
-        .attr('transform', `translate(${node.x}, ${node.y})`)
-        .attr('cursor', 'pointer')
-
-      const color = NODE_COLORS[node.type] || NODE_COLORS.unknown
-      const tierColor = TIER_RING[node.tier || '']
-
-      // Tier ring
-      if (tierColor) {
-        el.append('circle')
-          .attr('r', nodeRadius + 3)
-          .attr('fill', 'none')
-          .attr('stroke', tierColor)
-          .attr('stroke-width', 2.5)
-      }
-
-      // Node shape
-      if (node.type === 'identity') {
-        el.append('circle')
-          .attr('r', nodeRadius)
-          .attr('fill', color)
-          .attr('stroke', tierColor || '#1e293b')
-          .attr('stroke-width', 1.5)
-      } else if (node.type === 'resource' || node.type === 'computer') {
-        const s = nodeRadius * 1.6
-        el.append('rect')
-          .attr('x', -s / 2).attr('y', -s / 2)
-          .attr('width', s).attr('height', s)
-          .attr('rx', 3)
-          .attr('fill', color)
-      } else if (node.type === 'group') {
-        const s = nodeRadius * 1.4
-        el.append('rect')
-          .attr('x', -s / 2).attr('y', -s / 2)
-          .attr('width', s).attr('height', s)
-          .attr('rx', 2)
-          .attr('fill', color)
-          .attr('transform', 'rotate(45)')
-      } else {
-        el.append('circle')
-          .attr('r', nodeRadius)
-          .attr('fill', color)
-      }
-
-      // Node label (below)
-      el.append('text')
-        .text(node.name.length > 18 ? node.name.slice(0, 18) + '..' : node.name)
-        .attr('y', nodeRadius + 16)
-        .attr('text-anchor', 'middle')
-        .attr('fill', 'var(--text-secondary)')
-        .attr('font-size', '10px')
-        .attr('font-weight', '500')
-        .attr('pointer-events', 'none')
-
-      // Tier badge (above)
-      if (node.tier) {
-        el.append('text')
-          .text(node.tier === 'tier_top' ? 'TOP TIER' : node.tier.replace('_', ' ').toUpperCase())
-          .attr('y', -(nodeRadius + 8))
-          .attr('text-anchor', 'middle')
-          .attr('fill', tierColor || 'var(--text-tertiary)')
-          .attr('font-size', '8px')
-          .attr('font-weight', '700')
-          .attr('pointer-events', 'none')
-      }
-
-      // Type icon text
-      const icon = node.type === 'identity' ? '\u{1F464}' : node.type === 'group' ? '\u{1F465}' : node.type === 'resource' ? '\u{1F4BB}' : '\u{1F512}'
-      el.append('text')
-        .text(icon)
-        .attr('text-anchor', 'middle')
-        .attr('dy', '0.35em')
-        .attr('font-size', '14px')
-        .attr('pointer-events', 'none')
-
-      // Hover
-      el.on('mouseenter', function (event) {
-        setTooltip({
-          x: event.pageX,
-          y: event.pageY,
-          content: `${node.name}\nType: ${node.type}${node.tier ? `\nTier: ${node.tier}` : ''}`,
-        })
-      })
-      el.on('mouseleave', function () {
-        setTooltip(null)
-      })
-    }
-  }, [pathNodes, pathEdges, width, height])
+  const summary = pathNodes.map((n) => n.name).join(' → ')
+  const showTip = (e: React.MouseEvent, content: string) => setTooltip({ x: e.clientX, y: e.clientY, content })
+  const hideTip = () => setTooltip(null)
 
   return (
-    <div className="relative">
-      <svg
-        ref={svgRef}
-        width={width}
-        height={height}
-        className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]"
-        style={{ boxShadow: 'var(--shadow-card)' }}
-      />
+    <div dir="ltr" className="relative">
+      <div
+        ref={wrapRef}
+        tabIndex={0}
+        role="region"
+        aria-label={t('chain.region')}
+        // w-0 + min-w-full: never widens a parent table cell; scrolls instead.
+        className="w-0 min-w-full overflow-x-auto rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]"
+      >
+        <svg width={svgWidth} height={height} role="img" aria-label={t('chain.summary', { path: summary })} className="block">
+          {pathEdges.map((edge, i) => {
+            const fromX = xs[i]
+            const toX = xs[i + 1]
+            if (fromX === undefined || toX === undefined) return null
+            const c = TECHNIQUE_TONE[edge.technique] ?? NEUTRAL
+            const x1 = fromX + R + RING
+            const tip = toX - R - RING
+            const midX = (fromX + toX) / 2
+            // When the technique just repeats the edge type (e.g. "Entitlement", "manager"), show the
+            // translated type once; real AD techniques (GenericAll, WriteDACL...) stay as-is.
+            const sameAsType = edge.technique.toLowerCase() === edge.type.toLowerCase()
+            const tech = truncate(sameAsType ? edgeTypeLabel(edge.type) : edge.technique, techChars)
+            const pillW = Math.min(labelWidth, tech.length * 5.5 + 12)
+            const tipText = [sameAsType ? null : edge.technique, edgeTypeLabel(edge.type), edge.label].filter(Boolean).join('\n')
+            return (
+              <g key={`${edge.source}-${edge.target}-${i}`} onMouseMove={(e) => showTip(e, tipText)} onMouseLeave={hideTip}>
+                <line x1={x1} y1={CY} x2={tip} y2={CY} stroke="transparent" strokeWidth={14} />
+                <line x1={x1} y1={CY} x2={tip - 7} y2={CY} stroke={c.line} strokeWidth={2.5} />
+                <path d={`M${tip},${CY} L${tip - 9},${CY - 5} L${tip - 9},${CY + 5} Z`} fill={c.line} />
+                <rect x={midX - pillW / 2} y={CY - 25} width={pillW} height={16} rx={4} fill={c.line} fillOpacity={0.14} />
+                <text x={midX} y={CY - 14} textAnchor="middle" fill={c.text} fontSize={9} fontWeight={600} pointerEvents="none">
+                  {tech}
+                </text>
+                {!sameAsType && (
+                  <text x={midX} y={CY + 17} textAnchor="middle" fill="var(--text-tertiary)" fontSize={9} pointerEvents="none">
+                    {truncate(edgeTypeLabel(edge.type), techChars)}
+                  </text>
+                )}
+              </g>
+            )
+          })}
+
+          {pathNodes.map((node, i) => {
+            const { fill, Icon } = NODE_STYLE[node.type] ?? NODE_STYLE.unknown
+            const tierColor = node.tier ? TIER_COLOR[node.tier] : undefined
+            const tipText = [
+              node.name,
+              t('chain.type', { type: nodeTypeLabel(node.type) }),
+              node.tier ? t('chain.tier', { tier: tierLabel(node.tier) }) : null,
+            ].filter(Boolean).join('\n')
+            return (
+              <g
+                key={`${node.id}-${i}`}
+                transform={`translate(${xs[i]}, ${CY})`}
+                onMouseMove={(e) => showTip(e, tipText)}
+                onMouseLeave={hideTip}
+              >
+                {tierColor && <circle r={R + 3} fill="none" stroke={tierColor} strokeWidth={2.5} />}
+                <circle r={R} fill={fill} />
+                <Icon x={-9} y={-9} width={18} height={18} color="#FFFFFF" strokeWidth={2} aria-hidden />
+                {node.tier && (
+                  <text
+                    y={-(R + 10)}
+                    textAnchor="middle"
+                    fill={tierColor ?? 'var(--text-tertiary)'}
+                    fontSize={9}
+                    fontWeight={700}
+                    pointerEvents="none"
+                  >
+                    {tierLabel(node.tier).toLocaleUpperCase()}
+                  </text>
+                )}
+                <text y={R + 18} textAnchor="middle" fill="var(--text-secondary)" fontSize={10} fontWeight={500} pointerEvents="none">
+                  {truncate(node.name, nameChars)}
+                </text>
+              </g>
+            )
+          })}
+        </svg>
+      </div>
       {tooltip && (
         <div
-          className="fixed z-50 bg-[var(--bg-primary)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-2 text-caption pointer-events-none whitespace-pre-line max-w-[240px]"
+          className="fixed z-50 bg-[var(--bg-primary)] text-[var(--text-primary)] border border-[var(--border-default)] rounded-[var(--radius-card)] p-2 text-caption pointer-events-none whitespace-pre-line max-w-[240px]"
           style={{ left: tooltip.x + 12, top: tooltip.y + 12, boxShadow: 'var(--shadow-dropdown)' }}
         >
           {tooltip.content}

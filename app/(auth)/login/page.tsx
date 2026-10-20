@@ -85,7 +85,7 @@ function LoginForm() {
       <div className="hidden lg:flex lg:w-1/2 bg-slate-900 items-center justify-center p-12">
         <div className="max-w-md">
           <div className="flex items-center gap-3 mb-8">
-            <BrandMark logo={branding?.logo} size={48} />
+            <BrandMark logo={branding?.logo} background={branding?.logoBackground} size={48} />
             <div>
               <p className="text-2xl font-semibold text-white">{branding?.name || t('title')}</p>
               <p className="text-sm text-slate-300">{t('subtitle')}</p>
@@ -111,7 +111,7 @@ function LoginForm() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <BrandMark logo={branding?.logo} size={40} />
+            <BrandMark logo={branding?.logo} background={branding?.logoBackground} size={40} />
             <p className="text-xl font-semibold text-[var(--text-primary)]">{branding?.name || t('title')}</p>
           </div>
 

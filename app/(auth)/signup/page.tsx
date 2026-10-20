@@ -3,11 +3,19 @@
 import { signIn, useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect, Suspense } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
-import { Eye, EyeOff, Users } from 'lucide-react'
+import { Eye, EyeOff, Lock, MailX, Users } from 'lucide-react'
 import { BrandMark } from '@/components/ui/brand-mark'
 import { usePublicBranding } from '@/lib/hooks/use-organization'
+
+/** What an invite link is for (GET /api/auth/invite); null when the link is not valid. */
+interface InviteDetails {
+  email: string
+  role: string
+  organization: string
+}
 
 interface JoinedOrganization {
   id: string
@@ -34,6 +42,26 @@ function SignupForm() {
   // Set when the email had a pending invitation and the account joined that org.
   const [joined, setJoined] = useState<JoinedOrganization | null>(null)
 
+  const inviteQuery = useQuery<InviteDetails | null>({
+    queryKey: ['invite', inviteToken],
+    enabled: !!inviteToken,
+    queryFn: async () => {
+      const res = await fetch(`/api/auth/invite?token=${encodeURIComponent(inviteToken!)}`)
+      if (res.status === 404) return null
+      if (!res.ok) throw new Error('Invite lookup failed')
+      return res.json()
+    },
+    retry: false,
+    staleTime: Infinity,
+  })
+  const invite = inviteQuery.data ?? null
+  const inviteInvalid = !!inviteToken && inviteQuery.isSuccess && invite === null
+
+  // The invitation is for one address: fill it in (the field is locked below).
+  useEffect(() => {
+    if (invite) setEmail(invite.email)
+  }, [invite])
+
   useEffect(() => {
     // After joining an organization the confirmation below handles the redirect.
     if (joined) return
@@ -55,7 +83,7 @@ function SignupForm() {
   const roleLabel = (role: string) =>
     (ROLE_KEYS as readonly string[]).includes(role) ? t(`roles.${role as RoleKey}`) : role
 
-  if (status === 'loading') {
+  if (status === 'loading' || (inviteToken && inviteQuery.isPending)) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[var(--bg-secondary)]">
         <div className="text-[var(--text-tertiary)] animate-pulse">{t('loading')}</div>
@@ -115,17 +143,17 @@ function SignupForm() {
       <div className="hidden lg:flex lg:w-1/2 bg-slate-900 items-center justify-center p-12">
         <div className="max-w-md">
           <div className="flex items-center gap-3 mb-8">
-            <BrandMark logo={branding?.logo} size={48} />
+            <BrandMark logo={branding?.logo} background={branding?.logoBackground} size={48} />
             <div>
               <h1 className="text-2xl font-semibold text-white">{branding?.name || t('brand')}</h1>
               <p className="text-sm text-slate-400">{t('brandSubtitle')}</p>
             </div>
           </div>
           <h2 className="text-3xl font-semibold text-white leading-tight mb-4">
-            {t('heroTitle')}
+            {invite ? t('inviteHeroTitle', { org: invite.organization }) : t('heroTitle')}
           </h2>
           <p className="text-slate-400 leading-relaxed">
-            {t('heroDescription')}
+            {invite ? t('inviteHeroDescription') : t('heroDescription')}
           </p>
           <div className="mt-8 space-y-3">
             {[
@@ -151,7 +179,7 @@ function SignupForm() {
       <div className="flex-1 flex items-center justify-center p-6">
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <BrandMark logo={branding?.logo} size={40} />
+            <BrandMark logo={branding?.logo} background={branding?.logoBackground} size={40} />
             <h1 className="text-xl font-semibold text-[var(--text-primary)]">{branding?.name || t('brand')}</h1>
           </div>
 
@@ -179,15 +207,37 @@ function SignupForm() {
                 {loading ? t('signingIn') : t('continueToDashboard')}
               </button>
             </div>
+          ) : inviteInvalid ? (
+            <div role="alert" className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-6 text-center">
+              <div className="mx-auto mb-4 w-12 h-12 rounded-full bg-[var(--color-medium-bg)] flex items-center justify-center">
+                <MailX size={22} className="text-[var(--color-medium-text)]" aria-hidden="true" />
+              </div>
+              <h2 className="text-title text-[var(--text-primary)] mb-2">{t('inviteInvalidTitle')}</h2>
+              <p className="text-body text-[var(--text-secondary)] mb-6">{t('inviteInvalidBody')}</p>
+              <Link href="/login" className="block w-full py-2.5 bg-[var(--color-info)] text-white rounded-[var(--radius-button)] text-body font-medium hover:opacity-90 transition-opacity">
+                {t('signIn')}
+              </Link>
+            </div>
           ) : (
             <>
-              <h2 className="text-title text-[var(--text-primary)] mb-1">{t('title')}</h2>
-              <p className="text-caption text-[var(--text-secondary)] mb-1">
-                {t('subtitle')}
-              </p>
-              <p className="text-micro text-[var(--text-tertiary)] mb-6">
-                {inviteToken ? t('invitedFromLink') : t('invitedHint')}
-              </p>
+              {invite ? (
+                <>
+                  <h2 className="text-title text-[var(--text-primary)] mb-1">{t('inviteTitle', { org: invite.organization })}</h2>
+                  <p className="text-caption text-[var(--text-secondary)] mb-6">
+                    {t('inviteSubtitle', { role: roleLabel(invite.role) })}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-title text-[var(--text-primary)] mb-1">{t('title')}</h2>
+                  <p className="text-caption text-[var(--text-secondary)] mb-1">
+                    {t('subtitle')}
+                  </p>
+                  <p className="text-micro text-[var(--text-tertiary)] mb-6">
+                    {inviteToken ? t('invitedFromLink') : t('invitedHint')}
+                  </p>
+                </>
+              )}
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
@@ -209,6 +259,7 @@ function SignupForm() {
                   <label htmlFor="email" className="block text-caption font-medium text-[var(--text-primary)] mb-1.5">
                     {t('workEmail')}
                   </label>
+                  <div className="relative">
                   <input
                     id="email"
                     type="email"
@@ -216,9 +267,14 @@ function SignupForm() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     dir="ltr"
-                    className="w-full px-3 py-2.5 border border-[var(--border-default)] rounded-[var(--radius-input)] text-body bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-info)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
+                    readOnly={!!invite}
+                    aria-describedby={invite ? 'email-locked' : undefined}
+                    className="read-only:bg-[var(--bg-secondary)] read-only:text-[var(--text-secondary)] read-only:pe-9 w-full px-3 py-2.5 border border-[var(--border-default)] rounded-[var(--radius-input)] text-body bg-[var(--bg-primary)] text-[var(--text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-info)] focus:border-transparent placeholder:text-[var(--text-tertiary)]"
                     placeholder={t('workEmailPlaceholder')}
                   />
+                  {invite && <Lock size={14} className="absolute end-3 top-1/2 -translate-y-1/2 text-[var(--text-tertiary)]" aria-hidden="true" />}
+                  </div>
+                  {invite && <p id="email-locked" className="text-micro text-[var(--text-tertiary)] mt-1">{t('inviteEmailLocked')}</p>}
                 </div>
 
                 <div>

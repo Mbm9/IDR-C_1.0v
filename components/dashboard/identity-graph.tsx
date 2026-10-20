@@ -209,21 +209,30 @@ export function IdentityGraph({
     // Pulse animation style
     svg.append('style').text(`
       @keyframes graphPulse {
-        0% { r: inherit; opacity: 1; }
-        50% { opacity: 0.4; }
-        100% { r: inherit; opacity: 1; }
+        0%, 100% { transform: scale(1); opacity: 0.6; }
+        50% { transform: scale(1.25); opacity: 0.15; }
       }
       .graph-pulse-ring {
+        transform-box: fill-box;
+        transform-origin: center;
         animation: graphPulse 2s ease-in-out infinite;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .graph-pulse-ring { animation: none; }
       }
     `)
 
     const g = svg.append('g')
 
     // Zoom
+    // userMoved: the person zoomed or panned, so don't re-fit the view under them
+    let userMoved = false
     const zoom = d3.zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.1, 8])
-      .on('zoom', (event) => g.attr('transform', event.transform))
+      .on('zoom', (event) => {
+        if (event.sourceEvent) userMoved = true
+        g.attr('transform', event.transform)
+      })
     svg.call(zoom)
 
     // Clone nodes to avoid mutating props
@@ -295,6 +304,9 @@ export function IdentityGraph({
       .force('link', d3.forceLink<GraphNode, any>(simLinks as any[]).id((d: any) => d.id).distance(layout === 'force' ? 80 : 50))
       .force('charge', d3.forceManyBody().strength(layout === 'force' ? -200 : -50))
       .force('center', layout === 'force' ? d3.forceCenter(width / 2, height / 2) : null)
+      // Weak pull to the middle: without it, unconnected nodes are pushed thousands of px away by the charge
+      .force('x', layout === 'force' ? d3.forceX(width / 2).strength(0.06) : null)
+      .force('y', layout === 'force' ? d3.forceY(height / 2).strength(0.06 * width / height) : null)
       .force('collision', d3.forceCollide().radius((d: any) => getNodeRadius(d) + 5))
 
     if (layout !== 'force') {
@@ -589,6 +601,26 @@ export function IdentityGraph({
       node.attr('transform', (d: any) => `translate(${d.x},${d.y})`)
     })
 
+    // Once the layout settles, zoom out (never in) so every node fits the canvas;
+    // the force layout spreads larger graphs past the edges otherwise.
+    simulation.on('end', () => {
+      if (userMoved) return
+      // Bounds of the nodes themselves (labels and arrowheads only add a little)
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+      for (const n of simNodes) {
+        if (n.x == null || n.y == null) continue
+        const r = getNodeRadius(n) + 6
+        x0 = Math.min(x0, n.x - r); y0 = Math.min(y0, n.y - r)
+        x1 = Math.max(x1, n.x + r); y1 = Math.max(y1, n.y + r)
+      }
+      if (!isFinite(x0) || x1 <= x0 || y1 <= y0) return
+      const pad = 32 // room for labels under the outermost nodes
+      const scale = Math.min(1, (width - pad * 2) / (x1 - x0), (height - pad * 2) / (y1 - y0))
+      const tx = width / 2 - scale * ((x0 + x1) / 2)
+      const ty = height / 2 - scale * ((y0 + y1) / 2)
+      svg.transition().duration(400).call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale))
+    })
+
     return () => { simulation.stop() }
   }, [nodes, links, width, height, layout, onNodeClick, onNodeDoubleClick, onNodeRightClick, onEdgeHover, visibleEdgeTypes, getNodeRadius, dense, edgeLabelKey])
 
@@ -626,32 +658,32 @@ export function IdentityGraph({
         {legendOpen && (
           <div className="px-2 pb-2 space-y-1">
             <p className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1">{t('nodes')}</p>
-            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded-full" style={{ background: '#2563EB' }} /> {t('human')}</div>
-            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded-full" style={{ background: '#7C3AED' }} /> {t('nhi')}</div>
-            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded" style={{ background: '#5F6B7A' }} /> {t('resource')}</div>
-            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded rotate-45" style={{ background: '#CA8A04' }} /> {t('group')}</div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 shrink-0 rounded-full" style={{ background: '#2563EB' }} /> {t('human')}</div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 shrink-0 rounded-full" style={{ background: '#7C3AED' }} /> {t('nhi')}</div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 shrink-0 rounded" style={{ background: '#5F6B7A' }} /> {t('resource')}</div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 shrink-0 rounded rotate-45" style={{ background: '#CA8A04' }} /> {t('group')}</div>
             <div className="flex items-center gap-2">
-              <svg aria-hidden className="w-3 h-3" viewBox="0 -8 12 16"><path d="M0,-7 L7,4 L-7,4 Z" fill="#DC2626" /></svg>
+              <svg aria-hidden className="w-3 h-3 shrink-0" viewBox="-8 -8 16 16"><path d="M0,-7 L7,4 L-7,4 Z" fill="#DC2626" /></svg>
               {t('violation')}
             </div>
             <div className="flex items-center gap-2">
-              <svg aria-hidden className="w-3 h-3" viewBox="-8 -8 16 16">
+              <svg aria-hidden className="w-3 h-3 shrink-0" viewBox="-8 -8 16 16">
                 <polygon points="6.9,4 4,6.9 -4,6.9 -6.9,4 -6.9,-4 -4,-6.9 4,-6.9 6.9,-4" fill="#4F46E5" />
               </svg>
               {t('account')}
             </div>
-            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded" style={{ background: '#0891B2' }} /> {t('gpo')}</div>
-            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 rounded-full border-2 border-[var(--color-critical)]" /> {t('tierViolation')}</div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 shrink-0 rounded" style={{ background: '#0891B2' }} /> {t('gpo')}</div>
+            <div className="flex items-center gap-2"><span aria-hidden className="w-3 h-3 shrink-0 rounded-full border-2 border-[var(--color-critical)]" /> {t('tierViolation')}</div>
             <div className="border-t border-[var(--border-default)] my-1 pt-1 space-y-1">
               <p className="text-[10px] font-semibold text-[var(--text-secondary)] uppercase tracking-wide mb-1">{t('edges')}</p>
-              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5" style={{ background: '#94a3b8' }} /> {tEnum('edgeTypes.entitlement')}</div>
-              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#cbd5e1' }} /> {tEnum('edgeTypes.membership')}</div>
-              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#3B82F6' }} /> {tEnum('edgeTypes.manager')}</div>
-              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#8B5CF6' }} /> {tEnum('edgeTypes.owner')}</div>
-              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-[2px]" style={{ background: '#DC2626' }} /> {tEnum('edgeTypes.violation')}</div>
-              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#4F46E5' }} /> {tEnum('edgeTypes.account')}</div>
-              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#0891B2' }} /> {tEnum('edgeTypes.gpo_link')}</div>
-              <div className="flex items-center gap-2"><span aria-hidden className="w-4 h-[1.5px]" style={{ background: '#DC2626' }} /> {tEnum('edgeTypes.gpo_edit')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="shrink-0 w-4 h-0.5" style={{ background: '#94a3b8' }} /> {tEnum('edgeTypes.entitlement')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="shrink-0 w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#cbd5e1' }} /> {tEnum('edgeTypes.membership')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="shrink-0 w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#3B82F6' }} /> {tEnum('edgeTypes.manager')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="shrink-0 w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#8B5CF6' }} /> {tEnum('edgeTypes.owner')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="shrink-0 w-4 h-[2px]" style={{ background: '#DC2626' }} /> {tEnum('edgeTypes.violation')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="shrink-0 w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#4F46E5' }} /> {tEnum('edgeTypes.account')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="shrink-0 w-4 h-0.5 border-t border-dashed" style={{ borderColor: '#0891B2' }} /> {tEnum('edgeTypes.gpo_link')}</div>
+              <div className="flex items-center gap-2"><span aria-hidden className="shrink-0 w-4 h-[1.5px]" style={{ background: '#DC2626' }} /> {tEnum('edgeTypes.gpo_edit')}</div>
             </div>
           </div>
         )}

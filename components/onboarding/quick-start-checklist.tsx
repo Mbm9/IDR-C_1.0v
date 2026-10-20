@@ -39,7 +39,7 @@ const STEPS = [
   {
     key: 'hasIntegration' as const,
     alwaysComplete: false,
-    href: '/dashboard/integrations',
+    href: '/dashboard/settings?tab=integrations',
     cta: 'connect',
   },
   {

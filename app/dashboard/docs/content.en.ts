@@ -414,7 +414,7 @@ const guide: GuideSection[] = [
   {
     id: 'integrations',
     title: 'Integrations',
-    path: '/dashboard/integrations',
+    path: '/dashboard/settings?tab=integrations',
     description:
       'Monitor connector health, sync status, and record counts for all configured integration sources. Trigger manual syncs and diagnose connectivity issues from a single pane.',
     features: [
@@ -434,7 +434,7 @@ const guide: GuideSection[] = [
   {
     id: 'audit-trail',
     title: 'Audit Trail',
-    path: '/dashboard/audit',
+    path: '/dashboard/settings?tab=audit-trail',
     description:
       'Complete action log recording every kinetic action in the platform. Every certification, revocation, exception approval, tier change, and AI recommendation is captured with full actor, target, timestamp, and rationale details.',
     features: [
@@ -587,7 +587,7 @@ const compliance: ComplianceFramework[] = [
       { controlId: 'ECC-1-4-1', controlName: 'Access Review', feature: 'Certification Campaigns', link: '/dashboard/certifications' },
       { controlId: 'ECC-2-1-1', controlName: 'Security Monitoring', feature: 'Live Threats + Violations', link: '/dashboard/threats' },
       { controlId: 'ECC-2-2-1', controlName: 'Incident Response', feature: 'Threat Triage + Actions', link: '/dashboard/threats' },
-      { controlId: 'ECC-2-3-1', controlName: 'Audit Logging', feature: 'Audit Trail', link: '/dashboard/audit' },
+      { controlId: 'ECC-2-3-1', controlName: 'Audit Logging', feature: 'Audit Trail', link: '/dashboard/settings?tab=audit-trail' },
       { controlId: 'ECC-3-1-1', controlName: 'Risk Assessment', feature: 'AI Analysis + Risk Scoring', link: '/dashboard/ai' },
       { controlId: 'ECC-3-2-1', controlName: 'Compliance Reporting', feature: 'Results Hub', link: '/dashboard/results' },
     ],
@@ -604,7 +604,7 @@ const compliance: ComplianceFramework[] = [
       { controlId: 'SAMA-3.3.5', controlName: 'Privileged Access', feature: 'Tiering + Shadow Admins', link: '/dashboard/tiering' },
       { controlId: 'SAMA-3.3.7', controlName: 'Service Accounts', feature: 'NHI Management', link: '/dashboard/nhi' },
       { controlId: 'SAMA-3.4.1', controlName: 'Security Monitoring', feature: 'Live Threats', link: '/dashboard/threats' },
-      { controlId: 'SAMA-3.6.1', controlName: 'Audit Trail', feature: 'Audit Trail', link: '/dashboard/audit' },
+      { controlId: 'SAMA-3.6.1', controlName: 'Audit Trail', feature: 'Audit Trail', link: '/dashboard/settings?tab=audit-trail' },
     ],
   },
   {
@@ -612,7 +612,7 @@ const compliance: ComplianceFramework[] = [
     acronym: 'PDPL',
     name: 'Personal Data Protection Law',
     rows: [
-      { controlId: 'PDPL-5', controlName: 'Data Processing Records', feature: 'Audit Trail', link: '/dashboard/audit' },
+      { controlId: 'PDPL-5', controlName: 'Data Processing Records', feature: 'Audit Trail', link: '/dashboard/settings?tab=audit-trail' },
       { controlId: 'PDPL-14', controlName: 'Access Rights', feature: 'Entitlement Management', link: '/dashboard/entitlements' },
       { controlId: 'PDPL-17', controlName: 'Security Measures', feature: 'Risk Scoring + Violations', link: '/dashboard/violations' },
       { controlId: 'PDPL-22', controlName: 'Data Breach Response', feature: 'Threat Detection', link: '/dashboard/threats' },

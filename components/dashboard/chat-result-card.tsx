@@ -64,7 +64,7 @@ function IdentityCard({ identity }: { identity: IdentityResult }) {
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg-tertiary)]">
+          <div className="shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-[var(--bg-tertiary)]">
             {identity.type === 'non_human' ? <Bot size={12} className="text-[var(--text-secondary)]" aria-hidden="true" /> : <User size={12} className="text-[var(--text-secondary)]" aria-hidden="true" />}
           </div>
           <bdi className="text-caption font-medium text-[var(--text-primary)] truncate max-w-[180px]">

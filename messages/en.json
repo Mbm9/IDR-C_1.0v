@@ -798,6 +798,7 @@
     "notifications": "Notifications",
     "apiKeys": "API Keys",
     "auditCompliance": "Audit & Compliance",
+    "auditTrail": "Audit Trail",
     "appearance": "Appearance",
     "orgName": "Name",
     "orgDomain": "Domain",
@@ -841,7 +842,6 @@
     "dark": "Dark",
     "system": "System",
     "language": "Language",
-    "integrationsNote": "Manage integrations from the Integrations page.",
     "webhooks": "Webhooks",
     "webhooksTitle": "Webhook Endpoints",
     "addWebhook": "Add Webhook",
@@ -862,6 +862,8 @@
     "inviteEmailLabel": "Email address to invite",
     "inviteRoleLabel": "Role for the invited user",
     "memberRoleLabel": "Role for {name}",
+    "you": "You",
+    "ownRoleLocked": "You can't change your own role. Another admin can change it.",
     "inviteFailed": "The invitation could not be sent.",
     "revokeInvitation": "Revoke",
     "revokeInvitationLabel": "Revoke the invitation for {email}",
@@ -965,6 +967,8 @@
       "upload": "Upload logo",
       "replace": "Replace logo",
       "removeLogo": "Remove logo",
+      "logoBackground": "White background behind the logo",
+      "logoBackgroundHint": "Off: the logo is shown as-is with its transparent background. Turn on for dark logos that are hard to see on the dark sidebar.",
       "save": "Save branding",
       "saving": "Saving…",
       "saved": "Branding saved.",
@@ -1047,6 +1051,10 @@
     "criticalOnly": "Critical (80+)",
     "highAndAbove": "High & Above (60+)",
     "mediumAndAbove": "Medium & Above (40+)",
+    "sortLabel": "Sort",
+    "sortHighestRisk": "Sort: Highest risk",
+    "sortLongestPath": "Sort: Longest path",
+    "pageOf": "Page {page} of {total}",
     "backToAttackPaths": "Back to Attack Paths",
     "pathVisualization": "Path Visualization",
     "aiNarrative": "AI Narrative",
@@ -1101,6 +1109,15 @@
       "OwnerOf": "Ownership of an NHI grants control over its credentials and permissions.",
       "Delegation": "Kerberos delegation abuse to impersonate users.",
       "ACLAbuse": "Exploit misconfigured ACLs on AD objects."
+    },
+    "chain": {
+      "region": "Attack path chain",
+      "summary": "Attack path: {path}",
+      "type": "Type: {type}",
+      "tier": "Tier: {tier}",
+      "expandColumn": "Expand",
+      "expandRow": "Show path chain for {source}",
+      "collapseRow": "Hide path chain for {source}"
     },
     "graphAria": "Attack path graph with {nodes, plural, one {# node} other {# nodes}} and {edges, plural, one {# technique edge} other {# technique edges}}"
   },
@@ -1981,6 +1998,13 @@
       "admin": "Admin"
     },
     "invitedFromLink": "You are accepting an invitation. Sign up with the email address the invitation was sent to.",
+    "inviteTitle": "Join {org}",
+    "inviteSubtitle": "You've been invited with the {role} role. Choose a name and password to create your account.",
+    "inviteHeroTitle": "You're invited to {org}.",
+    "inviteHeroDescription": "Create your account to see the identity posture your team is managing in Identity Radar.",
+    "inviteEmailLocked": "This invitation is for this email address.",
+    "inviteInvalidTitle": "This invitation link is no longer valid",
+    "inviteInvalidBody": "It may have expired, been used already, or been revoked. Ask your administrator for a new invitation, or sign in if you already have an account.",
     "errorRateLimited": "Too many attempts. Try again in {seconds, plural, one {# second} other {# seconds}}."
   },
   "executiveReport": {
@@ -2049,6 +2073,7 @@
       "low": "Low Risk"
     },
     "riskTooltip": "Risk {score} — {level}",
+    "percentTooltip": "{label}: {score}%",
     "tierViolationBadge": "Tier violation: assigned {assigned}, reaches {effective}"
   },
   "charts": {
@@ -2708,8 +2733,8 @@
       "off": "Off"
     },
     "labelModeHint": {
-      "all": "Show every label",
-      "focus": "Show labels for Tier 0 / critical nodes and the hovered node's neighbours",
+      "all": "Show every label that fits; zoom in or hover a node to see the rest",
+      "focus": "Label Tier 0, Top Tier and high-risk nodes plus the hovered node's neighbours; zoom in to see every label",
       "off": "Hide labels"
     },
     "zoomIn": "Zoom in",
@@ -2824,7 +2849,10 @@
       "group": "Group",
       "violation": "Violation",
       "account": "Account",
-      "gpo": "GPO"
+      "gpo": "GPO",
+      "ou": "OU",
+      "domain": "Domain",
+      "computer": "Computer"
     },
     "edgeTypes": {
       "entitlement": "Entitlement",
@@ -2834,7 +2862,9 @@
       "violation": "Violation",
       "account": "Account",
       "gpo_link": "GPO link",
-      "gpo_edit": "GPO edit"
+      "gpo_edit": "GPO edit",
+      "delegation": "Delegation",
+      "acl": "ACL"
     },
     "statuses": {
       "active": "Active",

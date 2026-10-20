@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { useSession } from 'next-auth/react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useFormatter, useTranslations } from 'next-intl'
 import { hasRole } from '@/lib/utils/rbac'
@@ -9,23 +10,32 @@ import { setLocale } from '@/lib/locale'
 import { useRoleHint } from '@/lib/hooks/use-role-hint'
 import {
   Building2, Users, Plug, FileText, Bell, Key, Shield, Palette, Plus, Copy, Trash2, Webhook, Loader2, TestTube2,
-  Zap, ToggleLeft, ToggleRight, MonitorSmartphone, LogOut, Lock,
+  Zap, ToggleLeft, ToggleRight, MonitorSmartphone, LogOut, Lock, ScrollText,
 } from 'lucide-react'
 import type { AppRole } from '@/lib/utils/rbac'
 import type { Locale } from '@/lib/locale'
 import { BrandMark } from '@/components/ui/brand-mark'
+import { IntegrationsPanel } from '@/components/dashboard/integrations-panel'
+import { AuditTrailPanel } from '@/components/dashboard/audit-trail-panel'
 import { useOrganization, useUpdateBranding } from '@/lib/hooks/use-organization'
 import { DEFAULT_BRAND_NAME, MAX_LOGO_BYTES } from '@/lib/branding-shared'
 
 const ROLES: AppRole[] = ['viewer', 'analyst', 'iam_admin', 'ciso', 'admin']
 
-type TabKey = 'org' | 'team' | 'sessions' | 'integrations' | 'policies' | 'notifications' | 'apikeys' | 'audit' | 'webhooks' | 'automation' | 'appearance'
+const TAB_KEYS = ['org', 'team', 'sessions', 'integrations', 'policies', 'notifications', 'apikeys', 'audit-trail', 'audit', 'webhooks', 'automation', 'appearance'] as const
+type TabKey = typeof TAB_KEYS[number]
+const isTabKey = (v: string | null): v is TabKey => !!v && (TAB_KEYS as readonly string[]).includes(v)
 
 const inputClass = 'px-3 py-2 border border-[var(--border-default)] rounded-[var(--radius-input)] text-body bg-[var(--bg-primary)] text-[var(--text-primary)] placeholder:text-[var(--text-secondary)]'
 
 export default function SettingsPage() {
   const { data: session } = useSession()
-  const [activeTab, setActiveTab] = useState<TabKey>('org')
+  // The open tab lives in ?tab= so it can be linked to (e.g. /dashboard/settings?tab=integrations)
+  const router = useRouter()
+  const pathname = usePathname() ?? '/dashboard/settings'
+  const tabParam = useSearchParams()?.get('tab') ?? null
+  const activeTab: TabKey = isTabKey(tabParam) ? tabParam : 'org'
+  const setActiveTab = (key: TabKey) => router.replace(key === 'org' ? pathname : `${pathname}?tab=${key}`, { scroll: false })
   const userRole = (session?.user as any)?.appRole as AppRole | undefined
   const t = useTranslations('settings')
 
@@ -37,6 +47,7 @@ export default function SettingsPage() {
     { key: 'policies', label: t('policies'), icon: FileText },
     { key: 'notifications', label: t('notifications'), icon: Bell },
     { key: 'apikeys', label: t('apiKeys'), icon: Key },
+    { key: 'audit-trail', label: t('auditTrail'), icon: ScrollText },
     { key: 'audit', label: t('auditCompliance'), icon: Shield },
     { key: 'webhooks', label: t('webhooks'), icon: Webhook },
     { key: 'automation', label: t('automation'), icon: Zap },
@@ -68,7 +79,8 @@ export default function SettingsPage() {
           {activeTab === 'webhooks' && <WebhooksTab />}
           {activeTab === 'automation' && <AutomationTab />}
           {activeTab === 'appearance' && <AppearanceTab />}
-          {activeTab === 'integrations' && <p className="text-caption text-[var(--text-secondary)]">{t('integrationsNote')}</p>}
+          {activeTab === 'integrations' && <IntegrationsPanel />}
+          {activeTab === 'audit-trail' && <AuditTrailPanel />}
           {activeTab === 'audit' && <AuditComplianceTab />}
         </div>
       </div>
@@ -222,16 +234,17 @@ function OrgTab() {
 }
 
 /** Admin-only: organization display name and logo (sidebar, sign-in page, browser tab, PDF reports). */
-function BrandingSection({ initial }: { initial: { name: string | null; logo: string | null } }) {
+function BrandingSection({ initial }: { initial: { name: string | null; logo: string | null; logoBackground: boolean } }) {
   const t = useTranslations('settings.branding')
   const update = useUpdateBranding()
   const [name, setName] = useState(initial.name ?? '')
   const [logo, setLogo] = useState<string | null>(initial.logo)
+  const [logoBackground, setLogoBackground] = useState(initial.logoBackground)
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const nameValue = name.trim() || null
-  const dirty = nameValue !== (initial.name ?? null) || logo !== initial.logo
+  const dirty = nameValue !== (initial.name ?? null) || logo !== initial.logo || logoBackground !== initial.logoBackground
 
   const onFile = (file: File | undefined) => {
     setMessage(null)
@@ -247,9 +260,10 @@ function BrandingSection({ initial }: { initial: { name: string | null; logo: st
 
   const save = () => {
     setMessage(null)
-    const body: { name?: string | null; logo?: string | null } = {}
+    const body: { name?: string | null; logo?: string | null; logoBackground?: boolean } = {}
     if (nameValue !== (initial.name ?? null)) body.name = nameValue
     if (logo !== initial.logo) body.logo = logo
+    if (logoBackground !== initial.logoBackground) body.logoBackground = logoBackground
     update.mutate(body, {
       onSuccess: () => setMessage({ tone: 'ok', text: t('saved') }),
       onError: (e) => setMessage({ tone: 'error', text: e instanceof Error ? e.message : t('saveFailed') }),
@@ -273,7 +287,7 @@ function BrandingSection({ initial }: { initial: { name: string | null; logo: st
           <div>
             <p className="text-caption font-medium text-[var(--text-primary)] mb-1.5">{t('logo')}</p>
             <div className="flex flex-wrap items-center gap-3">
-              <BrandMark logo={logo} size={48} />
+              <BrandMark logo={logo} background={logoBackground} size={48} />
               <input ref={fileRef} id="brand-logo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"
                 aria-label={t('logo')} tabIndex={-1} className="sr-only" onChange={e => { onFile(e.target.files?.[0]); e.target.value = '' }} />
               <button type="button" onClick={() => fileRef.current?.click()}
@@ -288,6 +302,14 @@ function BrandingSection({ initial }: { initial: { name: string | null; logo: st
               )}
             </div>
             <p className="text-micro text-[var(--text-secondary)] mt-1.5">{t('logoHint')}</p>
+            {logo && (
+              <label className="mt-3 inline-flex items-center gap-2 text-caption text-[var(--text-primary)] cursor-pointer">
+                <input type="checkbox" checked={logoBackground} onChange={e => setLogoBackground(e.target.checked)}
+                  className="h-4 w-4 accent-[var(--color-info)]" />
+                {t('logoBackground')}
+              </label>
+            )}
+            {logo && <p className="text-micro text-[var(--text-secondary)] mt-1">{t('logoBackgroundHint')}</p>}
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -305,7 +327,7 @@ function BrandingSection({ initial }: { initial: { name: string | null; logo: st
         <div>
           <p className="text-micro font-medium uppercase tracking-wider text-[var(--text-secondary)] mb-2">{t('preview')}</p>
           <div className="rounded-[var(--radius-card)] bg-[#0f172b] p-4 flex items-center gap-3 min-w-0">
-            <BrandMark logo={logo} size={32} />
+            <BrandMark logo={logo} background={logoBackground} size={32} />
             <div className="min-w-0">
               <p className="text-body font-semibold text-white leading-tight truncate"><bdi>{nameValue || DEFAULT_BRAND_NAME}</bdi></p>
               <p className="text-micro text-slate-400">{t('previewTagline')}</p>
@@ -385,6 +407,8 @@ function TeamTab({ userRole }: { userRole?: AppRole }) {
   })
 
   const isAdmin = !!userRole && hasRole(userRole, 'admin')
+  const { data: session } = useSession()
+  const selfId = session?.user?.id
   const roleLabel = (r: string) => (ROLES as string[]).includes(r) ? tAccess(`roles.${r as AppRole}`) : r
 
   return (
@@ -442,14 +466,16 @@ function TeamTab({ userRole }: { userRole?: AppRole }) {
               <p className="text-body font-medium text-[var(--text-primary)] break-words"><bdi>{m.name || m.email}</bdi></p>
               <p className="text-caption text-[var(--text-secondary)] break-all"><bdi>{m.email}</bdi></p>
             </div>
-            {isAdmin ? (
+            {isAdmin && m.id !== selfId ? (
               <select value={m.appRole} onChange={(e) => roleMutation.mutate({ userId: m.id, role: e.target.value })}
                 aria-label={t('memberRoleLabel', { name: m.name || m.email })}
                 className="px-2 py-1 border border-[var(--border-default)] rounded-[var(--radius-input)] text-caption bg-[var(--bg-primary)] text-[var(--text-primary)]">
                 {ROLES.map(r => <option key={r} value={r}>{roleLabel(r)}</option>)}
               </select>
             ) : (
-              <span className="text-caption text-[var(--text-secondary)]">{roleLabel(m.appRole)}</span>
+              <span className="text-caption text-[var(--text-secondary)]" title={m.id === selfId ? t('ownRoleLocked') : undefined}>
+                {roleLabel(m.appRole)}{m.id === selfId && <> · {t('you')}</>}
+              </span>
             )}
           </li>
         ))}

@@ -1,13 +1,14 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { Fragment, useEffect, useState, useCallback } from 'react'
 import Link from 'next/link'
 import { useTranslations } from 'next-intl'
 import {
   Route, AlertTriangle, Shield, Zap, ArrowRight, RefreshCw, Search,
-  LayoutGrid, TableIcon,
+  LayoutGrid, TableIcon, ChevronRight, ChevronDown,
 } from 'lucide-react'
 import { AttackPathGraph } from '@/components/dashboard/attack-path-graph'
+import { AttackPathChain } from '@/components/dashboard/attack-path-chain'
 import type { AttackPathData } from '@/components/dashboard/attack-path-graph'
 import { useAppRole } from '@/lib/hooks/use-app-role'
 import { isControlPlaneTier } from '@/lib/utils/tiers'
@@ -40,6 +41,9 @@ interface Stats {
 }
 
 type ViewMode = 'table' | 'graph'
+type SortMode = 'risk' | 'length'
+
+const PAGE_SIZE = 50
 
 // Badge tones built from theme tokens so they keep AA contrast in light and dark themes.
 const TONE = {
@@ -87,6 +91,19 @@ export default function AttackPathsPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('table')
   const [highlightPathId, setHighlightPathId] = useState<string | undefined>(undefined)
   const [selectedPathFilter, setSelectedPathFilter] = useState<string>('all')
+  const [sortMode, setSortMode] = useState<SortMode>('risk')
+  const [page, setPage] = useState(1)
+  const [total, setTotal] = useState(0)
+  const totalPages = Math.ceil(total / PAGE_SIZE)
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+  // Expanded rows belong to the rows on screen; drop them when the page or set changes.
+  useEffect(() => { setExpanded(new Set()) }, [page, filterTechnique, filterMinRisk, sortMode])
+  const toggleExpanded = (id: string) => setExpanded(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
 
   const fetchData = useCallback(async () => {
     try {
@@ -94,6 +111,9 @@ export default function AttackPathsPage() {
       const params = new URLSearchParams()
       if (filterMinRisk > 0) params.set('minRiskScore', String(filterMinRisk))
       if (filterTechnique) params.set('technique', filterTechnique)
+      params.set('sort', sortMode)
+      params.set('limit', String(PAGE_SIZE))
+      params.set('offset', String((page - 1) * PAGE_SIZE))
 
       const [pathsRes, statsRes] = await Promise.all([
         fetch(`/api/attack-paths?${params}`),
@@ -102,6 +122,7 @@ export default function AttackPathsPage() {
       if (pathsRes.ok) {
         const data = await pathsRes.json()
         setPaths(data.paths || [])
+        setTotal(data.total || 0)
       }
       if (statsRes.ok) {
         setStats(await statsRes.json())
@@ -111,7 +132,7 @@ export default function AttackPathsPage() {
     } finally {
       setLoading(false)
     }
-  }, [filterTechnique, filterMinRisk])
+  }, [filterTechnique, filterMinRisk, sortMode, page])
 
   useEffect(() => { fetchData() }, [fetchData])
 
@@ -227,20 +248,29 @@ export default function AttackPathsPage() {
             aria-label={t('filterByTechnique')}
             placeholder={t('filterByTechnique')}
             value={filterTechnique}
-            onChange={e => setFilterTechnique(e.target.value)}
+            onChange={e => { setFilterTechnique(e.target.value); setPage(1) }}
             className="w-full ps-9 pe-3 py-2 rounded-[var(--radius-badge)] border border-[var(--border-default)] bg-[var(--bg-primary)] text-body"
           />
         </div>
         <select
           aria-label={t('riskFilter')}
           value={filterMinRisk}
-          onChange={e => setFilterMinRisk(Number(e.target.value))}
+          onChange={e => { setFilterMinRisk(Number(e.target.value)); setPage(1) }}
           className="px-3 py-2 rounded-[var(--radius-badge)] border border-[var(--border-default)] bg-[var(--bg-primary)] text-body"
         >
           <option value={0}>{t('allRiskLevels')}</option>
           <option value={80}>{t('criticalOnly')}</option>
           <option value={60}>{t('highAndAbove')}</option>
           <option value={40}>{t('mediumAndAbove')}</option>
+        </select>
+        <select
+          aria-label={t('sortLabel')}
+          value={sortMode}
+          onChange={e => { setSortMode(e.target.value as SortMode); setPage(1) }}
+          className="px-3 py-2 rounded-[var(--radius-badge)] border border-[var(--border-default)] bg-[var(--bg-primary)] text-body"
+        >
+          <option value="risk">{t('sortHighestRisk')}</option>
+          <option value="length">{t('sortLongestPath')}</option>
         </select>
 
         {/* Path selector for graph view */}
@@ -355,10 +385,11 @@ export default function AttackPathsPage() {
       ) : (
         /* ── Table View ── */
         <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] overflow-hidden">
-          <div tabIndex={0} role="region" aria-label={t('title')} className="overflow-x-auto">
+          <div tabIndex={0} role="region" aria-label={t('title')} className="overflow-x-auto @container">
             <table className="w-full">
               <thead>
                 <tr className="bg-[var(--bg-secondary)] text-[var(--text-secondary)] text-micro uppercase tracking-wider">
+                  <th className="w-10 ps-3 pe-0 py-3"><span className="sr-only">{t('chain.expandColumn')}</span></th>
                   <th className="px-4 py-3 text-start">{t('source')}</th>
                   <th className="px-4 py-3 text-start">{t('target')}</th>
                   <th className="px-4 py-3 text-center">{t('length')}</th>
@@ -372,8 +403,25 @@ export default function AttackPathsPage() {
                 {paths.map(path => {
                   const sourceNode = (path.pathNodes as any[])?.[0]
                   const targetNode = (path.pathNodes as any[])?.[(path.pathNodes as any[]).length - 1]
+                  const isOpen = expanded.has(path.id)
+                  const sourceName = sourceNode?.name || t('unknown')
                   return (
-                    <tr key={path.id} className="hover:bg-[var(--bg-secondary)] transition-colors">
+                    <Fragment key={path.id}>
+                    <tr className="hover:bg-[var(--bg-secondary)] transition-colors">
+                      <td className="ps-3 pe-0 py-3">
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(path.id)}
+                          aria-expanded={isOpen}
+                          aria-controls={`chain-${path.id}`}
+                          aria-label={isOpen ? t('chain.collapseRow', { source: sourceName }) : t('chain.expandRow', { source: sourceName })}
+                          className="flex items-center justify-center w-7 h-7 rounded-[var(--radius-button)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus)]"
+                        >
+                          {isOpen
+                            ? <ChevronDown size={16} aria-hidden />
+                            : <ChevronRight size={16} aria-hidden className="rtl:-scale-x-100" />}
+                        </button>
+                      </td>
                       <td className="px-4 py-3">
                         <Link href={`/dashboard/attack-paths/${path.id}`} className="text-body font-medium text-[var(--text-primary)] hover:text-[color:color-mix(in_srgb,var(--color-info)_70%,var(--text-primary))]">
                           <bdi>{sourceNode?.name || t('unknown')}</bdi>
@@ -404,11 +452,47 @@ export default function AttackPathsPage() {
                         </span>
                       </td>
                     </tr>
+                    {isOpen && (
+                      <tr id={`chain-${path.id}`} className="bg-[var(--bg-secondary)]">
+                        <td colSpan={8} className="py-4">
+                          {/* Pin the chain to the visible part of the scrolling table; the chain scrolls itself if needed. */}
+                          <div className="sticky start-0 w-[100cqw] px-4">
+                            <AttackPathChain pathNodes={path.pathNodes} pathEdges={path.pathEdges} />
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   )
                 })}
               </tbody>
             </table>
           </div>
+
+          {/* Pagination (same pattern as the Identities table) */}
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-[var(--border-default)]">
+              <p className="text-sm text-[var(--text-secondary)]">
+                {t('pageOf', { page, total: totalPages })}
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="px-3 py-1.5 text-sm border border-[var(--border-default)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]"
+                >
+                  {tCommon('previous')}
+                </button>
+                <button
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="px-3 py-1.5 text-sm border border-[var(--border-default)] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-[var(--bg-secondary)] text-[var(--text-primary)]"
+                >
+                  {tCommon('next')}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

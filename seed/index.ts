@@ -695,45 +695,50 @@ async function seed() {
   const allViolations = await db.insert(schema.policyViolations).values(violationValues).returning()
   console.log(`Created ${allViolations.length} policy violations`)
 
-  // 11. Integration Sources (5)
+  // 11. Integration Sources (12) — a realistic demo mix: 10 connected with
+  // recent syncs, one failing with a specific reason, one never configured.
+  // config stays {} (no real endpoint), so the sync-health cron leaves them alone.
+  const minutesAgo = (m: number) => new Date(Date.now() - m * 60_000)
+  const connected = 'connected' as const
   const integrationValues = [
     { name: 'Corporate Active Directory', type: 'active_directory' as const,
-      syncStatus: 'connected' as const, lastSyncAt: daysAgo(0),
+      syncStatus: connected, lastSyncAt: minutesAgo(42),
       lastSyncRecordCount: 180, syncFrequencyMinutes: 360 },
     { name: 'Azure AD / Entra ID', type: 'azure_ad' as const,
-      syncStatus: 'connected' as const, lastSyncAt: daysAgo(0),
+      syncStatus: connected, lastSyncAt: minutesAgo(71),
       lastSyncRecordCount: 200, syncFrequencyMinutes: 240 },
     { name: 'Okta SSO', type: 'okta' as const,
-      syncStatus: 'connected' as const, lastSyncAt: daysAgo(1),
+      syncStatus: connected, lastSyncAt: minutesAgo(128),
       lastSyncRecordCount: 150, syncFrequencyMinutes: 360 },
     { name: 'SailPoint IdentityNow', type: 'sailpoint' as const,
-      syncStatus: 'error' as const, lastSyncAt: daysAgo(3),
-      lastSyncRecordCount: 120, syncFrequencyMinutes: 360 },
+      syncStatus: 'error' as const, lastSyncAt: minutesAgo(3 * 24 * 60 + 95),
+      lastSyncRecordCount: 120, syncFrequencyMinutes: 360,
+      lastSyncError: 'Connection test failed: 401 Unauthorized - OAuth client secret for API client "idr-sync" has expired' },
     { name: 'CyberArk PAM', type: 'cyberark' as const,
-      syncStatus: 'connected' as const, lastSyncAt: daysAgo(0),
+      syncStatus: connected, lastSyncAt: minutesAgo(18),
       lastSyncRecordCount: 45, syncFrequencyMinutes: 240 },
     { name: 'ServiceNow ITSM', type: 'servicenow' as const,
       syncStatus: 'disconnected' as const, lastSyncAt: null,
       lastSyncRecordCount: 0, syncFrequencyMinutes: 360 },
     // BeyondTrust and DigiCert — enum values added by separate migration
     { name: 'BeyondTrust PAM', type: 'beyondtrust' as any,
-      syncStatus: 'disconnected' as const, lastSyncAt: null,
-      lastSyncRecordCount: 0, syncFrequencyMinutes: 240 },
+      syncStatus: connected, lastSyncAt: minutesAgo(97),
+      lastSyncRecordCount: 38, syncFrequencyMinutes: 240 },
     { name: 'DigiCert CertCentral', type: 'digicert' as any,
-      syncStatus: 'disconnected' as const, lastSyncAt: null,
-      lastSyncRecordCount: 0, syncFrequencyMinutes: 360 },
+      syncStatus: connected, lastSyncAt: minutesAgo(205),
+      lastSyncRecordCount: 64, syncFrequencyMinutes: 360 },
     { name: 'Microsoft Defender for Identity', type: 'microsoft_defender' as any,
-      syncStatus: 'disconnected' as const, lastSyncAt: null,
-      lastSyncRecordCount: 0, syncFrequencyMinutes: 60 },
+      syncStatus: connected, lastSyncAt: minutesAgo(9),
+      lastSyncRecordCount: 312, syncFrequencyMinutes: 60 },
     { name: 'SAP GRC Access Control', type: 'sap_grc' as any,
-      syncStatus: 'disconnected' as const, lastSyncAt: null,
-      lastSyncRecordCount: 0, syncFrequencyMinutes: 360 },
+      syncStatus: connected, lastSyncAt: minutesAgo(164),
+      lastSyncRecordCount: 96, syncFrequencyMinutes: 360 },
     { name: 'HashiCorp Vault', type: 'hashicorp_vault' as any,
-      syncStatus: 'disconnected' as const, lastSyncAt: null,
-      lastSyncRecordCount: 0, syncFrequencyMinutes: 240 },
+      syncStatus: connected, lastSyncAt: minutesAgo(53),
+      lastSyncRecordCount: 52, syncFrequencyMinutes: 240 },
     { name: 'Splunk SIEM', type: 'splunk' as any,
-      syncStatus: 'disconnected' as const, lastSyncAt: null,
-      lastSyncRecordCount: 0, syncFrequencyMinutes: 60 },
+      syncStatus: connected, lastSyncAt: minutesAgo(14),
+      lastSyncRecordCount: 1480, syncFrequencyMinutes: 60 },
   ].map(i => ({ ...i, config: {}, orgId: org.id }))
   await db.insert(schema.integrationSources).values(integrationValues)
   console.log('Created 12 integration sources')

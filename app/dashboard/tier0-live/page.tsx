@@ -136,7 +136,7 @@ export default function Tier0LivePage() {
         <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]"><ErrorState onRetry={() => refetch()} /></div>
       ) : data && data.sessions.length === 0 ? (
         <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)]">
-          <EmptyState icon="default" title={t('emptyTitle')} description={t('emptyDescription')} />
+          <EmptyState icon="sessions" title={t('emptyTitle')} description={t('emptyDescription')} />
         </div>
       ) : (
         <div className="space-y-2">

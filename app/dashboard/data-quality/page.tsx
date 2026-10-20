@@ -495,7 +495,7 @@ export default function DataQualityPage() {
                           </td>
                           <td className="px-3 py-3">
                             <span className="inline-flex items-center gap-1.5 font-medium text-[var(--text-primary)]">
-                              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: qualityColor(identity.dataQuality?.score || 0) }} aria-hidden="true" />
+                              <span className="shrink-0 h-2 w-2 rounded-full" style={{ backgroundColor: qualityColor(identity.dataQuality?.score || 0) }} aria-hidden="true" />
                               {identity.dataQuality?.score != null ? t('scoreOutOf100', { score: identity.dataQuality.score }) : '—'}
                             </span>
                           </td>

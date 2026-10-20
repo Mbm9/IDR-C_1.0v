@@ -44,10 +44,10 @@ export function IdentityAvatar({ name, type, subType, status, size = 'md' }: Ide
   const statusColor = status ? STATUS_COLORS[status] : undefined
   const isHuman = type === 'human'
 
-  const Icon = !isHuman && subType ? NHI_ICONS[subType] || Bot : null
+  const Icon = isHuman ? null : (subType && NHI_ICONS[subType]) || Bot
 
   return (
-    <div className="relative inline-flex" style={{ width: dim, height: dim }}>
+    <div className="relative inline-flex shrink-0" style={{ width: dim, height: dim }}>
       {isHuman ? (
         <div
           className="flex items-center justify-center rounded-full font-medium text-white"
@@ -77,7 +77,7 @@ export function IdentityAvatar({ name, type, subType, status, size = 'md' }: Ide
       {/* Status dot */}
       {statusColor && (
         <span
-          className="absolute bottom-0 end-0 rounded-full border-2 border-[var(--bg-primary)]"
+          className={`absolute rounded-full border-2 border-[var(--bg-primary)] ${isHuman ? 'bottom-0 end-0' : 'bottom-[2px] end-[2px]'}`}
           style={{
             width: size === 'lg' ? 14 : size === 'md' ? 12 : 10,
             height: size === 'lg' ? 14 : size === 'md' ? 12 : 10,

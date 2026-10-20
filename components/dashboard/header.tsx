@@ -108,7 +108,7 @@ export function Header() {
               aria-haspopup="menu"
               aria-expanded={userMenuOpen}
             >
-              <div className="w-7 h-7 rounded-full bg-[var(--color-info)] flex items-center justify-center text-micro font-medium text-white" aria-hidden="true">
+              <div className="shrink-0 w-7 h-7 rounded-full bg-[var(--color-info)] flex items-center justify-center text-micro font-medium text-white" aria-hidden="true">
                 {(session.user.name || session.user.email || 'U')[0].toUpperCase()}
               </div>
               {/* On phones only the avatar shows; keep the button's accessible name. */}

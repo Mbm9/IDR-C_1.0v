@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
-import { ChevronDown, Lock } from 'lucide-react'
+import { ChevronDown, Crown, Globe, KeyRound, Lock, Settings, ShieldQuestion, type LucideIcon } from 'lucide-react'
 import { MetricCard } from '@/components/ui/metric-card'
 import { useRoleHint } from '@/lib/hooks/use-role-hint'
 
@@ -110,12 +110,12 @@ export default function CanariesPage() {
     }
   }, [triggers])
 
-  const canaryTypeIcons: Record<string, string> = {
-    fake_admin: '👑',
-    fake_service: '⚙️',
-    fake_gmsa: '🔐',
-    fake_vpn: '🌐',
-    fake_api_key: '🔑',
+  const canaryTypeIcons: Record<string, LucideIcon> = {
+    fake_admin: Crown,
+    fake_service: Settings,
+    fake_gmsa: Lock,
+    fake_vpn: Globe,
+    fake_api_key: KeyRound,
   }
   const canaryTypeLabels: Record<string, string> = {
     fake_admin: t('fakeAdmin'),
@@ -259,7 +259,14 @@ export default function CanariesPage() {
             >
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-2xl" aria-hidden="true">{canaryTypeIcons[canary.canaryType] || '?'}</span>
+                  {(() => {
+                    const Icon = canaryTypeIcons[canary.canaryType] ?? ShieldQuestion
+                    return (
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[var(--bg-secondary)] text-[var(--text-secondary)]" aria-hidden="true">
+                        <Icon size={18} />
+                      </span>
+                    )
+                  })()}
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-[var(--text-primary)] break-words"><bdi>{canary.identityName}</bdi></p>
                     <p className="text-xs text-[var(--text-secondary)]">{canaryTypeLabels[canary.canaryType] ?? canary.canaryType}</p>

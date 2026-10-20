@@ -23,6 +23,7 @@ export const GET = withApiHandler(async (_req: NextRequest, { orgId }) => {
       adForestName: organizations.adForestName,
       brandName: organizations.brandName,
       brandLogo: organizations.brandLogo,
+      brandLogoBackground: organizations.brandLogoBackground,
       brandUpdatedAt: organizations.brandUpdatedAt,
     })
     .from(organizations)
@@ -30,34 +31,35 @@ export const GET = withApiHandler(async (_req: NextRequest, { orgId }) => {
     .limit(1)
   if (!org) return NextResponse.json({ error: 'Organization not found' }, { status: 404 })
 
-  const { brandName, brandLogo, brandUpdatedAt, ...organization } = org
+  const { brandName, brandLogo, brandLogoBackground, brandUpdatedAt, ...organization } = org
   return NextResponse.json({
     organization,
-    branding: { name: brandName, logo: brandLogo, updatedAt: brandUpdatedAt },
+    branding: { name: brandName, logo: brandLogo, logoBackground: brandLogoBackground, updatedAt: brandUpdatedAt },
   })
 })
 
 /**
  * PUT /api/settings/organization — update branding (admin only).
- * Body: { name?: string | null, logo?: string | null }; null resets to the default.
+ * Body: { name?: string | null, logo?: string | null, logoBackground?: boolean }; null resets to the default.
  */
 export const PUT = withApiHandler(async (req: NextRequest, { orgId, session, log }) => {
   const parsed = brandingUpdateSchema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) {
     return NextResponse.json({ error: 'Invalid branding', details: parsed.error.flatten() }, { status: 400 })
   }
-  const { name, logo } = parsed.data
+  const { name, logo, logoBackground } = parsed.data
 
   const [before] = await db
-    .select({ name: organizations.brandName, logo: organizations.brandLogo })
+    .select({ name: organizations.brandName, logo: organizations.brandLogo, logoBackground: organizations.brandLogoBackground })
     .from(organizations).where(eq(organizations.id, orgId)).limit(1)
 
   const values: Partial<typeof organizations.$inferInsert> = { brandUpdatedAt: new Date() }
   if (name !== undefined) values.brandName = name
   if (logo !== undefined) values.brandLogo = logo
+  if (logoBackground !== undefined) values.brandLogoBackground = logoBackground
   const [after] = await db.update(organizations).set(values)
     .where(eq(organizations.id, orgId))
-    .returning({ name: organizations.brandName, logo: organizations.brandLogo, updatedAt: organizations.brandUpdatedAt })
+    .returning({ name: organizations.brandName, logo: organizations.brandLogo, logoBackground: organizations.brandLogoBackground, updatedAt: organizations.brandUpdatedAt })
 
   // Audit: what changed, never the image itself.
   const logoInfo = (v: string | null | undefined) =>
@@ -70,9 +72,10 @@ export const PUT = withApiHandler(async (req: NextRequest, { orgId, session, log
       operation: 'updated',
       ...(name !== undefined && { name: { from: before?.name ?? null, to: name } }),
       ...(logo !== undefined && { logo: { from: logoInfo(before?.logo), to: logoInfo(logo) } }),
+      ...(logoBackground !== undefined && { logoBackground: { from: before?.logoBackground ?? false, to: logoBackground } }),
     },
   })
-  log.info('Branding updated', { nameChanged: name !== undefined, logoChanged: logo !== undefined })
+  log.info('Branding updated', { nameChanged: name !== undefined, logoChanged: logo !== undefined, logoBackgroundChanged: logoBackground !== undefined })
 
   return NextResponse.json({ branding: after })
 }, { requiredRole: 'admin' })

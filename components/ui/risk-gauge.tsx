@@ -8,6 +8,8 @@ interface RiskGaugeProps {
   size?: 'sm' | 'md' | 'lg'
   label?: string
   animate?: boolean
+  /** For scores where high is good (e.g. compliance %): green at the top, shown as a percentage. */
+  higherIsBetter?: boolean
 }
 
 const SIZES = { sm: 16, md: 120, lg: 180 }
@@ -26,7 +28,7 @@ function getLevel(score: number): 'critical' | 'high' | 'medium' | 'low' {
   return 'low'
 }
 
-export function RiskGauge({ score, size = 'md', label, animate = true }: RiskGaugeProps) {
+export function RiskGauge({ score, size = 'md', label, animate = true, higherIsBetter = false }: RiskGaugeProps) {
   const t = useTranslations('ui')
   const [animatedScore, setAnimatedScore] = useState(animate ? 0 : score)
   const levelLabel = t(`riskLevel.${getLevel(score)}`)
@@ -44,7 +46,8 @@ export function RiskGauge({ score, size = 'md', label, animate = true }: RiskGau
     requestAnimationFrame(run)
   }, [score, animate])
 
-  const color = getColor(score)
+  // A compliance score of 90 is as good as a risk score of 10
+  const color = getColor(higherIsBetter ? 100 - score : score)
 
   // Compact variant for table cells
   if (size === 'sm') {
@@ -69,7 +72,8 @@ export function RiskGauge({ score, size = 'md', label, animate = true }: RiskGau
 
   return (
     <div className="flex flex-col items-center gap-1">
-      <svg width={dim} height={dim / 2 + 24} viewBox={`0 0 ${dim} ${dim / 2 + 24}`} role="img" aria-label={t('riskTooltip', { score, level: label || levelLabel })}>
+      <svg width={dim} height={dim / 2 + 24} viewBox={`0 0 ${dim} ${dim / 2 + 24}`} role="img"
+        aria-label={higherIsBetter && label ? t('percentTooltip', { score, label }) : t('riskTooltip', { score, level: label || levelLabel })}>
         {/* Track */}
         <path
           d={`M ${strokeWidth / 2} ${dim / 2} A ${radius} ${radius} 0 0 1 ${dim - strokeWidth / 2} ${dim / 2}`}
@@ -95,9 +99,9 @@ export function RiskGauge({ score, size = 'md', label, animate = true }: RiskGau
           y={dim / 2 - 2}
           textAnchor="middle"
           className="font-mono"
-          style={{ fontSize: size === 'lg' ? '2.25rem' : '1.75rem', fontWeight: 600, fill: 'var(--text-primary)' }}
+          style={{ fontSize: size === 'lg' ? '2.25rem' : '1.75rem', fontWeight: 500, fill: 'var(--text-primary)' }}
         >
-          {animatedScore}
+          {animatedScore}{higherIsBetter && '%'}
         </text>
       </svg>
       <p className="text-caption text-[var(--text-secondary)] text-center">{label || levelLabel}</p>

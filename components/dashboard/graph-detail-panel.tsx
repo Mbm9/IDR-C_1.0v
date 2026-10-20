@@ -97,7 +97,7 @@ function BoolBadge({ value, trueLabel, falseLabel }: { value?: boolean | null; t
   if (value === undefined || value === null) return <span className="text-[var(--text-secondary)]">-</span>
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium ${value ? TONE.low : TONE.critical}`}>
-      <span aria-hidden className={`w-1.5 h-1.5 rounded-full ${value ? 'bg-[var(--color-low)]' : 'bg-[var(--color-critical)]'}`} />
+      <span aria-hidden className={`shrink-0 w-1.5 h-1.5 rounded-full ${value ? 'bg-[var(--color-low)]' : 'bg-[var(--color-critical)]'}`} />
       {value ? (trueLabel || t('yes')) : (falseLabel || t('no'))}
     </span>
   )
@@ -140,7 +140,7 @@ function StatusDot({ status }: { status?: string | null }) {
   if (!status) return <span className="text-[var(--text-secondary)]">-</span>
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span aria-hidden className="w-2 h-2 rounded-full" style={{ background: STATUS_DOT[status] ?? 'var(--text-secondary)' }} />
+      <span aria-hidden className="shrink-0 w-2 h-2 rounded-full" style={{ background: STATUS_DOT[status] ?? 'var(--text-secondary)' }} />
       <span className="text-xs">{label(e, 'statuses', status)}</span>
     </span>
   )

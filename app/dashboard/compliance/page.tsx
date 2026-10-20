@@ -66,16 +66,18 @@ function ScoreGauge({ score, label }: { score: number; label: string }) {
     <div className="relative w-24 h-24 shrink-0" role="img" aria-label={label}>
       <svg viewBox="0 0 100 100" className="w-full h-full -rotate-90" aria-hidden="true">
         <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border-default)" strokeWidth="8" />
-        <circle
-          cx="50" cy="50" r="42" fill="none"
-          stroke={scoreColor(score)}
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeDasharray={`${score * 2.64} ${264 - score * 2.64}`}
-        />
+        {score > 0 && (
+          <circle
+            cx="50" cy="50" r="42" fill="none"
+            stroke={scoreColor(score)}
+            strokeWidth="8"
+            strokeLinecap="round"
+            strokeDasharray={`${score * 2.64} ${264 - score * 2.64}`}
+          />
+        )}
       </svg>
       <div className="absolute inset-0 flex items-center justify-center" aria-hidden="true">
-        <span className="text-2xl font-bold text-[var(--text-primary)]">{format.number(score / 100, { style: 'percent' })}</span>
+        <span className="text-lg font-bold tabular-nums text-[var(--text-primary)]">{format.number(score / 100, { style: 'percent' })}</span>
       </div>
     </div>
   )

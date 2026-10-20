@@ -198,9 +198,11 @@ export default function OnboardingPage() {
   const [inviteLinks, setInviteLinks] = useState<InviteLink[] | null>(null)
   const [copiedLink, setCopiedLink] = useState<string | null>(null)
 
-  // Redirect if already has org
+  // Redirect if the user already had an org when they arrived. Step 1 refreshes the
+  // session with the org it just created; that must not cut the wizard short.
+  const createdOrgHere = useRef(false)
   useEffect(() => {
-    if (session?.user?.orgId) {
+    if (session?.user?.orgId && !createdOrgHere.current) {
       router.push('/dashboard')
     }
   }, [session, router])
@@ -245,6 +247,7 @@ export default function OnboardingPage() {
       }
 
       // Refresh session to pick up new orgId
+      createdOrgHere.current = true
       await updateSession()
       setStep(2)
     } catch {
@@ -607,7 +610,7 @@ export default function OnboardingPage() {
               return (
                 <li key={s.id} className="flex items-center flex-1" aria-current={isActive ? 'step' : undefined}>
                   <div className="flex items-center gap-2">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-caption font-medium transition-colors ${
+                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-caption font-medium transition-colors ${
                       isDone ? 'bg-[var(--color-low)] text-white' :
                       isActive ? 'bg-[var(--color-info)] text-white' :
                       'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'
@@ -997,7 +1000,7 @@ export default function OnboardingPage() {
               ) : csvImportMode && syncComplete ? (
                 <div className="rounded-[var(--radius-card)] border border-[var(--border-default)] bg-[var(--bg-primary)] p-6" role="status">
                   <div className="flex items-center gap-2 mb-3">
-                    <div className="w-6 h-6 rounded-full bg-[var(--color-low)] flex items-center justify-center" aria-hidden="true">
+                    <div className="shrink-0 w-6 h-6 rounded-full bg-[var(--color-low)] flex items-center justify-center" aria-hidden="true">
                       <Check size={12} className="text-white" />
                     </div>
                     <span className="text-body font-semibold text-[var(--text-primary)]">{t('sync.importDone')}</span>
@@ -1039,7 +1042,7 @@ export default function OnboardingPage() {
                   {syncComplete && (
                     <div className="mt-4 pt-4 border-t border-[var(--border-default)]">
                       <div className="flex items-center gap-2 mb-3">
-                        <div className="w-6 h-6 rounded-full bg-[var(--color-low)] flex items-center justify-center" aria-hidden="true">
+                        <div className="shrink-0 w-6 h-6 rounded-full bg-[var(--color-low)] flex items-center justify-center" aria-hidden="true">
                           <Check size={12} className="text-white" />
                         </div>
                         <span className="text-body font-semibold text-[var(--text-primary)]" role="status">{t('sync.syncDone')}</span>

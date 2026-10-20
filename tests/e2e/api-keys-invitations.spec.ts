@@ -52,8 +52,11 @@ test.describe('Invitations (UAT-115)', () => {
     const invitee = await context.newPage()
     // Joining needs the link's token; the bare email is not enough.
     await invitee.goto(new URL(inviteUrl).pathname + new URL(inviteUrl).search)
+    // The page names the inviting org and fills in the invited address, locked.
+    await expect(invitee.getByRole('heading', { name: /Join / })).toBeVisible()
+    await expect(invitee.locator('#email')).toHaveValue(email)
+    await expect(invitee.locator('#email')).toHaveAttribute('readonly', '')
     await invitee.fill('#name', 'E2E Invitee')
-    await invitee.fill('#email', email)
     await invitee.fill('#password', 'E2eInvitee#2026')
     await invitee.click('button[type="submit"]')
 
@@ -64,6 +67,31 @@ test.describe('Invitations (UAT-115)', () => {
     expect(session.user.appRole).toBe('analyst')
     const adminSession = await (await page.request.get('/api/auth/session')).json()
     expect(session.user.orgId).toBe(adminSession.user.orgId)
+    await context.close()
+  })
+
+  test('a used or unknown invite link shows the invalid-link screen', async ({ page, browser }) => {
+    await login(page, 'admin')
+    const email = `e2e.used.${Date.now()}@acmefs.sa`
+    const { inviteUrl } = await (await page.request.post('/api/settings/team', { data: { email, role: 'viewer' } })).json()
+    const token = new URL(inviteUrl).searchParams.get('invite')!
+
+    // The lookup reveals the invite only to the link holder, and only while it is pending.
+    const ok = await page.request.get(`/api/auth/invite?token=${encodeURIComponent(token)}`)
+    expect(await ok.json()).toMatchObject({ email, role: 'viewer' })
+    const unknown = await page.request.get('/api/auth/invite?token=' + 'A'.repeat(43), { failOnStatusCode: false })
+    expect(unknown.status()).toBe(404)
+
+    const context = await browser.newContext()
+    const invitee = await context.newPage()
+    const signup = await invitee.request.post('/api/auth/signup', { data: { email, password: 'E2eInvitee#2026', inviteToken: token } })
+    expect(signup.ok(), await signup.text()).toBeTruthy()
+    const used = await page.request.get(`/api/auth/invite?token=${encodeURIComponent(token)}`, { failOnStatusCode: false })
+    expect(used.status()).toBe(404)
+
+    await invitee.goto(`/signup?invite=${encodeURIComponent(token)}`)
+    // (Next.js also renders an empty role=alert route announcer.)
+    await expect(invitee.getByRole('alert').filter({ hasText: /no longer valid/i })).toBeVisible()
     await context.close()
   })
 

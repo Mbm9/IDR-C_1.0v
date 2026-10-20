@@ -475,7 +475,7 @@ export function IntegrationWizard({ isOpen, onClose, onCreated, existing }: Inte
         <ol className="flex items-center gap-1 px-4 pt-4" aria-label={t('progress', { current: stepIndex + 1, total: STEPS.length })}>
           {STEPS.map((s, i) => (
             <li key={s} className="flex items-center gap-1" aria-current={step === s ? 'step' : undefined}>
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
+              <div className={`shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium ${
                 step === s
                   ? 'bg-[var(--color-accent)] text-white'
                   : stepIndex > i

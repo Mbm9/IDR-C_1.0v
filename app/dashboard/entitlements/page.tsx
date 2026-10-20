@@ -87,7 +87,7 @@ export default function EntitlementsPage() {
             <div className="w-full sm:w-1/2" style={{ height: 220 }} role="img" aria-label={t('certificationChartLabel', { summary: certData.map((d) => `${d.name}: ${d.value}`).join(rtl ? '، ' : ', ') })}>
               <div className="h-full w-full" aria-hidden="true"><ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={certData} cx="50%" cy="50%" innerRadius={55} outerRadius={85} dataKey="value" nameKey="name" stroke="var(--bg-primary)" rootTabIndex={-1}>
+                  <Pie data={certData} cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" dataKey="value" nameKey="name" stroke="var(--bg-primary)" rootTabIndex={-1}>
                     {certData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
                   </Pie>
                   <Tooltip content={<ChartTooltip />} />

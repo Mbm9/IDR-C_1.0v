@@ -82,9 +82,9 @@ export function StatTile(props: StatTileProps) {
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)] truncate">
+          <p className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-[var(--text-secondary)]">
             <span className="inline-block size-2 shrink-0 rounded-full" style={{ background: stripe, boxShadow: `0 0 0 3px color-mix(in srgb, ${stripe} 18%, transparent)` }} aria-hidden="true" />
-            {label}
+            <span className="truncate min-w-0">{label}</span>
           </p>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-[1.75rem] font-semibold tabular-nums tracking-tight text-[var(--text-primary)] leading-none">{display}</span>

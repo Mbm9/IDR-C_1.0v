@@ -11,6 +11,18 @@ echo "[init] Pushing database schema via drizzle-kit..."
 npx drizzle-kit push
 echo "[init] Schema push complete."
 
+# drizzle-kit push can stop at an interactive prompt on a database that already
+# has data (it re-proposes the existing uq_issue_status_org_fsid constraint) and
+# then applies nothing. The incremental migrations below are idempotent
+# (IF NOT EXISTS), so upgrades get their schema changes either way. Migrations
+# from 0006 on must stay re-runnable.
+for f in /app/drizzle/[0-9][0-9][0-9][0-9]_*.sql; do
+  n="$(basename "$f" | cut -c1-4)"
+  [ "$n" -ge 6 ] 2>/dev/null || continue
+  echo "[init] Applying $(basename "$f")..."
+  psql "$(echo "$DATABASE_URL")" -v ON_ERROR_STOP=1 -q -f "$f"
+done
+
 echo "[init] Creating database views..."
 psql "$(echo "$DATABASE_URL")" -f /app/drizzle/0001_create_views.sql
 echo "[init] Views created."

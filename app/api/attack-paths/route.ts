@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth/config'
 import { db } from '@/lib/db'
 import { attackPaths, identities, resources } from '@/lib/db/schema'
-import { eq, and, gte, desc, sql } from 'drizzle-orm'
+import { eq, and, gte, asc, desc, sql } from 'drizzle-orm'
+import { parseAttackPathSort, attackPathSortKeys } from '@/lib/schemas/attack-path'
 import { hasRole } from '@/lib/utils/rbac'
 import { buildAdjacencyList, findAllPaths, controlPlaneNodeIds, controlPlaneTargetFor } from '@/lib/graph/traversal'
 import { determineTechnique, edgeToTechnique } from '@/lib/graph/techniques'
@@ -26,6 +27,13 @@ export async function GET(req: NextRequest) {
     const technique = url.searchParams.get('technique')
     const limit = Math.min(Number(url.searchParams.get('limit') || '50'), 200)
     const offset = Number(url.searchParams.get('offset') || '0')
+    const sort = parseAttackPathSort(url.searchParams.get('sort'))
+    if (!sort) {
+      return NextResponse.json({ error: "Invalid sort (expected 'risk' or 'length')" }, { status: 400 })
+    }
+    const orderBy = attackPathSortKeys(sort).map(key =>
+      key === 'id' ? asc(attackPaths.id) : desc(attackPaths[key]),
+    )
 
     const conditions = [eq(attackPaths.orgId, orgId)]
     if (minRiskScore > 0) conditions.push(gte(attackPaths.riskScore, minRiskScore))
@@ -38,7 +46,7 @@ export async function GET(req: NextRequest) {
       .select()
       .from(attackPaths)
       .where(and(...conditions))
-      .orderBy(desc(attackPaths.riskScore))
+      .orderBy(...orderBy)
       .limit(limit)
       .offset(offset)
 

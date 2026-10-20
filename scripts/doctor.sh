@@ -154,18 +154,18 @@ else
 
   mem_gb=$(( ${mem_bytes:-0} / 1024 / 1024 / 1024 ))
   cpus="${cpus:-?}"
-  model="$(env_get OLLAMA_MODEL)"; model="${model:-qwen2.5:1.5b}"
-  need=4; [[ "$model" == *7b* ]] && need=8
+  # The AI model runs in the host's Ollama, so Docker only needs room for the app and database
+  need=2
   if (( mem_gb < need )); then
-    err "Docker has ${mem_gb} GB RAM / ${cpus} CPUs — model '$model' needs at least ${need} GB" \
-        "raise memory in %UserProfile%\\.wslconfig ([wsl2] memory=8GB) then 'wsl --shutdown', or use OLLAMA_MODEL=qwen2.5:1.5b"
+    err "Docker has ${mem_gb} GB RAM / ${cpus} CPUs — the stack needs at least ${need} GB" \
+        "raise memory in %UserProfile%\\.wslconfig ([wsl2] memory=4GB) then 'wsl --shutdown'"
   else
     ok "Docker resources: ${mem_gb} GB RAM, ${cpus} CPUs"
   fi
 
   # Disk: measured inside a running project container (avoids pulling an image)
   df_line=""
-  for c in idr-db idr-app idr-ollama; do
+  for c in idr-db idr-app; do
     if [[ "$(docker inspect -f '{{.State.Running}}' "$c" 2>/dev/null)" == "true" ]]; then
       df_line="$(docker exec "$c" df -Pk / 2>/dev/null | tail -n1)"
       [[ -n "$df_line" ]] && break
@@ -186,7 +186,7 @@ fi
 # -----------------------------------------------------------------------------
 section "3. Project files"
 # -----------------------------------------------------------------------------
-for f in docker-compose.yml docker/Dockerfile docker/init-db.sh docker/ollama-entrypoint.sh docker/Caddyfile docker/scheduler.mjs docker/backup-loop.sh package-lock.json; do
+for f in docker-compose.yml docker/Dockerfile docker/init-db.sh docker/Caddyfile docker/scheduler.mjs docker/backup-loop.sh package-lock.json; do
   [[ -f "$f" ]] && ok "$f present" || err "$f missing" "re-clone the repository"
 done
 
@@ -271,7 +271,7 @@ ERROR_PATTERN='(error|fatal|panic|exception|ECONNREFUSED|ENOTFOUND|EADDRINUSE|ou
 IGNORE_PATTERN='(0 errors|error_count|errorBoundary|NEXT_REDIRECT|"level":"info"|the database system is starting up|locale: not found|CredentialsSignin)'
 
 if $DOCKER_OK; then
-  for c in idr-db idr-ollama idr-init idr-app idr-scheduler idr-backup idr-caddy; do
+  for c in idr-db idr-init idr-app idr-scheduler idr-backup idr-caddy; do
     if ! docker inspect "$c" >/dev/null 2>&1; then
       if [[ "$c" == "idr-caddy" ]]; then
         note "$c not created (optional HTTPS proxy; skipped with --no-caddy)"
@@ -295,14 +295,13 @@ if $DOCKER_OK; then
       elif [[ "$status" == "running" ]]; then note "$c still running (initialising database)"
       else err "$c exited with code $exit_code" "see 'docker logs idr-init'; then re-run: docker compose up init"; fi
     elif [[ "$oom" == "true" ]]; then
-      err "$label — killed by OOM (out of memory)" "give Docker more memory or use a smaller OLLAMA_MODEL"
+      err "$label — killed by OOM (out of memory)" "give Docker more memory"
     elif [[ "$status" != "running" ]]; then
       err "$label (exit code $exit_code)" "docker logs $c   then   docker compose up -d $c"
     elif [[ "$health" == "unhealthy" ]]; then
       err "$label" "docker logs $c"
     elif [[ "$health" == "starting" ]]; then
-      if [[ "$c" == "idr-ollama" ]]; then note "$label — probably still downloading the model"
-      else warn "$label — still starting" "wait a minute and run doctor again"; fi
+      warn "$label — still starting" "wait a minute and run doctor again"
     else
       ok "$label"
     fi
@@ -350,18 +349,22 @@ else
   note "PostgreSQL check skipped (idr-db not running)"
 fi
 
-if $DOCKER_OK && [[ "$(docker inspect -f '{{.State.Running}}' idr-ollama 2>/dev/null)" == "true" ]]; then
-  model="$(env_get OLLAMA_MODEL)"; model="${model:-qwen2.5:1.5b}"
-  list="$(docker exec idr-ollama ollama list 2>/dev/null)"
-  if [[ -z "$list" ]]; then
-    err "Ollama server not responding" "docker logs idr-ollama"
-  elif echo "$list" | grep -q "$model"; then
-    ok "Ollama model '$model' available"
-  else
-    warn "Ollama model '$model' not downloaded yet" "wait for the pull to finish (docker logs -f idr-ollama), or check internet/proxy access"
-  fi
+# Ollama runs on the host (installed separately), not in a container. AI is optional: warnings only.
+model="$(env_get OLLAMA_MODEL)"; model="${model:-qwen2.5:1.5b}"
+tags="$(http_get "${OLLAMA_HOST_URL:-http://localhost:11434}/api/tags")"
+if [[ -z "$tags" ]]; then
+  warn "Ollama not reachable on this machine (${OLLAMA_HOST_URL:-http://localhost:11434})" "start Ollama (the Ollama app, or 'ollama serve'); AI features are off until then"
+elif echo "$tags" | grep -q "\"name\":\"$model\""; then
+  ok "Ollama model '$model' available on the host"
 else
-  note "Ollama check skipped (idr-ollama not running)"
+  warn "Ollama model '$model' not pulled on the host" "ollama pull $model"
+fi
+if [[ -n "$tags" ]] && $DOCKER_OK && [[ "$(docker inspect -f '{{.State.Running}}' idr-app 2>/dev/null)" == "true" ]]; then
+  if docker exec idr-app node -e "fetch(process.env.OLLAMA_URL + '/api/tags').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))" 2>/dev/null; then
+    ok "App container reaches the host's Ollama"
+  else
+    warn "App container cannot reach the host's Ollama" "on Linux Ollama listens on 127.0.0.1 only: 'sudo systemctl edit ollama', add [Service] Environment=\"OLLAMA_HOST=0.0.0.0\", then 'sudo systemctl restart ollama'"
+  fi
 fi
 
 health_json="$(http_get http://localhost:3000/api/health)"
@@ -373,7 +376,7 @@ else
   h_status="$(echo "$health_json" | grep -oE '"status":"(healthy|degraded|unhealthy)"' | head -n1 | cut -d'"' -f4)"
   case "$h_status" in
     healthy)  ok "App health: healthy" ;;
-    degraded) warn "App health: degraded (database OK, configured AI provider unreachable)" "check: docker logs idr-ollama  and that OLLAMA_MODEL is pulled (docker exec idr-ollama ollama list); set AI_PROVIDER=none to run without AI" ;;
+    degraded) warn "App health: degraded (database OK, configured AI provider unreachable)" "check that Ollama is running on the host and OLLAMA_MODEL is pulled (ollama list); set AI_PROVIDER=none to run without AI" ;;
     *)        err "App health: ${h_status:-unknown} — $(echo "$health_json" | tr -d "\n" | cut -c1-120)" "check DATABASE_URL and 'docker logs idr-app'" ;;
   esac
   login_code="$(curl -ks -o /dev/null -w '%{http_code}' -m 8 http://localhost:3000/login 2>/dev/null)"
@@ -423,7 +426,7 @@ else
   done
   echo
   echo -e "  ${BOLD}${ERRORS} error(s), ${WARNINGS} warning(s)${NC}"
-  echo -e "  ${DIM}Full logs: docker compose logs --tail 200 <db|ollama|init|app|scheduler|backup|caddy>${NC}"
+  echo -e "  ${DIM}Full logs: docker compose logs --tail 200 <db|init|app|scheduler|backup|caddy>${NC}"
 fi
 [[ -n "$REPORT" ]] && echo -e "  Report saved to: $REPORT"
 

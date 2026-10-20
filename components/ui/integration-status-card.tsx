@@ -73,7 +73,7 @@ export function IntegrationStatusCard({ integration, onSync }: IntegrationStatus
         </div>
         <div className="flex items-center gap-1.5">
           <span
-            className={`w-2.5 h-2.5 rounded-full ${status.pulse ? 'animate-pulse-dot' : ''}`}
+            className={`shrink-0 w-2.5 h-2.5 rounded-full ${status.pulse ? 'animate-pulse-dot' : ''}`}
             style={{ backgroundColor: status.color }}
             aria-hidden="true"
           />

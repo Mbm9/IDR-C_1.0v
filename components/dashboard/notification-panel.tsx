@@ -192,7 +192,7 @@ function NotificationActions({
             <ActionButton
               icon={Eye}
               label={t('view')}
-              onClick={(e) => { e.stopPropagation(); router.push('/dashboard/integrations'); onActionComplete() }}
+              onClick={(e) => { e.stopPropagation(); router.push('/dashboard/settings?tab=integrations'); onActionComplete() }}
             />
           )}
         </div>

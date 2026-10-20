@@ -13,10 +13,14 @@ The stack (`docker-compose.yml`):
 | Container | Role | Port |
 |-----------|------|------|
 | `idr-db` | PostgreSQL 16 | 5432 (localhost only) |
-| `idr-ollama` | Local AI (Ollama, downloads the model on first start) | internal |
 | `idr-init` | One-shot: pushes the schema, creates views, seeds sample data, then exits | — |
 | `idr-app` | Next.js application | 3000 (localhost only; set `APP_BIND_ADDRESS=0.0.0.0` in `.env` to expose it) |
 | `idr-caddy` | HTTPS reverse proxy (optional) | 80 / 443 |
+
+AI runs on **Ollama installed on the machine itself**, not in a container. Install it from
+https://ollama.com/download and pull the model once (`ollama pull qwen2.5:1.5b`). The app
+reaches it at `http://host.docker.internal:11434` (set `OLLAMA_URL` in `.env` to change that).
+Without Ollama the app still runs; only the AI features are off.
 
 ---
 
@@ -26,7 +30,8 @@ The stack (`docker-compose.yml`):
 |-------------|---------|-------------|
 | Windows | 10 21H2 / 11 / Server 2022 | Windows 11 |
 | Docker Desktop | 4.x with **WSL 2 backend** | latest |
-| RAM given to Docker | 4 GB (`qwen2.5:1.5b`) | 8 GB+ (`qwen2.5:7b`) |
+| RAM given to Docker | 2 GB | 4 GB |
+| Ollama (on the host) | installed, model pulled | `qwen2.5:7b` with 8 GB+ free RAM |
 | Free disk | 20 GB | 50 GB |
 | Shell | Git Bash (from Git for Windows) **or** WSL 2 (Ubuntu) | WSL 2 |
 
@@ -108,25 +113,25 @@ What it does:
 4. Validates the compose file, then builds the `init`, `app` and `scheduler` images (the scheduler reuses the app image).
 5. Starts `db` and `init`, and shows the init logs if seeding fails. Init loads the Acme demo
    organization into an empty database unless you pass `--no-demo`.
-6. Starts `ollama` and reports progress while the model downloads.
+6. Checks that Ollama is running on the host and has the model (pulls it with `ollama pull` if missing). Never fails the run: without Ollama only AI is off.
 7. Starts `app`, `scheduler`, `backup` (and `caddy`), then waits for the app container's health check to pass.
    - `scheduler` runs the 16 background scans (`/api/cron/*`) on their schedule, and the six-hourly scans once at start.
    - `backup` writes a daily database dump to `./backups` and keeps the newest 14.
-8. Prints the URL and the admin login.
+8. Checks that the app container can reach the host's Ollama, then prints the URL and the admin login.
 
-The first run takes a while: the image build (~5–10 min) plus the AI model
-download (~1 GB for `qwen2.5:1.5b`, ~4.4 GB for `qwen2.5:7b`). Later runs start in seconds.
+The first run takes a while for the image build (~5–10 min). Later runs start in seconds.
+There is no model download: the host's Ollama already has it.
 
 ### Options
 
 | Flag | Effect |
 |------|--------|
 | `--no-caddy` | Don't start Caddy. Use this when ports 80/443 are taken (IIS, Skype, etc.) or you don't need HTTPS |
-| `--model qwen2.5:7b` | Pick the Ollama model (saved to `.env`) |
+| `--model qwen2.5:7b` | Pick the Ollama model (saved to `.env`; pulled into the host Ollama if missing) |
 | `--no-cache` | Rebuild the images from scratch |
-| `--reset` | **Deletes all data** (database, model cache, certificates) before starting |
+| `--reset` | **Deletes all data** (database, certificates) before starting |
 | `--no-demo` | Start with an empty database (no Acme demo data); create the first account at `/signup`. Saved to `.env` as `SEED_DEMO=false` |
-| `--timeout 1800` | Seconds to wait for the app (default 900; raise it on slow connections) |
+| `--timeout 1200` | Seconds to wait for the app (default 600) |
 | `--logs` | Follow the container logs after starting |
 
 ### PowerShell / CMD
@@ -165,11 +170,11 @@ had data, the existing password stays. Run `./scripts/docker-up.sh --reset` to r
 It checks:
 
 1. **Host & shell**: Git Bash vs WSL, required tools, a project path with spaces, a project on `/mnt/c` in WSL.
-2. **Docker engine**: daemon running, Linux containers mode, WSL 2 backend, Compose v2, RAM against the chosen model, free disk.
+2. **Docker engine**: daemon running, Linux containers mode, WSL 2 backend, Compose v2, RAM, free disk.
 3. **Project files**: required files present, CRLF line endings, `.env` present, placeholder or invalid secrets, `docker compose config` valid.
 4. **Ports**: 3000, 5432, 80 and 443 free, or owned by our containers.
 5. **Containers**: running/healthy state, init exit code, OOM kills, crash loops, and recent error lines from each container's logs.
-6. **Services**: PostgreSQL accepting connections, schema tables, seeded orgs and users, the Ollama model downloaded, `/api/health`, the login page, Caddy HTTPS.
+6. **Services**: PostgreSQL accepting connections, schema tables, seeded orgs and users, Ollama running on the host with the model pulled and reachable from the app, `/api/health`, the login page, Caddy HTTPS.
 
 The exit code is `0` when there are no errors (warnings are allowed) and `1` otherwise.
 
@@ -184,8 +189,9 @@ The exit code is `0` when there are no errors (warnings are allowed) and `1` oth
 | `Port 5432 is already used` | A local PostgreSQL service is running | Stop it (`services.msc` → postgresql) or change the port mapping in `docker-compose.yml` (e.g. `"5433:5432"`) |
 | `Port 80/443 is already used` | IIS / World Wide Web Publishing Service, or another proxy | Use `--no-caddy`, or stop the service: `net stop w3svc` (admin) |
 | `Port 3000 is already used` | Another dev server | Find it with `netstat -ano \| findstr :3000` and end that PID in Task Manager |
-| `killed by OOM` / low RAM error | Docker has too little memory for the model | Raise `memory=` in `.wslconfig`, or use `--model qwen2.5:1.5b` |
-| `ollama ... still downloading the model` | First start is pulling the model | Wait (`docker logs -f idr-ollama`). Behind a proxy, set it in Docker Desktop → Settings → Resources → Proxies |
+| `killed by OOM` / low RAM error | Docker has too little memory | Raise `memory=` in `.wslconfig` |
+| `Ollama not reachable on this machine` | Ollama isn't installed or running | Install from ollama.com and start it; the app works without AI meanwhile |
+| `App container cannot reach the host's Ollama` | Linux: Ollama listens on 127.0.0.1 only | `sudo systemctl edit ollama`, add `[Service]` `Environment="OLLAMA_HOST=0.0.0.0"`, then `sudo systemctl restart ollama` |
 | `idr-init exited with code 1` | Schema push or seed failed | `docker logs idr-init`, then `docker compose up init` |
 | `Database has no tables` | `init` never ran successfully | `docker compose up init` |
 | `App health: unhealthy` | The app cannot reach the database | `docker logs idr-app`, and check `POSTGRES_*` in `.env` |

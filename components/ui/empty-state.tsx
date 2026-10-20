@@ -1,8 +1,8 @@
-import { Shield, Users, AlertTriangle, Plug, Brain, ClipboardCheck, FileSearch } from 'lucide-react'
+import { Shield, Users, AlertTriangle, Plug, Brain, ClipboardCheck, FileSearch, Radio } from 'lucide-react'
 import Link from 'next/link'
 
 interface EmptyStateProps {
-  icon?: 'identities' | 'violations' | 'certifications' | 'integrations' | 'ai' | 'search' | 'default'
+  icon?: 'identities' | 'violations' | 'certifications' | 'integrations' | 'ai' | 'search' | 'sessions' | 'default'
   title: string
   description: string
   actionLabel?: string
@@ -17,6 +17,7 @@ const ICONS = {
   integrations: Plug,
   ai: Brain,
   search: FileSearch,
+  sessions: Radio,
   default: FileSearch,
 }
 
@@ -26,7 +27,7 @@ export function EmptyState({ icon = 'default', title, description, actionLabel, 
   return (
     <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
       <div className="w-16 h-16 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center mb-4">
-        <Icon size={28} className="text-[var(--text-tertiary)]" />
+        <Icon size={28} className="text-[var(--text-tertiary)]" aria-hidden="true" />
       </div>
       <h3 className="text-heading text-[var(--text-primary)] mb-1">{title}</h3>
       <p className="text-caption text-[var(--text-secondary)] max-w-sm">{description}</p>

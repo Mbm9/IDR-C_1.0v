@@ -423,7 +423,7 @@ const guide: GuideSection[] = [
   {
     id: 'integrations',
     title: 'التكاملات',
-    path: '/dashboard/integrations',
+    path: '/dashboard/settings?tab=integrations',
     description:
       'راقب صحة الموصلات وحالة المزامنة وأعداد السجلات لجميع مصادر التكامل المهيأة. ابدأ المزامنة يدويًا وشخّص مشكلات الاتصال من واجهة واحدة.',
     features: [
@@ -443,7 +443,7 @@ const guide: GuideSection[] = [
   {
     id: 'audit-trail',
     title: 'سجل التدقيق',
-    path: '/dashboard/audit',
+    path: '/dashboard/settings?tab=audit-trail',
     description:
       'سجل إجراءات كامل يوثّق كل إجراء تنفيذي في المنصة. تُسجَّل كل عملية اعتماد وإلغاء واعتماد استثناء وتغيير مستوى وتوصية من الذكاء الاصطناعي مع التفاصيل الكاملة للمنفّذ والهدف والوقت والمبرر.',
     features: [
@@ -596,7 +596,7 @@ const compliance: ComplianceFramework[] = [
       { controlId: 'ECC-1-4-1', controlName: 'مراجعة الوصول', feature: 'حملات اعتماد الوصول', link: '/dashboard/certifications' },
       { controlId: 'ECC-2-1-1', controlName: 'المراقبة الأمنية', feature: 'التهديدات المباشرة + المخالفات', link: '/dashboard/threats' },
       { controlId: 'ECC-2-2-1', controlName: 'الاستجابة للحوادث', feature: 'فرز التهديدات + الإجراءات', link: '/dashboard/threats' },
-      { controlId: 'ECC-2-3-1', controlName: 'تسجيل أحداث التدقيق', feature: 'سجل التدقيق', link: '/dashboard/audit' },
+      { controlId: 'ECC-2-3-1', controlName: 'تسجيل أحداث التدقيق', feature: 'سجل التدقيق', link: '/dashboard/settings?tab=audit-trail' },
       { controlId: 'ECC-3-1-1', controlName: 'تقييم المخاطر', feature: 'تحليل الذكاء الاصطناعي + تقييم المخاطر', link: '/dashboard/ai' },
       { controlId: 'ECC-3-2-1', controlName: 'تقارير الامتثال', feature: 'مركز النتائج', link: '/dashboard/results' },
     ],
@@ -613,7 +613,7 @@ const compliance: ComplianceFramework[] = [
       { controlId: 'SAMA-3.3.5', controlName: 'الوصول المميز', feature: 'تصنيف المستويات + المشرفون الخفيون', link: '/dashboard/tiering' },
       { controlId: 'SAMA-3.3.7', controlName: 'حسابات الخدمة', feature: 'إدارة الهويات غير البشرية', link: '/dashboard/nhi' },
       { controlId: 'SAMA-3.4.1', controlName: 'المراقبة الأمنية', feature: 'التهديدات المباشرة', link: '/dashboard/threats' },
-      { controlId: 'SAMA-3.6.1', controlName: 'سجل التدقيق', feature: 'سجل التدقيق', link: '/dashboard/audit' },
+      { controlId: 'SAMA-3.6.1', controlName: 'سجل التدقيق', feature: 'سجل التدقيق', link: '/dashboard/settings?tab=audit-trail' },
     ],
   },
   {
@@ -621,7 +621,7 @@ const compliance: ComplianceFramework[] = [
     acronym: 'PDPL',
     name: 'نظام حماية البيانات الشخصية',
     rows: [
-      { controlId: 'PDPL-5', controlName: 'سجلات معالجة البيانات', feature: 'سجل التدقيق', link: '/dashboard/audit' },
+      { controlId: 'PDPL-5', controlName: 'سجلات معالجة البيانات', feature: 'سجل التدقيق', link: '/dashboard/settings?tab=audit-trail' },
       { controlId: 'PDPL-14', controlName: 'حقوق الوصول', feature: 'إدارة الصلاحيات', link: '/dashboard/entitlements' },
       { controlId: 'PDPL-17', controlName: 'التدابير الأمنية', feature: 'تقييم المخاطر + المخالفات', link: '/dashboard/violations' },
       { controlId: 'PDPL-22', controlName: 'الاستجابة لتسرب البيانات', feature: 'اكتشاف التهديدات', link: '/dashboard/threats' },

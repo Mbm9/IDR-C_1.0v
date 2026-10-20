@@ -3,16 +3,17 @@
 # Identity Radar — Build & Start (Docker Compose)
 #
 # Builds the images and brings up the full stack defined in docker-compose.yml
-# (db, ollama, init, app, caddy). Designed for Docker Desktop on Windows
-# (run from Git Bash or WSL) but works on Linux/macOS too.
+# (db, init, app, scheduler, backup, caddy). Designed for Docker Desktop on
+# Windows (run from Git Bash or WSL) but works on Linux/macOS too.
+# AI uses the Ollama already installed on this machine (not a container).
 #
 # Usage:
 #   ./scripts/docker-up.sh                 # build + start everything
 #   ./scripts/docker-up.sh --no-caddy      # skip Caddy (no ports 80/443 needed)
 #   ./scripts/docker-up.sh --no-cache      # rebuild images from scratch
-#   ./scripts/docker-up.sh --reset         # wipe volumes (DB, model) first
+#   ./scripts/docker-up.sh --reset         # wipe volumes (DB, certificates) first
 #   ./scripts/docker-up.sh --no-demo       # no Acme demo data; create the first account at /signup
-#   ./scripts/docker-up.sh --model qwen2.5:7b
+#   ./scripts/docker-up.sh --model qwen2.5:7b   # pulled into the host Ollama if missing
 #   ./scripts/docker-up.sh --logs          # follow logs after start
 #
 # After it finishes, run ./scripts/doctor.sh if anything looks wrong.
@@ -37,7 +38,7 @@ RESET=false
 NO_DEMO=false
 FOLLOW_LOGS=false
 MODEL=""
-APP_TIMEOUT=900   # seconds to wait for the app (first run pulls the AI model)
+APP_TIMEOUT=600   # seconds to wait for the app to become healthy
 
 usage() { sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//'; exit 0; }
 
@@ -193,7 +194,7 @@ success "Compose configuration is valid"
 # ---------------------------------------------------------------------------
 if $RESET; then
   step "Reset"
-  warn "Removing containers AND volumes (database, AI model cache, certificates)"
+  warn "Removing containers AND volumes (database, certificates)"
   docker compose down -v --remove-orphans
 fi
 
@@ -213,7 +214,7 @@ success "Images built"
 step "Starting database and initialisation"
 # Services are started in stages so failures surface with their own logs:
 # `docker compose up` blocks on depends_on conditions and only reports
-# "dependency failed to start", which hides why init or ollama failed.
+# "dependency failed to start", which hides why init failed.
 docker compose up -d --remove-orphans db init || {
   docker logs --tail 40 idr-init 2>&1 | sed 's/^/        /'
   fail "Could not start db/init."
@@ -234,33 +235,33 @@ for _ in $(seq 1 300); do
 done
 [[ "$(docker inspect -f '{{.State.Status}}' idr-init 2>/dev/null)" == "exited" ]] || fail "Init did not finish in time."
 
-step "Starting Ollama (first run downloads the AI model — can take a while)"
-docker compose up -d ollama || fail "Could not start ollama."
-deadline=$(( $(date +%s) + APP_TIMEOUT ))
-last_note=0
-while :; do
-  ollama_health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{end}}|{{.State.Status}}' idr-ollama 2>/dev/null || echo "|missing")"
-  case "$ollama_health" in
-    healthy\|*) success "Ollama is ready"; break ;;
-    unhealthy\|*|*\|exited|*\|dead)
-      docker logs --tail 40 idr-ollama 2>&1 | sed 's/^/        /'
-      fail "Ollama failed to become healthy." ;;
-  esac
-  now=$(date +%s)
-  (( now > deadline )) && fail "Ollama was not ready within ${APP_TIMEOUT}s (raise with --timeout)."
-  if (( now - last_note >= 30 )); then
-    info "ollama: ${ollama_health%%|*} — downloading/loading model ..."
-    last_note=$now
+step "Checking Ollama on this machine"
+# Ollama is installed on the host, not run in a container: nothing to download
+# or wait for here. AI is optional, so problems are warnings, not failures.
+OLLAMA_HOST_URL="${OLLAMA_HOST_URL:-http://localhost:11434}"
+ollama_model="$(env_get OLLAMA_MODEL)"; ollama_model="${ollama_model:-qwen2.5:1.5b}"
+OLLAMA_UP=false
+if ollama_tags="$(curl -fsS -m 5 "$OLLAMA_HOST_URL/api/tags" 2>/dev/null)"; then
+  OLLAMA_UP=true
+  success "Ollama is running at $OLLAMA_HOST_URL"
+  if echo "$ollama_tags" | grep -q "\"name\":\"${ollama_model}\""; then
+    success "Model '$ollama_model' is available"
+  elif command -v ollama >/dev/null 2>&1; then
+    info "Model '$ollama_model' not found — pulling it into the host Ollama"
+    ollama pull "$ollama_model" || warn "Could not pull '$ollama_model'. AI features stay off until it is available."
+  else
+    warn "Model '$ollama_model' not found. Run: ollama pull $ollama_model"
   fi
-  sleep 5
-done
+else
+  warn "Ollama is not reachable at $OLLAMA_HOST_URL. Start it (Ollama app, or 'ollama serve'); AI features stay off until then."
+fi
 
 step "Starting the app"
 # scheduler runs the /api/cron/* scans; backup writes a daily dump to ./backups
 SERVICES=(app scheduler backup)
 $NO_CADDY || SERVICES+=(caddy)
 docker compose up -d "${SERVICES[@]}" || fail "docker compose up failed."
-success "Containers started: db ollama init ${SERVICES[*]}"
+success "Containers started: db init ${SERVICES[*]}"
 
 # Readiness via the image's HEALTHCHECK, so no host curl is required.
 deadline=$(( $(date +%s) + APP_TIMEOUT ))
@@ -281,6 +282,21 @@ while :; do
   fi
   sleep 5
 done
+
+# The app reaches the host's Ollama through host.docker.internal. On Linux,
+# Ollama listening only on 127.0.0.1 (its default) is not reachable from containers.
+if $OLLAMA_UP; then
+  if docker exec idr-app node -e "fetch(process.env.OLLAMA_URL + '/api/tags').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))" 2>/dev/null; then
+    success "App can reach Ollama on the host"
+  else
+    warn "The app container cannot reach the host's Ollama (AI features are off)."
+    echo "        Ollama is probably listening on 127.0.0.1 only. On Linux, make it listen on all interfaces:"
+    echo "          sudo systemctl edit ollama     # add:  [Service]"
+    echo "                                         #       Environment=\"OLLAMA_HOST=0.0.0.0\""
+    echo "          sudo systemctl restart ollama"
+    echo "        Then block port 11434 from other machines with your firewall if needed."
+  fi
+fi
 
 # ---------------------------------------------------------------------------
 # 7. Summary

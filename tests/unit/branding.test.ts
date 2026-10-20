@@ -30,6 +30,13 @@ describe('branding validation', () => {
     expect(brandingUpdateSchema.safeParse({ name: 'Acme', extra: 1 }).success).toBe(false)
   })
 
+  it('accepts the logo background toggle on its own, as a boolean only', () => {
+    expect(brandingUpdateSchema.parse({ logoBackground: true }).logoBackground).toBe(true)
+    expect(brandingUpdateSchema.parse({ logoBackground: false }).logoBackground).toBe(false)
+    expect(brandingUpdateSchema.safeParse({ logoBackground: 'yes' }).success).toBe(false)
+    expect(brandingUpdateSchema.safeParse({ logoBackground: null }).success).toBe(false)
+  })
+
   it('computes decoded size without decoding', () => {
     for (const n of [1, 2, 3, 100, 1001]) {
       expect(base64Bytes(Buffer.alloc(n).toString('base64'))).toBe(n)

@@ -177,6 +177,10 @@ export async function PUT(req: NextRequest) {
   const { userId, role } = await req.json()
   if (!userId || !role) return NextResponse.json({ error: 'userId and role required' }, { status: 400 })
   if (!isAppRole(role)) return NextResponse.json({ error: 'Invalid role' }, { status: 400 })
+  // No one changes their own role: an admin can't lock themselves out, and roles are granted by someone else.
+  if (userId === session.user.id) {
+    return NextResponse.json({ error: 'You cannot change your own role' }, { status: 403 })
+  }
 
   const [before] = await db.select({ appRole: users.appRole })
     .from(users)

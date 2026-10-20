@@ -296,7 +296,7 @@ export default function ExposuresPage() {
                   <button key={s} onClick={() => setSeverityFilter((cur) => (cur === s ? null : s))}
                     aria-pressed={severityFilter === s}
                     className={`text-xs flex items-center gap-1 ${severityFilter && severityFilter !== s ? 'line-through' : ''}`}>
-                    <span aria-hidden className={`w-2 h-2 rounded-full ${severityFilter && severityFilter !== s ? 'opacity-40' : ''}`} style={{ background: SEVERITY_COLORS[s] }} />
+                    <span aria-hidden className={`shrink-0 w-2 h-2 rounded-full ${severityFilter && severityFilter !== s ? 'opacity-40' : ''}`} style={{ background: SEVERITY_COLORS[s] }} />
                     <span className="text-[var(--text-secondary)]">{sevLabel(s)}</span>
                     <span className="text-[var(--text-primary)] font-medium">{data.bySeverity[s]}</span>
                   </button>

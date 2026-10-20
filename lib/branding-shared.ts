@@ -29,7 +29,8 @@ export const logoSchema = z.string().max(400_000).refine((value) => {
 export const brandingUpdateSchema = z.object({
   name: z.string().trim().min(1).max(60).nullable().optional(),
   logo: logoSchema.nullable().optional(),
-}).strict().refine((b) => b.name !== undefined || b.logo !== undefined, {
+  logoBackground: z.boolean().optional(),
+}).strict().refine((b) => b.name !== undefined || b.logo !== undefined || b.logoBackground !== undefined, {
   message: 'Nothing to update',
 })
 
@@ -40,6 +41,8 @@ export interface Branding {
   name: string | null
   /** Logo data URL; null = the built-in shield. */
   logo: string | null
+  /** Draw the logo on a white tile; false = transparent. */
+  logoBackground: boolean
 }
 
 /** The name to display for a branding record. */
