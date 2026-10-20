@@ -86,6 +86,7 @@ CMD ["node", "server.js"]
 # ---------------------------------------------------------------------------
 FROM node:20-alpine AS init
 WORKDIR /app
+ENV NPM_CONFIG_UPDATE_NOTIFIER=false
 
 RUN apk add --no-cache postgresql16-client
 

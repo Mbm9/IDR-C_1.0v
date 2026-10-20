@@ -18,7 +18,9 @@ export const issueStatus = pgTable('issue_statuses', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   index('idx_issue_status_org_id').on(table.orgId),
-  unique('uq_issue_status_org_fsid').on(table.orgId, table.fsid),
+  // Columns in table order: drizzle-kit push reads unique columns back in table
+  // order, so any other order looks like a change and stops push at a prompt.
+  unique('uq_issue_status_org_fsid').on(table.fsid, table.orgId),
 ])
 
 // Append-only timeline of lifecycle events per issue type.
