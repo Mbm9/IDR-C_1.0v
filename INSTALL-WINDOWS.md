@@ -54,10 +54,6 @@ Skip this step if you don't need the AI features. The rest of the app works with
 > **See only one folder inside?** Windows extracted it one level too deep. Open that inner folder,
 > select everything inside it, and move it up into `C:\IdentityRadar`.
 
-> **Keep the folder name `IdentityRadar`.** Docker names the database after this folder.
-> If you rename it later, the app starts with an empty database. Your old data is not deleted,
-> but the app won't use it until you rename the folder back.
-
 ## Step 5: Start Identity Radar
 
 1. Open **Git Bash** from the Start menu.
@@ -119,8 +115,7 @@ the key that unlocks saved connector credentials.
    ```
 
 2. Close Git Bash. In File Explorer, rename `C:\IdentityRadar` to `C:\IdentityRadar-old`.
-3. Extract the new ZIP exactly as in **Step 4**, so you again have `C:\IdentityRadar`
-   with the **same name**.
+3. Extract the new ZIP exactly as in **Step 4**, so you again have `C:\IdentityRadar`.
 4. Open Git Bash, put your settings back and start:
 
    ```bash
@@ -130,6 +125,10 @@ the key that unlocks saved connector credentials.
    ```
 
 5. Sign in and check that your data is there, then delete `C:\IdentityRadar-old`.
+
+> **Updating an older install?** On its first start, the script prints
+> `Migrating data to the fixed stack name 'identity-radar'` and copies your database across.
+> This happens once. The old copy is kept, and the script prints the command to delete it once you're happy.
 
 > Forgot to copy `.env`? It is still in `C:\IdentityRadar-old`. Copy it into `C:\IdentityRadar`
 > and run the start command again.

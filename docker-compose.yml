@@ -10,6 +10,11 @@
 #   docker compose down -v         # stop + wipe all data (clean slate)
 # =============================================================================
 
+# Fixed stack name: volumes are always identity-radar_pgdata etc., whatever the
+# folder is called, so an update extracted from a new ZIP keeps its data.
+# deploy/scripts/docker-up.sh migrates data from older folder-named stacks.
+name: identity-radar
+
 services:
   # ---------------------------------------------------------------------------
   # PostgreSQL 16

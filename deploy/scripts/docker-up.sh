@@ -190,6 +190,45 @@ docker compose config -q || fail "docker-compose.yml / .env is invalid (see erro
 success "Compose configuration is valid"
 
 # ---------------------------------------------------------------------------
+# 2b. Fixed stack name: migrate installs from before `name: identity-radar`
+# ---------------------------------------------------------------------------
+# Compose used to name the stack (and its volumes) after the folder, so a ZIP
+# extracted under a new folder name started with an empty database. The stack
+# is now always "identity-radar". Containers of the old folder-named stack
+# block the fixed container names, and their data is copied (never moved or
+# deleted) into the new volumes once, while the database is stopped.
+STACK="identity-radar"
+legacy_project=""
+for c in $(docker ps -a --format '{{.Names}}' | grep -E '^idr-' || true); do
+  p="$(docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' "$c" 2>/dev/null || true)"
+  if [[ -n "$p" && "$p" != "$STACK" ]]; then
+    [[ "$c" == "idr-db" ]] && legacy_project="$p"
+    docker rm -f "$c" >/dev/null && info "Removed container $c from the old stack '$p' (its data is kept)"
+  fi
+done
+# No old container left (e.g. removed by hand): guess the folder-based name compose used
+if [[ -z "$legacy_project" ]]; then
+  legacy_project="$(basename "$PROJECT_DIR" | tr '[:upper:]' '[:lower:]' | tr -cd 'a-z0-9_-')"
+fi
+
+if ! $RESET && [[ "$legacy_project" != "$STACK" ]] \
+   && ! docker volume inspect "${STACK}_pgdata" >/dev/null 2>&1 \
+   && docker volume inspect "${legacy_project}_pgdata" >/dev/null 2>&1; then
+  step "Migrating data to the fixed stack name '${STACK}'"
+  for vol in pgdata caddy_data caddy_config; do
+    docker volume inspect "${legacy_project}_${vol}" >/dev/null 2>&1 || continue
+    docker volume create --label "com.docker.compose.project=${STACK}" \
+      --label "com.docker.compose.volume=${vol}" "${STACK}_${vol}" >/dev/null
+    docker run --rm -v "${legacy_project}_${vol}:/from:ro" -v "${STACK}_${vol}:/to" \
+      postgres:16-alpine sh -c 'cp -a /from/. /to/' \
+      || fail "Could not copy volume ${legacy_project}_${vol}. Your data is untouched in it."
+    success "Copied ${legacy_project}_${vol} -> ${STACK}_${vol}"
+  done
+  info "The old volumes are kept as a backup. Once the app works, you can delete them:"
+  info "  docker volume rm ${legacy_project}_pgdata ${legacy_project}_caddy_data ${legacy_project}_caddy_config"
+fi
+
+# ---------------------------------------------------------------------------
 # 3. Optional reset
 # ---------------------------------------------------------------------------
 if $RESET; then
