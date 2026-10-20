@@ -44,16 +44,28 @@ Sign in as `admin@acmefs.sa` with the password the script prints (also in `.env`
 ## Project Layout
 
 ```
-app/  components/  lib/      Next.js application (App Router, UI, business logic)
-i18n/  messages/  public/    Translations (EN/AR) and static assets
-drizzle/  seed/              Database migrations and demo seed data
-deploy/                      Dockerfile, compose files, deploy/backup scripts, Windows installer
-tests/                       Unit, integration, E2E and UAT tests (+ UAT reports)
-tools/                       One-off developer/data scripts
-docs/                        Product, admin, deployment and architecture documentation
-docker-compose.yml           Local / demo stack (`docker compose up`)
-INSTALL-WINDOWS.md           Simple Windows install guide
+.
+├── src/                     Application source (Next.js 14, App Router)
+│   ├── app/                   Routes: pages (dashboard, auth) and API handlers (app/api)
+│   ├── components/            React components (ui, dashboard, charts, onboarding)
+│   ├── lib/                   Business logic: db schema, auth, connectors, risk, AI, ITDR, cron jobs
+│   ├── i18n/                  next-intl config + messages/ (en.json, ar.json)
+│   ├── types/                 Global TypeScript declarations
+│   ├── middleware.ts          Auth, RBAC and API-key gate for every request
+│   └── instrumentation.ts     Startup environment validation
+├── db/
+│   ├── migrations/            Drizzle SQL migrations and views
+│   ├── seed/                  Demo organization seed (npm run db:seed)
+│   └── scripts/               One-off CLI scripts that run against the database
+├── deploy/                  Dockerfile, compose files, ops scripts, Windows installer
+├── tests/                   Unit, integration, E2E (Playwright) and UAT tests + reports
+├── docs/                    Product, admin, deployment and architecture documentation
+├── public/                  Static assets (fonts)
+├── docker-compose.yml       Local / demo stack (`docker compose up`)
+└── INSTALL-WINDOWS.md       Simple Windows install guide
 ```
+
+Tool configs (`next.config.mjs`, `tsconfig.json`, `drizzle.config.ts`, `vitest.config.ts`, `playwright.config.ts`, `postcss.config.mjs`) stay at the root, where each tool looks for them.
 
 See [deploy/README.md](./deploy/README.md) and [tests/README.md](./tests/README.md) for what each file does.
 

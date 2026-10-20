@@ -1,9 +1,9 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
 import { eq } from 'drizzle-orm'
 import postgres from 'postgres'
-import * as schema from '../lib/db/schema'
+import * as schema from '../../src/lib/db/schema'
 import bcrypt from 'bcryptjs'
-import { isControlPlaneTier, isStricterTier, stricterTier, type AdTier } from '../lib/utils/tiers'
+import { isControlPlaneTier, isStricterTier, stricterTier, type AdTier } from '../../src/lib/utils/tiers'
 
 const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/identity_radar'
 const client = postgres(DATABASE_URL)
@@ -70,7 +70,7 @@ function randomSvcName(): string {
 }
 
 // --- Top Tier (Tier 0 adjacent: ADFS, Entra Connect, PKI, PAM vault, DC backup) ---
-// Kept in sync with tools/apply-top-tier-demo.ts, which applies the same
+// Kept in sync with db/scripts/apply-top-tier-demo.ts, which applies the same
 // classification to an existing demo database.
 const TOP_TIER_RESOURCES = new Set(['SRV-ADFS-01', 'SRV-AADConnect', 'SRV-PKI-01', 'SRV-BACKUP-01', 'CyberArk-PAM', 'AZ-KEYVAULT-01'])
 const TOP_TIER_GROUPS = new Set(['Backup Operators', 'AZ-KeyVault-Admins'])

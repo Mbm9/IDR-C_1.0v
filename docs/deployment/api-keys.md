@@ -50,7 +50,7 @@ curl -X POST https://radar.example.com/api/events/ingest \
 | `/api/events/ingest` | POST | Push identity events (batches of up to 1000) |
 
 Keys are accepted **only** on the endpoints in this table (the allow-list is
-`API_KEY_PATHS` in `lib/auth/api-key-token.ts`). Every other `/api/*` route
+`API_KEY_PATHS` in `src/lib/auth/api-key-token.ts`). Every other `/api/*` route
 still requires a dashboard session, and a key sent there gets `401`.
 
 A key acts with **analyst-level** permission, for ingest only, inside the
@@ -61,7 +61,7 @@ organization.
 
 - Middleware lets a request with an `Authorization: Bearer idr_…` header
   through to allow-listed paths without a session. The route handler then
-  verifies the key (`verifyApiKey` in `lib/auth/api-key.ts`, Node runtime). It
+  verifies the key (`verifyApiKey` in `src/lib/auth/api-key.ts`, Node runtime). It
   looks the key up by prefix, bcrypt-compares the full key, and rejects keys
   that are revoked, expired or unknown with `401`. A request that presents a
   key is never silently treated as session-authenticated.

@@ -15,8 +15,8 @@
  * neither and are shown with their stored text.
  */
 import { createTranslator } from 'next-intl'
-import en from '@/messages/en.json'
-import ar from '@/messages/ar.json'
+import en from '@/i18n/messages/en.json'
+import ar from '@/i18n/messages/ar.json'
 
 export type BriefingLocale = 'en' | 'ar'
 export const BRIEFING_LOCALES: BriefingLocale[] = ['en', 'ar']

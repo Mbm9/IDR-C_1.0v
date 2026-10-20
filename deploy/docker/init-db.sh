@@ -16,7 +16,7 @@ echo "[init] Schema push complete."
 # then applies nothing. The incremental migrations below are idempotent
 # (IF NOT EXISTS), so upgrades get their schema changes either way. Migrations
 # from 0006 on must stay re-runnable.
-for f in /app/drizzle/[0-9][0-9][0-9][0-9]_*.sql; do
+for f in /app/db/migrations/[0-9][0-9][0-9][0-9]_*.sql; do
   n="$(basename "$f" | cut -c1-4)"
   [ "$n" -ge 6 ] 2>/dev/null || continue
   echo "[init] Applying $(basename "$f")..."
@@ -24,7 +24,7 @@ for f in /app/drizzle/[0-9][0-9][0-9][0-9]_*.sql; do
 done
 
 echo "[init] Creating database views..."
-psql "$(echo "$DATABASE_URL")" -f /app/drizzle/0001_create_views.sql
+psql "$(echo "$DATABASE_URL")" -f /app/db/migrations/0001_create_views.sql
 echo "[init] Views created."
 
 # Check if data already exists to avoid duplicate seeding
@@ -36,7 +36,7 @@ elif [ "$ROW_COUNT" -gt 0 ]; then
   echo "[init] Data already exists ($ROW_COUNT organizations). Skipping seed."
 else
   echo "[init] Seeding sample data..."
-  npx tsx seed/index.ts
+  npx tsx db/seed/index.ts
   echo "[init] Seed complete."
 fi
 

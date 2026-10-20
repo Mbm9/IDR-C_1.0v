@@ -19,7 +19,7 @@ But the *behaviour* overlaps with well-known attacker TTPs, so detection control
 
 ### What the platform actually does (live MVP surface)
 
-The Active Directory connector ([`lib/connectors/ldap.ts`](../../lib/connectors/ldap.ts)) issues LDAP
+The Active Directory connector ([`src/lib/connectors/ldap.ts`](../../src/lib/connectors/ldap.ts)) issues LDAP
 queries that pull these attributes for every account:
 
 | Attribute pulled | Why the tool needs it | What it looks like to an EDR/XDR |
@@ -178,7 +178,7 @@ docker compose -f deploy/docker/docker-compose.prod.yml up -d --build
 
 # 4. Create the schema (compose does not migrate automatically):
 docker exec idr-app npx drizzle-kit push
-docker exec idr-app sh -c 'cat drizzle/0001_create_views.sql | PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U postgres -d identity_radar'
+docker exec idr-app sh -c 'cat db/migrations/0001_create_views.sql | PGPASSWORD=$POSTGRES_PASSWORD psql -h db -U postgres -d identity_radar'
 
 # 5. DO NOT run the seed on a real deployment (it loads fake demo identities + a demo admin).
 #    Create your real admin user instead, then configure the AD connector in the UI.

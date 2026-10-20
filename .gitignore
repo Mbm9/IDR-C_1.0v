@@ -34,7 +34,7 @@ npm-debug.log*
 next-env.d.ts
 
 # drizzle
-/drizzle/meta
+/db/migrations/meta
 .gstack/
 
 # iCloud .nosync symlink targets (local dev only — never commit)
@@ -42,7 +42,8 @@ node_modules.nosync/
 .next.nosync/
 /coverage/
 
-# Playwright output (contains cached session cookies in test-results/.auth)
+# Playwright output (contains cached session cookies in tests/.artifacts/.auth)
+/tests/.artifacts/
 /test-results/
 /playwright-report/
 

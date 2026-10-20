@@ -10,7 +10,7 @@ const due = (name: string, iso: string, tz?: string) => isDue(jobs.find((j) => j
 
 describe('deploy/docker/scheduler.mjs', () => {
   it('schedules every /api/cron route exactly once', () => {
-    const routes = readdirSync(path.join(__dirname, '../../app/api/cron')).sort()
+    const routes = readdirSync(path.join(__dirname, '../../src/app/api/cron')).sort()
     const names = jobs.map((j) => j.name).sort()
     expect(names).toEqual(routes)
     expect(new Set(names).size).toBe(names.length)

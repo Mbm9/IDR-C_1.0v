@@ -9,6 +9,6 @@ export default defineConfig({
     // Note: .tsx tests that need a DOM should use `// @vitest-environment jsdom` at the top of the file.
   },
   resolve: {
-    alias: { '@': path.resolve(__dirname, '.') },
+    alias: { '@': path.resolve(__dirname, 'src') },
   },
 })

@@ -3,19 +3,19 @@ import path from 'node:path'
 import type { Page } from '@playwright/test'
 
 /**
- * Login fixtures aligned with seed/index.ts.
+ * Login fixtures aligned with db/seed/index.ts.
  *
  * - admin: admin@acmefs.sa with SEED_ADMIN_PASSWORD (seed default: admin123)
  * - other roles: uat.<role>@acmefs.sa with E2E_USER_PASSWORD; create them with
  *   tests/uat/create-role-users.sql. Specs that need them skip when unset.
  *
- * Sessions are cached per role under test-results/.auth so the suite signs in
+ * Sessions are cached per role under tests/.artifacts/.auth so the suite signs in
  * once per role: credential POSTs are rate limited to 30/min per IP, which a
  * suite that logs in before every test exceeds.
  */
 export type Role = 'viewer' | 'analyst' | 'iam_admin' | 'ciso' | 'admin'
 
-const AUTH_DIR = path.join('test-results', '.auth')
+const AUTH_DIR = path.join('tests', '.artifacts', '.auth')
 
 export function credentials(role: Role): { email: string; password: string } | null {
   if (role === 'admin') {

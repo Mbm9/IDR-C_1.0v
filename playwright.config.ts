@@ -6,7 +6,9 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'html',
+  // Local test output stays under tests/.artifacts (git-ignored)
+  outputDir: 'tests/.artifacts/results',
+  reporter: [['html', { outputFolder: 'tests/.artifacts/report', open: 'never' }]],
   use: {
     baseURL: process.env.E2E_BASE_URL || 'http://localhost:3000',
     // PW_CHROMIUM: use a pre-installed Chromium instead of `playwright install`

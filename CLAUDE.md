@@ -56,6 +56,34 @@ Target market: CISOs, IAM Engineers, and Security Analysts in Saudi Arabia under
 | Source lines | ~43,000 |
 | i18n keys | ~1,570 (EN + AR) |
 
+## Repository Layout
+
+```
+.
+├── src/                     Application source (Next.js 14, App Router)
+│   ├── app/                   Routes: pages (dashboard, auth) and API handlers (app/api)
+│   ├── components/            React components (ui, dashboard, charts, onboarding)
+│   ├── lib/                   Business logic: db schema, auth, connectors, risk, AI, ITDR, cron jobs
+│   ├── i18n/                  next-intl config + messages/ (en.json, ar.json)
+│   ├── types/                 Global TypeScript declarations
+│   ├── middleware.ts          Auth, RBAC and API-key gate for every request
+│   └── instrumentation.ts     Startup environment validation
+├── db/
+│   ├── migrations/            Drizzle SQL migrations and views
+│   ├── seed/                  Demo organization seed (npm run db:seed)
+│   └── scripts/               One-off CLI scripts that run against the database
+├── deploy/                  Dockerfile, compose files, ops scripts, Windows installer
+├── tests/                   Unit, integration, E2E (Playwright) and UAT tests + reports
+├── docs/                    Product, admin, deployment and architecture documentation
+├── public/                  Static assets (fonts)
+├── docker-compose.yml       Local / demo stack (`docker compose up`)
+└── INSTALL-WINDOWS.md       Simple Windows install guide
+```
+
+Tool configs (`next.config.mjs`, `tsconfig.json`, `drizzle.config.ts`, `vitest.config.ts`, `playwright.config.ts`, `postcss.config.mjs`) stay at the root, where each tool looks for them.
+
+The `@/` import alias points to `src/` (e.g. `@/lib/db`, `@/i18n/messages/en.json`). Code comments inside `src/` cite paths relative to `src/`.
+
 ## Core Principle: Identity-First
 
 ONE `identities` table for all identity types — human and non-human. Type discriminator (`human` | `non_human`) with sub-types (employee, contractor, service_account, managed_identity, etc.). Every other table links to `identities` via foreign keys.
@@ -71,7 +99,7 @@ ONE `identities` table for all identity types — human and non-human. Type disc
 
 Tier violation = identity's `effective_tier` (highest tier accessed) is stricter than its `ad_tier` (assigned tier).
 
-Order (most privileged first): `tier_0` > `tier_top` > `tier_1` > `tier_2` > `unclassified`. Compare tiers with the helpers in `lib/utils/tiers.ts` (`tierRank`, `isStricterTier`), never by string order.
+Order (most privileged first): `tier_0` > `tier_top` > `tier_1` > `tier_2` > `unclassified`. Compare tiers with the helpers in `src/lib/utils/tiers.ts` (`tierRank`, `isStricterTier`), never by string order.
 
 ## Database Schema (26 tables)
 
@@ -104,7 +132,7 @@ Order (most privileged first): `tier_0` > `tier_top` > `tier_1` > `tier_2` > `un
 Run by the `scheduler` container (`deploy/docker/scheduler.mjs`, app image) in both compose files: it calls `/api/cron/*` with `CRON_SECRET`; times in `SCHEDULE_TZ` (default UTC). A unit test checks every cron route is scheduled.
 
 
-risk-scorer (6h), tier-scanner (6h), dormancy-detector (daily), cert-expiry (daily), nhi-orphan (daily), sync-health (15min), attack-path-scanner (6h), threat-detector (5min), event-cleanup (daily), shadow-admin-scanner (daily), peer-anomaly-detector (daily), supply-chain-risk (weekly), data-steward (daily), automation-engine, daily-briefing, ad-exposure-scanner (6h — static AD posture/exposure assessment via `lib/itdr/posture-checks.ts`)
+risk-scorer (6h), tier-scanner (6h), dormancy-detector (daily), cert-expiry (daily), nhi-orphan (daily), sync-health (15min), attack-path-scanner (6h), threat-detector (5min), event-cleanup (daily), shadow-admin-scanner (daily), peer-anomaly-detector (daily), supply-chain-risk (weekly), data-steward (daily), automation-engine, daily-briefing, ad-exposure-scanner (6h — static AD posture/exposure assessment via `src/lib/itdr/posture-checks.ts`)
 
 ## AI Prompts (11)
 

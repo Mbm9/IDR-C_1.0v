@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import en from '@/messages/en.json'
-import ar from '@/messages/ar.json'
+import en from '@/i18n/messages/en.json'
+import ar from '@/i18n/messages/ar.json'
 import {
   buildDeterministicBriefing,
   fromAIBriefing,

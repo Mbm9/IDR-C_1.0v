@@ -9,3 +9,4 @@ vitest.config.ts
 playwright.config.ts
 deploy/windows-installer
 .claude
+backups

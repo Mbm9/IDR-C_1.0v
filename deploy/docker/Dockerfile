@@ -56,10 +56,9 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Copy Drizzle migrations + seed for runtime migration support
-COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
-COPY --from=builder --chown=nextjs:nodejs /app/lib ./lib
-COPY --from=builder --chown=nextjs:nodejs /app/seed ./seed
+# Copy migrations + seed (db/) and the schema (src/lib) for runtime migration support
+COPY --from=builder --chown=nextjs:nodejs /app/db ./db
+COPY --from=builder --chown=nextjs:nodejs /app/src/lib ./src/lib
 COPY --from=builder --chown=nextjs:nodejs /app/drizzle.config.ts ./drizzle.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 # Scheduler for /api/cron/* jobs (runs as its own container from this image)
@@ -94,9 +93,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/tsconfig.json ./tsconfig.json
 COPY --from=builder /app/drizzle.config.ts ./drizzle.config.ts
-COPY --from=builder /app/drizzle ./drizzle
-COPY --from=builder /app/lib ./lib
-COPY --from=builder /app/seed ./seed
+COPY --from=builder /app/db ./db
+COPY --from=builder /app/src/lib ./src/lib
 COPY deploy/docker/init-db.sh /init-db.sh
 RUN chmod +x /init-db.sh
 

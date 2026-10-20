@@ -119,9 +119,9 @@ npm run db:push
 success "Database schema applied"
 
 # Apply views if the SQL file exists
-if [ -f drizzle/0001_create_views.sql ]; then
+if [ -f db/migrations/0001_create_views.sql ]; then
   info "Creating database views..."
-  docker exec -i identity-radar-db psql -U postgres -d identity_radar < drizzle/0001_create_views.sql
+  docker exec -i identity-radar-db psql -U postgres -d identity_radar < db/migrations/0001_create_views.sql
   success "Database views created"
 fi
 

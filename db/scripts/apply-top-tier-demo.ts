@@ -1,9 +1,9 @@
 /**
  * Reclassify an existing demo database for the Top Tier (Tier 0 adjacent) model —
- * the same classification seed/index.ts now generates — for the organization of
+ * the same classification db/seed/index.ts now generates — for the organization of
  * SEED_ADMIN_EMAIL (default admin@acmefs.sa). Safe to run more than once.
  *
- *   npx dotenv -e .env.local -- npx tsx tools/apply-top-tier-demo.ts
+ *   npx dotenv -e .env.local -- npx tsx db/scripts/apply-top-tier-demo.ts
  *
  * What it changes:
  *   - adds 'tier_top' to the ad_tier enum if missing (outside any transaction)
@@ -24,7 +24,7 @@ import {
 } from '@/lib/db/schema'
 import { isStricterTier, stricterTier, type AdTier } from '@/lib/utils/tiers'
 
-// ── Keep in sync with seed/index.ts ──
+// ── Keep in sync with db/seed/index.ts ──
 
 /** Top Tier resource → the permission name its entitlements carry. */
 const TOP_TIER_RESOURCES: Record<string, string> = {

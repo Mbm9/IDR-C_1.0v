@@ -28,7 +28,7 @@ npm run db:push
 
 ### 4. Create database views
 ```bash
-docker exec -i identity-radar-db psql -U postgres -d identity_radar < drizzle/0001_create_views.sql
+docker exec -i identity-radar-db psql -U postgres -d identity_radar < db/migrations/0001_create_views.sql
 ```
 
 ### 5. Seed sample data

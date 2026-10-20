@@ -65,7 +65,7 @@ function routesWithMethods() {
       }
     }
   }
-  walk('app/api')
+  walk('src/app/api')
   return out.filter((r) => !r.route.startsWith('/api/cron/') && !r.route.startsWith('/api/auth/[') && r.route !== '/api/onboarding')
 }
 
