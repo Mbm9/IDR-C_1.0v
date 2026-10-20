@@ -53,8 +53,8 @@ curl -fsSL https://ollama.com/install.sh | sh
 ### Step 3: Build the offline bundle
 
 ```bash
-chmod +x scripts/bundle-offline.sh
-./scripts/bundle-offline.sh
+chmod +x deploy/scripts/bundle-offline.sh
+./deploy/scripts/bundle-offline.sh
 ```
 
 This takes 5-10 minutes and creates a folder called `identity-radar-offline/` containing:

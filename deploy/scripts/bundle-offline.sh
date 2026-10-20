@@ -7,8 +7,8 @@
 # air-gapped machine.
 #
 # Usage:
-#   ./scripts/bundle-offline.sh                    # Default: qwen2.5:1.5b (fast, 1GB)
-#   ./scripts/bundle-offline.sh --model qwen2.5:7b # Larger model (better quality, 4.7GB)
+#   ./deploy/scripts/bundle-offline.sh                    # Default: qwen2.5:1.5b (fast, 1GB)
+#   ./deploy/scripts/bundle-offline.sh --model qwen2.5:7b # Larger model (better quality, 4.7GB)
 #
 # Output: ./identity-radar-offline/ (~2-6 GB depending on model)
 # =============================================================================
@@ -17,7 +17,7 @@ set -euo pipefail
 MODEL="${1:-qwen2.5:1.5b}"
 BUNDLE_DIR="identity-radar-offline"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -64,8 +64,8 @@ success "Model ${MODEL} pulled"
 info "Step 3/5: Building Identity Radar Docker image..."
 cd "$PROJECT_DIR"
 # Two targets: the web app (also runs the scheduler) and the one-shot database init.
-docker build -f docker/Dockerfile --target runner -t identity-radar:latest .
-docker build -f docker/Dockerfile --target init -t identity-radar-init:latest .
+docker build -f deploy/docker/Dockerfile --target runner -t identity-radar:latest .
+docker build -f deploy/docker/Dockerfile --target init -t identity-radar-init:latest .
 success "Identity Radar images built (identity-radar, identity-radar-init)"
 
 # ---------------------------------------------------------------------------

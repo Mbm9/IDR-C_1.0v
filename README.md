@@ -20,25 +20,42 @@
 
 ## Quick Start
 
-### Windows
+### Windows (Docker Desktop)
 
-1. Download `IdentityRadar-Setup.exe`
-2. Right-click and **Run as administrator**
-3. Follow the installation wizard
-4. Open `http://localhost:3000`
-5. Sign in with `admin@acmefs.sa` / `admin123`
+Follow **[INSTALL-WINDOWS.md](./INSTALL-WINDOWS.md)**: six short steps, about 15 minutes.
 
-### Linux
+### Linux / macOS (Docker)
 
 ```bash
-git clone https://github.com/ASHS21/IDR-C.git
-cd IDR-C
-chmod +x scripts/setup.sh
-./scripts/setup.sh
+git clone https://github.com/Mbm9/IDR-C_1.0v.git
+cd IDR-C_1.0v
+./deploy/scripts/docker-up.sh --no-caddy
 # Open http://localhost:3000
 ```
 
-Default credentials: `admin@acmefs.sa` / `admin123`
+Sign in as `admin@acmefs.sa` with the password the script prints (also in `.env` as `SEED_ADMIN_PASSWORD`).
+
+### Production server
+
+```bash
+./deploy/scripts/deploy.sh --domain radar.example.com
+```
+
+## Project Layout
+
+```
+app/  components/  lib/      Next.js application (App Router, UI, business logic)
+i18n/  messages/  public/    Translations (EN/AR) and static assets
+drizzle/  seed/              Database migrations and demo seed data
+deploy/                      Dockerfile, compose files, deploy/backup scripts, Windows installer
+tests/                       Unit, integration, E2E and UAT tests (+ UAT reports)
+tools/                       One-off developer/data scripts
+docs/                        Product, admin, deployment and architecture documentation
+docker-compose.yml           Local / demo stack (`docker compose up`)
+INSTALL-WINDOWS.md           Simple Windows install guide
+```
+
+See [deploy/README.md](./deploy/README.md) and [tests/README.md](./tests/README.md) for what each file does.
 
 ## System Requirements
 
@@ -89,7 +106,8 @@ Default credentials: `admin@acmefs.sa` / `admin123`
 
 Full documentation is available in the [`docs/`](./docs/README.md) directory:
 
-- [Getting Started](./docs/getting-started/system-requirements.md) -- Installation, first login, connecting data sources
+- [Getting Started](./docs/getting-started/system-requirements.md) -- Requirements, first login, connecting data sources
+- [Installation and Deployment](./docs/deployment/docker-windows.md) -- Docker on Windows, production, offline installs
 - [User Guide](./docs/user-guide/dashboard-overview.md) -- Dashboard features and workflows
 - [Admin Guide](./docs/admin-guide/user-management.md) -- User management, integrations, policies
 - [Reference](./docs/reference/risk-scoring.md) -- Risk scoring formula, RBAC matrix, configuration

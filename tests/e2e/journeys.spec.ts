@@ -2,10 +2,10 @@ import { test, expect, type Browser } from '@playwright/test'
 import { login, hasRoleUsers } from './fixtures'
 
 /**
- * Persona journeys from the UAT plan (docs/uat/uat-plan.md, section B2) that
+ * Persona journeys from the UAT plan (tests/uat/reports/uat-plan.md, section B2) that
  * can run unattended against a seeded database. Journeys that need a person
  * (AI plan approval wording, Arabic terminology sign-off) are in the manual
- * checklist in docs/uat/uat-run-2026-10-13.md.
+ * checklist in tests/uat/reports/uat-run-2026-10-13.md.
  */
 
 async function newSession(browser: Browser, role: Parameters<typeof login>[1], fresh = false) {

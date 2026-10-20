@@ -2,7 +2,7 @@
 # Daily PostgreSQL backup, run by the `backup` container (postgres image).
 #
 # Writes /backups/identity-radar-YYYYMMDD-HHMMSS.sql.gz (the same format as
-# scripts/backup.sh, so scripts/restore.sh restores it), once a day at
+# deploy/scripts/backup.sh, so deploy/scripts/restore.sh restores it), once a day at
 # BACKUP_HOUR (UTC), plus one on first start when the folder has none.
 # Keeps the newest BACKUP_KEEP files.
 #

@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest'
 import { readdirSync } from 'node:fs'
 import path from 'node:path'
-import { JOBS, isDue, clock } from '../../docker/scheduler.mjs'
+import { JOBS, isDue, clock } from '../../deploy/docker/scheduler.mjs'
 
 type Job = { name: string; every?: number; offset?: number; daily?: string; weekly?: { day: number; at: string } }
 const jobs = JOBS as Job[]
 const at = (iso: string, tz = 'UTC') => clock(new Date(iso), tz)
 const due = (name: string, iso: string, tz?: string) => isDue(jobs.find((j) => j.name === name), at(iso, tz))
 
-describe('docker/scheduler.mjs', () => {
+describe('deploy/docker/scheduler.mjs', () => {
   it('schedules every /api/cron route exactly once', () => {
     const routes = readdirSync(path.join(__dirname, '../../app/api/cron')).sort()
     const names = jobs.map((j) => j.name).sort()

@@ -2,6 +2,8 @@
 
 > Complete documentation for Identity Radar -- AI-powered Identity Security Posture Management.
 
+- [Product Overview](./product-overview.md) -- What it is, what makes it stand out, and the full feature list
+
 ## Getting Started
 
 1. [System Requirements](./getting-started/system-requirements.md) -- Hardware, software, and network requirements
@@ -12,6 +14,28 @@
 6. [Connect Your First Data Source](./getting-started/connect-first-source.md) -- Azure AD and Active Directory setup
 7. [CSV Import](./getting-started/csv-import.md) -- Import identities from CSV files
 8. [Your First 15 Minutes](./getting-started/first-15-minutes.md) -- Guided walkthrough of key features
+
+## Installation and Deployment
+
+1. [Install on Windows with Docker](../INSTALL-WINDOWS.md) -- The short, step-by-step version
+2. [Docker on Windows (full guide)](./deployment/docker-windows.md) -- Every option, diagnostics, and production notes
+3. [Redeploy from a ZIP](./deployment/redeploy-from-zip.md) -- Update an install without Git
+4. [Offline Laptop Setup](./getting-started/offline-laptop-setup.md) -- Demo laptop with no internet
+5. [API Keys](./deployment/api-keys.md) -- Keys for the ingest API
+6. [Hardened Environment (EDR/XDR)](./deployment/hardened-environment.md) -- Running alongside Defender, Carbon Black, CrowdStrike
+7. [SOC Change-Record Template](./deployment/soc-change-record-template.md) -- Fill-in one-pager for blue-team sign-off
+
+The deployment files themselves (Dockerfile, compose files, scripts, Windows installer) are in [`deploy/`](../deploy/README.md).
+
+## Architecture
+
+1. [Solution Architecture](./architecture/solution-architecture.md) -- Network placement, components, data flows, HA/DR, air-gap
+2. [Service Architecture (ITIL 4)](./architecture/service-architecture-itil.md) -- Service catalogue, value chain, SLAs, incident/change/problem
+3. [Architecture Definition Document (TOGAF ADM)](./architecture/togaf-architecture.md) -- Principles, target architectures, gap analysis, roadmap
+
+## API
+
+1. [API Overview](./api-reference/overview.md) -- Authentication, conventions, and endpoints
 
 ## User Guide
 
@@ -60,3 +84,7 @@
 1. [NCA ECC](./compliance/nca-ecc.md) -- NCA Essential Cybersecurity Controls mapping
 2. [SAMA CSF](./compliance/sama-csf.md) -- SAMA Cyber Security Framework mapping
 3. [PDPL](./compliance/pdpl.md) -- Personal Data Protection Law compliance
+
+## Test Reports
+
+UAT runs, screenshots, and the defect register are kept with the tests in [`tests/uat/reports/`](../tests/uat/reports/).

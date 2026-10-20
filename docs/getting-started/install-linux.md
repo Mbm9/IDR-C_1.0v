@@ -48,8 +48,8 @@ cd IDR-C
 ## Step 3: Run the Setup Script
 
 ```bash
-chmod +x scripts/setup.sh
-./scripts/setup.sh
+chmod +x deploy/scripts/setup.sh
+./deploy/scripts/setup.sh
 ```
 
 The script performs these steps automatically:

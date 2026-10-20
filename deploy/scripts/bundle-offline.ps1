@@ -7,8 +7,8 @@ Run this on a Windows machine WITH internet to create a complete offline package
 The output is a folder that can be copied to USB / transferred to an air-gapped machine.
 
 .EXAMPLE
-.\scripts\bundle-offline.ps1
-.\scripts\bundle-offline.ps1 -Model "qwen2.5:7b"
+.\deploy\scripts\bundle-offline.ps1
+.\deploy\scripts\bundle-offline.ps1 -Model "qwen2.5:7b"
 #>
 
 param (
@@ -67,7 +67,7 @@ Write-Success "Model ${Model} pulled"
 # ---------------------------------------------------------------------------
 Write-Info "Step 3/5: Building Identity Radar Docker image..."
 Set-Location $ProjectDir
-docker build -f docker/Dockerfile -t identity-radar:latest . | Out-Null
+docker build -f deploy/docker/Dockerfile -t identity-radar:latest . | Out-Null
 Write-Success "Identity Radar image built"
 
 # ---------------------------------------------------------------------------

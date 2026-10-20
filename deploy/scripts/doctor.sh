@@ -7,9 +7,9 @@
 # Designed for Docker Desktop on Windows (Git Bash or WSL), works on Linux/macOS.
 #
 # Usage:
-#   ./scripts/doctor.sh                  # full check
-#   ./scripts/doctor.sh --logs 200       # scan more log lines per container
-#   ./scripts/doctor.sh --report out.txt # also save the output to a file
+#   ./deploy/scripts/doctor.sh                  # full check
+#   ./deploy/scripts/doctor.sh --logs 200       # scan more log lines per container
+#   ./deploy/scripts/doctor.sh --report out.txt # also save the output to a file
 #
 # Exit code: 0 = no errors (warnings allowed), 1 = at least one error.
 # =============================================================================
@@ -19,7 +19,7 @@ export MSYS_NO_PATHCONV=1
 export MSYS2_ARG_CONV_EXCL='*'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_DIR"
 
 LOG_LINES=100
@@ -186,17 +186,17 @@ fi
 # -----------------------------------------------------------------------------
 section "3. Project files"
 # -----------------------------------------------------------------------------
-for f in docker-compose.yml docker/Dockerfile docker/init-db.sh docker/Caddyfile docker/scheduler.mjs docker/backup-loop.sh package-lock.json; do
+for f in docker-compose.yml deploy/docker/Dockerfile deploy/docker/init-db.sh deploy/docker/Caddyfile deploy/docker/scheduler.mjs deploy/docker/backup-loop.sh package-lock.json; do
   [[ -f "$f" ]] && ok "$f present" || err "$f missing" "re-clone the repository"
 done
 
 crlf_files=()
-for f in docker/*.sh scripts/*.sh docker/Caddyfile .env; do
+for f in deploy/docker/*.sh deploy/scripts/*.sh deploy/docker/Caddyfile .env; do
   [[ -f "$f" ]] && grep -q $'\r' "$f" && crlf_files+=("$f")
 done
 if (( ${#crlf_files[@]} > 0 )); then
   err "Windows (CRLF) line endings in: ${crlf_files[*]} — containers will fail with '\\r: not found'" \
-      "quick fix: sed -i 's/\\\\r\$//' scripts/*.sh docker/*.sh docker/Caddyfile   permanent: git config core.autocrlf input, commit or stash your changes, then git rm -r --cached -q . && git reset --hard (discards uncommitted edits)"
+      "quick fix: sed -i 's/\\\\r\$//' deploy/scripts/*.sh deploy/docker/*.sh deploy/docker/Caddyfile   permanent: git config core.autocrlf input, commit or stash your changes, then git rm -r --cached -q . && git reset --hard (discards uncommitted edits)"
 else
   ok "Shell scripts use LF line endings"
 fi
@@ -206,7 +206,7 @@ if [[ "$(git config --get core.autocrlf 2>/dev/null)" == "true" && ! -f .gitattr
 fi
 
 if [[ ! -f .env ]]; then
-  warn ".env not found — compose falls back to insecure defaults" "run ./scripts/docker-up.sh (creates .env with generated secrets)"
+  warn ".env not found — compose falls back to insecure defaults" "run ./deploy/scripts/docker-up.sh (creates .env with generated secrets)"
 else
   ok ".env present"
   for key in NEXTAUTH_SECRET POSTGRES_PASSWORD; do
@@ -276,11 +276,11 @@ if $DOCKER_OK; then
       if [[ "$c" == "idr-caddy" ]]; then
         note "$c not created (optional HTTPS proxy; skipped with --no-caddy)"
       elif [[ "$c" == "idr-scheduler" ]]; then
-        warn "$c does not exist: scans will not run on schedule" "update to the latest code and run ./scripts/docker-up.sh"
+        warn "$c does not exist: scans will not run on schedule" "update to the latest code and run ./deploy/scripts/docker-up.sh"
       elif [[ "$c" == "idr-backup" ]]; then
-        warn "$c does not exist: no automatic daily backups" "update to the latest code and run ./scripts/docker-up.sh"
+        warn "$c does not exist: no automatic daily backups" "update to the latest code and run ./deploy/scripts/docker-up.sh"
       else
-        err "$c does not exist" "run ./scripts/docker-up.sh"
+        err "$c does not exist" "run ./deploy/scripts/docker-up.sh"
       fi
       continue
     fi
@@ -402,8 +402,8 @@ fi
 
 # Backups: newest file in ./backups
 if $DOCKER_OK && [[ "$(docker inspect -f '{{.State.Running}}' idr-backup 2>/dev/null)" == "true" ]]; then
-  # docker-up.sh writes to ./backups; deploy.sh (production compose) to docker/backups
-  newest="$(ls -1t backups/identity-radar-*.sql.gz docker/backups/identity-radar-*.sql.gz 2>/dev/null | head -n1)"
+  # docker-up.sh writes to ./backups; deploy.sh (production compose) to deploy/docker/backups
+  newest="$(ls -1t backups/identity-radar-*.sql.gz deploy/docker/backups/identity-radar-*.sql.gz 2>/dev/null | head -n1)"
   if [[ -n "$newest" ]]; then ok "Latest backup: $newest"
   else note "Backup container running; first backup not written yet (docker logs idr-backup)"; fi
 fi

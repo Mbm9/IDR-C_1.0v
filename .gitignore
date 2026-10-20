@@ -46,6 +46,6 @@ node_modules.nosync/
 /test-results/
 /playwright-report/
 
-# Database backups (scripts/backup.sh, backup container)
+# Database backups (deploy/scripts/backup.sh, backup container)
 backups/
-docker/backups/
+deploy/docker/backups/

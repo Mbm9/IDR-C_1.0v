@@ -3,7 +3,7 @@
  * the same classification seed/index.ts now generates — for the organization of
  * SEED_ADMIN_EMAIL (default admin@acmefs.sa). Safe to run more than once.
  *
- *   npx dotenv -e .env.local -- npx tsx scripts/apply-top-tier-demo.ts
+ *   npx dotenv -e .env.local -- npx tsx tools/apply-top-tier-demo.ts
  *
  * What it changes:
  *   - adds 'tier_top' to the ad_tier enum if missing (outside any transaction)

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Summarise docs/uat/data/crawl-results.json (and rbac-probe.json if present)
- * into docs/uat/data/crawl-summary.md: one row per route with the worst value
+ * Summarise tests/uat/reports/data/crawl-results.json (and rbac-probe.json if present)
+ * into tests/uat/reports/data/crawl-summary.md: one row per route with the worst value
  * seen across locale/theme/width variants.
  */
 import fs from 'node:fs'
 import path from 'node:path'
 
-const DIR = path.join(process.env.UAT_OUT || 'docs/uat', 'data')
+const DIR = path.join(process.env.UAT_OUT || 'tests/uat/reports', 'data')
 const results = JSON.parse(fs.readFileSync(path.join(DIR, 'crawl-results.json'), 'utf8'))
 
 const byRoute = new Map()

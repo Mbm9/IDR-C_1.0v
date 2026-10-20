@@ -11,7 +11,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
-const OUT = path.join(process.env.UAT_OUT || 'docs/uat', 'data')
+const OUT = path.join(process.env.UAT_OUT || 'tests/uat/reports', 'data')
 const ids = JSON.parse(process.env.UAT_DETAIL_IDS || '{}')
 const ROUTES = [
   '/dashboard/identities', '/dashboard/tiering', '/dashboard/entitlements', '/dashboard/exposures',

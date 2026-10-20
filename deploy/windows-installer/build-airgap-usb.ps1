@@ -57,7 +57,7 @@ if ($idrImage) {
 }
 else {
     Write-Host "  WARNING: identity-radar image not found locally." -ForegroundColor Yellow
-    Write-Host "  Build it first with: docker build -t identity-radar:latest -f docker/Dockerfile ." -ForegroundColor Yellow
+    Write-Host "  Build it first with: docker build -t identity-radar:latest -f deploy/docker/Dockerfile ." -ForegroundColor Yellow
 
     # Try the ghcr.io image
     $ghcrImage = "ghcr.io/ashs21/identity-radar:latest"

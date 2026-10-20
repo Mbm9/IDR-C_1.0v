@@ -45,14 +45,14 @@ cp ~/idr-env-backup .env
 ## 4. Build from scratch and start
 
 ```bash
-./scripts/docker-up.sh --no-cache
+./deploy/scripts/docker-up.sh --no-cache
 ```
 
 `--no-cache` rebuilds every image, so nothing from the old build is reused.
 Wait for the "healthy" message at the end.
 
 To start without the Acme demo data (an empty database where the first account
-created at `/signup` becomes the admin), use `./scripts/docker-up.sh --no-cache --no-demo`
+created at `/signup` becomes the admin), use `./deploy/scripts/docker-up.sh --no-cache --no-demo`
 instead. This only matters for an empty database; existing data is never changed.
 
 ## 5. Optional: start over with a clean database
@@ -61,13 +61,13 @@ Only do this if you want to wipe all data, including users and imported identiti
 It also deletes the downloaded AI model, so the next start downloads it again.
 
 ```bash
-./scripts/docker-up.sh --reset
+./deploy/scripts/docker-up.sh --reset
 ```
 
 ## 6. Check the deployment
 
 ```bash
-./scripts/doctor.sh
+./deploy/scripts/doctor.sh
 ```
 
 Expected summary: **0 error(s), 0 warning(s)**. The doctor also reports:
@@ -105,14 +105,14 @@ kept your existing database, your existing password still works.
 use the production script on a Linux server (or WSL) with ports 80 and 443 open:
 
 ```bash
-./scripts/deploy.sh --domain radar.yourcompany.sa
+./deploy/scripts/deploy.sh --domain radar.yourcompany.sa
 ```
 
 It does the following:
 
 - Generates strong secrets on the first run (`.env.production`) and keeps them on later runs.
 - Loads no demo data. Open `https://radar.yourcompany.sa/signup`; the first account becomes the organization admin.
-- Starts the scheduler (background scans) and daily backups to `docker/backups/`.
+- Starts the scheduler (background scans) and daily backups to `deploy/docker/backups/`.
 - Gets an HTTPS certificate through Caddy (DNS for the domain must point at the server).
 
 Re-run the same command to update to newer code; data and secrets are kept.

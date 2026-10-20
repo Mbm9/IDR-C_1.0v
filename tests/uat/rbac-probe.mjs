@@ -16,7 +16,7 @@ import path from 'node:path'
 import crypto from 'node:crypto'
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
-const OUT = path.join(process.env.UAT_OUT || 'docs/uat', 'data')
+const OUT = path.join(process.env.UAT_OUT || 'tests/uat/reports', 'data')
 fs.mkdirSync(OUT, { recursive: true })
 
 const USERS = {

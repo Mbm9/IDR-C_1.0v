@@ -32,7 +32,7 @@ Validate that Identity Radar v1.0 is fit for CISO / IAM Engineer / Security Anal
 
 ### B1. Pre-conditions (do first)
 1. Fix or explicitly waive blockers A#1, A#2 (A#2 blocks ~13 UI actions; A#1 blocks every "scanner-populated" page: attack paths, exposures, threats, shadow admins, peer analysis, briefings).
-2. Bring up stack: `./scripts/docker-up.sh` (or `docker compose up -d && npm run dev`), `npm run db:seed`. Confirm `/api/health` = healthy, Ollama model loaded (AI pages degrade gracefully otherwise — record which).
+2. Bring up stack: `./deploy/scripts/docker-up.sh` (or `docker compose up -d && npm run dev`), `npm run db:seed`. Confirm `/api/health` = healthy, Ollama model loaded (AI pages degrade gracefully otherwise — record which).
 3. Create one user per role (viewer, analyst, iam_admin, ciso, admin) in the seeded org (via `settings/team` PUT or direct SQL) — needed for RBAC matrix. Note A#4: role changes require re-login.
 4. Align E2E fixture credentials with seed (`admin@acmefs.sa` / `SEED_ADMIN_PASSWORD`) so `npm run test:e2e` is usable as a smoke gate.
 5. Decide AR reviewer: a native Arabic reader must sign off on terminology/RTL.
@@ -74,7 +74,7 @@ Actions: acknowledge, trigger-review, certify, revoke, update-tier, approve-exce
 - Exit: 0 S1, ≤3 S2 with owners, all five persona journeys pass in EN and AR, E2E smoke green, audit log contains an entry for every mutation exercised.
 
 ### B8. Deliverables the Opus session must produce
-1. `docs/uat/uat-run-<date>.md` — matrix results per page × variant with screenshots (Playwright `page.screenshot`) under `docs/uat/screens/`.
+1. `tests/uat/reports/uat-run-<date>.md` — matrix results per page × variant with screenshots (Playwright `page.screenshot`) under `tests/uat/reports/screens/`.
 2. Defect register (CSV or table) with id, severity, page, role, locale/theme, steps, expected/actual, screenshot path, suspected file:line.
 3. UX recommendations ranked by impact/effort, each tied to a component path.
 4. Updated/added Playwright specs for the five persona journeys and the RBAC negative cases (login fixture aligned to seed; per-role storageState).
@@ -87,7 +87,7 @@ Actions: acknowledge, trigger-review, certify, revoke, update-tier, approve-exce
 4. Manually (via browser automation) execute the five B2 journeys; verify audit log and notifications after each mutation.
 5. Review the crawl output against B3/B4/B5 checklists; file defects; map each to code.
 6. Produce B8 deliverables; propose fixes grouped as "quick wins (<1h)", "sprint", "design decision".
-Suggested Opus prompt stub: "Execute Part B of docs/uat/uat-plan.md against /home/user/IDR-C_1.0v. Do not change product code except the E2E fixture credentials and new specs; record all findings in docs/uat/."
+Suggested Opus prompt stub: "Execute Part B of tests/uat/reports/uat-plan.md against /home/user/IDR-C_1.0v. Do not change product code except the E2E fixture credentials and new specs; record all findings in tests/uat/reports/."
 
 ### B10. How to run the automated parts
 

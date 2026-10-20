@@ -5,8 +5,8 @@ Windows 10/11 or Windows Server with Docker Desktop. It uses two scripts:
 
 | Script | Purpose |
 |--------|---------|
-| `scripts/docker-up.sh` | Pre-flight checks, creates `.env`, builds images, starts the stack, waits until healthy |
-| `scripts/doctor.sh` | Read-only diagnosis: prints every problem it finds with a suggested fix |
+| `deploy/scripts/docker-up.sh` | Pre-flight checks, creates `.env`, builds images, starts the stack, waits until healthy |
+| `deploy/scripts/doctor.sh` | Read-only diagnosis: prints every problem it finds with a suggested fix |
 
 The stack (`docker-compose.yml`):
 
@@ -85,7 +85,7 @@ cd IDR-C
 > the scripts once, then run it normally:
 >
 > ```bash
-> sed -i 's/\r$//' scripts/*.sh docker/*.sh docker/Caddyfile
+> sed -i 's/\r$//' deploy/scripts/*.sh deploy/docker/*.sh deploy/docker/Caddyfile
 > ```
 >
 > To fix the checkout for good, commit or stash your changes first, then run
@@ -99,7 +99,7 @@ cd IDR-C
 Run this from Git Bash or WSL, in the project folder:
 
 ```bash
-./scripts/docker-up.sh
+./deploy/scripts/docker-up.sh
 ```
 
 What it does:
@@ -139,9 +139,9 @@ There is no model download: the host's Ollama already has it.
 The scripts are Bash. From PowerShell, run them through Git Bash or WSL:
 
 ```powershell
-& "C:\Program Files\Git\bin\bash.exe" ./scripts/docker-up.sh
+& "C:\Program Files\Git\bin\bash.exe" ./deploy/scripts/docker-up.sh
 # or
-wsl ./scripts/docker-up.sh
+wsl ./deploy/scripts/docker-up.sh
 ```
 
 ---
@@ -155,16 +155,16 @@ wsl ./scripts/docker-up.sh
 | Password | the `SEED_ADMIN_PASSWORD` value in `.env` (printed at the end of `docker-up.sh`) |
 
 The password only takes effect on the **first** seed. If the database already
-had data, the existing password stays. Run `./scripts/docker-up.sh --reset` to re-seed.
+had data, the existing password stays. Run `./deploy/scripts/docker-up.sh --reset` to re-seed.
 
 ---
 
 ## 5. Diagnose problems
 
 ```bash
-./scripts/doctor.sh                  # full check
-./scripts/doctor.sh --logs 300       # scan more log lines per container
-./scripts/doctor.sh --report doctor.txt   # also save the output (attach it to support tickets)
+./deploy/scripts/doctor.sh                  # full check
+./deploy/scripts/doctor.sh --logs 300       # scan more log lines per container
+./deploy/scripts/doctor.sh --report doctor.txt   # also save the output (attach it to support tickets)
 ```
 
 It checks:
@@ -184,8 +184,8 @@ The exit code is `0` when there are no errors (warnings are allowed) and `1` oth
 |----------------|-------|-----|
 | `Docker daemon not reachable` | Docker Desktop isn't running, or WSL integration is off | Start Docker Desktop. In WSL, enable Settings → Resources → WSL integration |
 | `Docker is in 'windows' container mode` | Windows containers selected | Tray icon → *Switch to Linux containers…* |
-| `Windows (CRLF) line endings` / logs show `\r: not found` | Git converted line endings | `sed -i 's/\r$//' scripts/*.sh docker/*.sh docker/Caddyfile`, then see section 2 for the permanent fix |
-| `required variable NEXTAUTH_SECRET is missing a value` | `.env` predates the generated secrets | Run `./scripts/docker-up.sh`, which adds the missing secrets, or add `NEXTAUTH_SECRET=$(openssl rand -hex 32)` to `.env` |
+| `Windows (CRLF) line endings` / logs show `\r: not found` | Git converted line endings | `sed -i 's/\r$//' deploy/scripts/*.sh deploy/docker/*.sh deploy/docker/Caddyfile`, then see section 2 for the permanent fix |
+| `required variable NEXTAUTH_SECRET is missing a value` | `.env` predates the generated secrets | Run `./deploy/scripts/docker-up.sh`, which adds the missing secrets, or add `NEXTAUTH_SECRET=$(openssl rand -hex 32)` to `.env` |
 | `Port 5432 is already used` | A local PostgreSQL service is running | Stop it (`services.msc` → postgresql) or change the port mapping in `docker-compose.yml` (e.g. `"5433:5432"`) |
 | `Port 80/443 is already used` | IIS / World Wide Web Publishing Service, or another proxy | Use `--no-caddy`, or stop the service: `net stop w3svc` (admin) |
 | `Port 3000 is already used` | Another dev server | Find it with `netstat -ano \| findstr :3000` and end that PID in Task Manager |
@@ -208,8 +208,8 @@ docker compose logs -f app            # follow app logs
 docker compose restart app            # restart one service
 docker compose down                   # stop (data is kept in volumes)
 docker compose down -v                # stop and DELETE all data
-git pull && ./scripts/docker-up.sh    # update to the latest code and rebuild
-./scripts/backup.sh                   # extra on-demand backup (daily backups are automatic)
+git pull && ./deploy/scripts/docker-up.sh    # update to the latest code and rebuild
+./deploy/scripts/backup.sh                   # extra on-demand backup (daily backups are automatic)
 docker logs idr-scheduler             # scheduled scan results
 ls backups/                           # automatic daily backups
 ```
@@ -222,9 +222,9 @@ ls backups/                           # automatic daily backups
   `NEXT_PUBLIC_APP_URL=https://radar.example.com` in `.env`. Point DNS at the host and open
   ports 80/443. Caddy then gets a Let's Encrypt certificate automatically.
 - Keep `.env` secret and backed up. If you lose `CREDENTIALS_KEY`, the stored connector credentials can't be decrypted.
-- For a production server, use `./scripts/deploy.sh --domain radar.example.com` instead of `docker-up.sh`.
+- For a production server, use `./deploy/scripts/deploy.sh --domain radar.example.com` instead of `docker-up.sh`.
   It loads no demo data, generates every secret on the first run and keeps them on later runs, and starts
-  the scheduler and daily backups (`docker/backups/`).
+  the scheduler and daily backups (`deploy/docker/backups/`).
 - Scan times use UTC; set `SCHEDULE_TZ=Asia/Riyadh` (or another time zone) in the env file to change that.
   Backups run at `BACKUP_HOUR` (UTC, default 2) and keep `BACKUP_KEEP` files (default 14).
 - For hardened or air-gapped installs see [hardened-environment.md](./hardened-environment.md)

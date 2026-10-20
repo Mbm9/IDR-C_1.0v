@@ -78,7 +78,7 @@ DENY   <idr-host>  ->  internet       any       (air-gapped: no outbound)
 
 - **Prefer LDAPS (636)**. Plain 389 sends the bind and query in cleartext and will itself be
   flagged by network controls; LDAPS both protects credentials and reduces noise.
-- The database and Ollama stay on the internal Docker network (`docker/docker-compose.prod.yml`
+- The database and Ollama stay on the internal Docker network (`deploy/docker/docker-compose.prod.yml`
   `networks: internal`) — no host exposure.
 - Give the SOC the **exact source IP** so LDAP-recon alerts can be attributed to the tool, not an attacker.
 
@@ -130,7 +130,7 @@ DENY   <idr-host>  ->  internet       any       (air-gapped: no outbound)
 
 ### Generic (any host AV/EDR on the Docker host)
 - Allow the container images by hash; keep the container running as the non-root `nextjs:nodejs`
-  user (already the default in [`docker/Dockerfile`](../../docker/Dockerfile)).
+  user (already the default in [`deploy/docker/Dockerfile`](../../docker/Dockerfile)).
 - Exclude only the specific container image/paths needed for performance — never the whole engine.
 
 ---
@@ -174,7 +174,7 @@ openssl rand -hex 32      # -> CREDENTIALS_KEY   (MUST be 64 hex chars = 32 byte
 nano .env                 # set POSTGRES_PASSWORD, DOMAIN, URLs, the 3 secrets above
 
 # 3. Build & start (db + app + caddy):
-docker compose -f docker/docker-compose.prod.yml up -d --build
+docker compose -f deploy/docker/docker-compose.prod.yml up -d --build
 
 # 4. Create the schema (compose does not migrate automatically):
 docker exec idr-app npx drizzle-kit push
@@ -185,7 +185,7 @@ docker exec idr-app sh -c 'cat drizzle/0001_create_views.sql | PGPASSWORD=$POSTG
 ```
 
 > **Air-gapped host?** Build the image in a connected staging enclave, then transfer it with
-> `scripts/bundle-offline.sh`. The IDR host itself needs no internet.
+> `deploy/scripts/bundle-offline.sh`. The IDR host itself needs no internet.
 
 ---
 

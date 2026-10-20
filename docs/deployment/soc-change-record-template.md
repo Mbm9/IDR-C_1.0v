@@ -22,7 +22,7 @@
 | Change ticket # | `<CHG-…>` |
 | Requested go-live | `<date>` |
 | Classification | Internal security tooling — read-only directory collection |
-| Rollback | `docker compose -f docker/docker-compose.prod.yml stop app` (stops all scanning immediately) |
+| Rollback | `docker compose -f deploy/docker/docker-compose.prod.yml stop app` (stops all scanning immediately) |
 
 ## 2. Source system (the Identity Radar host)
 

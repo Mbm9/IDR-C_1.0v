@@ -3,8 +3,8 @@
 # Identity Radar — Database Restore Script
 #
 # Usage:
-#   ./scripts/restore.sh backups/identity-radar-20260328-020000.sql.gz
-#   ./scripts/restore.sh --force backups/identity-radar-20260328-020000.sql.gz
+#   ./deploy/scripts/restore.sh backups/identity-radar-20260328-020000.sql.gz
+#   ./deploy/scripts/restore.sh --force backups/identity-radar-20260328-020000.sql.gz
 # =============================================================================
 set -euo pipefail
 
@@ -17,8 +17,8 @@ DB_NAME="identity_radar"
 DB_USER="postgres"
 FORCE=false
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
-COMPOSE_FILE="docker/docker-compose.prod.yml"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+COMPOSE_FILE="deploy/docker/docker-compose.prod.yml"
 ENV_FILE=".env.production"
 
 # ---------------------------------------------------------------------------
@@ -44,7 +44,7 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --force|-f) FORCE=true; shift ;;
     --help|-h)
-      echo "Usage: ./scripts/restore.sh [OPTIONS] <backup-file>"
+      echo "Usage: ./deploy/scripts/restore.sh [OPTIONS] <backup-file>"
       echo ""
       echo "Arguments:"
       echo "  <backup-file>  Path to .sql.gz backup file"
@@ -64,7 +64,7 @@ cd "$PROJECT_DIR"
 # ---------------------------------------------------------------------------
 # Validate
 # ---------------------------------------------------------------------------
-[ -z "$BACKUP_FILE" ] && fail "Usage: ./scripts/restore.sh <backup-file>"
+[ -z "$BACKUP_FILE" ] && fail "Usage: ./deploy/scripts/restore.sh <backup-file>"
 [ -f "$BACKUP_FILE" ] || fail "Backup file not found: ${BACKUP_FILE}"
 
 # Check it's a gzip file

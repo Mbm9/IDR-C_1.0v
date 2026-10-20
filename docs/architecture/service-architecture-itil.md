@@ -375,8 +375,8 @@ the last assessment remains available and is clearly timestamped.
 | Objective | Target | Mechanism |
 |---|---|---|
 | **RPO** | ≤ 15 min | WAL archiving / PITR |
-| **RTO** | ≤ 1 h (single node) · ≤ 15 min (HA) | `scripts/restore.sh` / standby promotion |
-| Backup | Nightly, rotated, encrypted, off-host | `scripts/backup.sh` |
+| **RTO** | ≤ 1 h (single node) · ≤ 15 min (HA) | `deploy/scripts/restore.sh` / standby promotion |
+| Backup | Nightly, rotated, encrypted, off-host | `deploy/scripts/backup.sh` |
 | Backup verification | Weekly restore test | Ops checklist (OLA-04) |
 | Regional DR | Standby in second data centre | Replication + failover runbook |
 | Rebuild from scratch | ≤ 4 h | Signed image + config-as-code + last backup |
@@ -463,7 +463,7 @@ graph LR
 | Deployment method | `docker compose up -d` (reference) or rolling `Deployment` on Kubernetes |
 | Schema migrations | Drizzle; backward-compatible first, applied before the app rollout |
 | Rollback | Redeploy previous signed image; DB restore only if a migration is irreversible |
-| Air-gapped path | `scripts/bundle-offline.sh` → USB/diode → `install.sh`; **no runtime registry access** |
+| Air-gapped path | `deploy/scripts/bundle-offline.sh` → USB/diode → `install.sh`; **no runtime registry access** |
 | Environments | dev → staging enclave (build/sign) → pre-production → production |
 | Production data rule | **Never seed demo data in production** (it would mix synthetic identities with real AD data) |
 
@@ -698,7 +698,7 @@ administer them from a PAW, and hold them to the organisation's PAM standard.
 | ID | Improvement | Driver | Priority | Owner |
 |---|---|---|---|---|
 | **CSI-01** | Build logon-telemetry/EDR session collector + ADCS/SYSVOL collectors | Removes the two preview gaps; makes Tier 0 Live real | High | Engineering |
-| **CSI-02** | ~~Ship scheduler templates~~ Done: `scheduler` container (`docker/scheduler.mjs`) runs all 16 `/api/cron/*` jobs | Resolved | — | Engineering |
+| **CSI-02** | ~~Ship scheduler templates~~ Done: `scheduler` container (`deploy/docker/scheduler.mjs`) runs all 16 `/api/cron/*` jobs | Resolved | — | Engineering |
 | **CSI-03** | Write operational runbooks (restore, failover, cert renewal, scan failure, secret rotation) | Reduces MTTR; L1/L2 enablement | High | Platform ops |
 | **CSI-04** | Establish the KEDB from §6.3 in the ticketing tool | Faster L1 resolution | Medium | Service desk |
 | **CSI-05** | Build and load-test the HA reference topology | Availability targets currently unproven | Medium | Platform ops |

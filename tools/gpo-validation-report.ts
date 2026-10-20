@@ -2,7 +2,7 @@
  * Print the GPO-to-account validation and policy compliance report as JSON
  * for the organization of SEED_ADMIN_EMAIL (default admin@acmefs.sa).
  *
- *   npx dotenv -e .env.local -- npx tsx scripts/gpo-validation-report.ts > report.json
+ *   npx dotenv -e .env.local -- npx tsx tools/gpo-validation-report.ts > report.json
  *
  * Same logic as GET /api/reports/gpo-validation (lib/reports/gpo-validation.ts).
  */

@@ -70,7 +70,7 @@ graph LR
   classDef ext fill:#0000,stroke-dasharray:4
 ```
 
-- Services from `docker/docker-compose.prod.yml`: **db**, **app**, **caddy** (Ollama added when local AI is enabled). Only Caddy exposes ports (80/443); DB and Ollama stay on the internal Docker bridge.
+- Services from `deploy/docker/docker-compose.prod.yml`: **db**, **app**, **caddy** (Ollama added when local AI is enabled). Only Caddy exposes ports (80/443); DB and Ollama stay on the internal Docker bridge.
 - App is `output: standalone`, runs as non-root, with CPU/memory limits set per service.
 - Secrets via env: `NEXTAUTH_SECRET`, `CREDENTIALS_KEY` (encrypts connector creds), `CRON_SECRET` (scanners fail-closed without it).
 
@@ -214,7 +214,7 @@ graph LR
 ## 9. Deployment topologies
 
 ### 9.1 Single node (MVP / branch office)
-One hardened Linux host, `docker compose -f docker/docker-compose.prod.yml up -d`. Suitable up to ~50k identities. Simplest to air-gap and audit.
+One hardened Linux host, `docker compose -f deploy/docker/docker-compose.prod.yml up -d`. Suitable up to ~50k identities. Simplest to air-gap and audit.
 
 ### 9.2 High availability (enterprise)
 ```mermaid
@@ -232,7 +232,7 @@ graph TB
 - App scaled horizontally behind an LB (stateless — sessions are JWT); PostgreSQL primary/standby with streaming replication + PITR backups; Ollama on a GPU node; scanners as Kubernetes CronJobs. Kubernetes variant: app `Deployment`, Postgres managed/StatefulSet, scanners `CronJob`, secrets in the cluster secret store / Vault.
 
 ### 9.3 Air-gapped install
-Build & sign the image in a connected staging enclave → `scripts/bundle-offline.sh` → transfer via USB/diode → `install.sh` on the isolated host. No registry pull at runtime.
+Build & sign the image in a connected staging enclave → `deploy/scripts/bundle-offline.sh` → transfer via USB/diode → `install.sh` on the isolated host. No registry pull at runtime.
 
 ---
 
@@ -242,8 +242,8 @@ Build & sign the image in a connected staging enclave → `scripts/bundle-offlin
 |---|---|
 | **App availability** | Stateless app; N replicas behind LB; rolling deploys. |
 | **DB availability** | Primary/standby streaming replication; automatic failover (Patroni/managed). |
-| **Backup** | `scripts/backup.sh` (nightly, rotated, encrypted, off-host); PITR via WAL archiving. |
-| **Restore/DR** | `scripts/restore.sh`; documented RTO/RPO; standby in a second data centre for regional DR. |
+| **Backup** | `deploy/scripts/backup.sh` (nightly, rotated, encrypted, off-host); PITR via WAL archiving. |
+| **Restore/DR** | `deploy/scripts/restore.sh`; documented RTO/RPO; standby in a second data centre for regional DR. |
 | **Config as code** | Compose/Helm + `.env.production.example` under change control; no snowflake hosts. |
 
 ---

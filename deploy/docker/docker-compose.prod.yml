@@ -4,7 +4,7 @@
 #           app (Next.js), scheduler (/api/cron/* scans), backup (daily pg_dump),
 #           caddy (reverse proxy + HTTPS)
 #
-# Used by scripts/deploy.sh (from the repository) and by the offline bundle's
+# Used by deploy/scripts/deploy.sh (from the repository) and by the offline bundle's
 # install.sh (images pre-loaded as identity-radar:latest / identity-radar-init:latest).
 # =============================================================================
 
@@ -45,8 +45,8 @@ services:
   init:
     image: identity-radar-init:latest
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
       target: init
     container_name: idr-init
     depends_on:
@@ -69,8 +69,8 @@ services:
   app:
     image: identity-radar:latest
     build:
-      context: ..
-      dockerfile: docker/Dockerfile
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
       target: runner
     container_name: idr-app
     restart: unless-stopped

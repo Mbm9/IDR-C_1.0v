@@ -101,7 +101,7 @@ Order (most privileged first): `tier_0` > `tier_top` > `tier_1` > `tier_2` > `un
 
 ## Cron Jobs (16)
 
-Run by the `scheduler` container (`docker/scheduler.mjs`, app image) in both compose files: it calls `/api/cron/*` with `CRON_SECRET`; times in `SCHEDULE_TZ` (default UTC). A unit test checks every cron route is scheduled.
+Run by the `scheduler` container (`deploy/docker/scheduler.mjs`, app image) in both compose files: it calls `/api/cron/*` with `CRON_SECRET`; times in `SCHEDULE_TZ` (default UTC). A unit test checks every cron route is scheduled.
 
 
 risk-scorer (6h), tier-scanner (6h), dormancy-detector (daily), cert-expiry (daily), nhi-orphan (daily), sync-health (15min), attack-path-scanner (6h), threat-detector (5min), event-cleanup (daily), shadow-admin-scanner (daily), peer-anomaly-detector (daily), supply-chain-risk (weekly), data-steward (daily), automation-engine, daily-briefing, ad-exposure-scanner (6h — static AD posture/exposure assessment via `lib/itdr/posture-checks.ts`)
@@ -172,19 +172,19 @@ DOMAIN=localhost
 | `npm run build` | Production build |
 | `npm run db:push` | Push Drizzle schema to PostgreSQL |
 | `npm run db:seed` | Seed sample data (200 identities, groups, violations) |
-| `scripts/setup.sh` | First-time local setup |
-| `scripts/docker-up.sh` | Build + start full Docker stack, wait until healthy (Windows Git Bash/WSL friendly); `--no-demo` for an empty database |
-| `scripts/doctor.sh` | Read-only diagnosis of the Docker deployment with suggested fixes |
-| `scripts/deploy.sh` | One-command production deployment |
-| `scripts/backup.sh` | On-demand database backup with rotation (the `backup` container also writes one daily) |
-| `scripts/restore.sh` | Database restore from backup |
-| `scripts/bundle-offline.sh` | Create offline deployment package |
+| `deploy/scripts/setup.sh` | First-time local setup |
+| `deploy/scripts/docker-up.sh` | Build + start full Docker stack, wait until healthy (Windows Git Bash/WSL friendly); `--no-demo` for an empty database |
+| `deploy/scripts/doctor.sh` | Read-only diagnosis of the Docker deployment with suggested fixes |
+| `deploy/scripts/deploy.sh` | One-command production deployment |
+| `deploy/scripts/backup.sh` | On-demand database backup with rotation (the `backup` container also writes one daily) |
+| `deploy/scripts/restore.sh` | Database restore from backup |
+| `deploy/scripts/bundle-offline.sh` | Create offline deployment package |
 
 ## Deployment
 
 **Local dev**: `docker compose up -d && npm run dev`
-**Production**: `./scripts/deploy.sh --domain radar.example.com` (no demo data; secrets kept across re-runs; scheduler + daily backups)
-**Offline**: `./scripts/bundle-offline.sh` → copy to USB → `./install.sh`
+**Production**: `./deploy/scripts/deploy.sh --domain radar.example.com` (no demo data; secrets kept across re-runs; scheduler + daily backups)
+**Offline**: `./deploy/scripts/bundle-offline.sh` → copy to USB → `./install.sh`
 
 ## Testing
 

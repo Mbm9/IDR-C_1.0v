@@ -4,8 +4,8 @@
 #
 # Deploys Identity Radar on any Linux VPS in under 10 minutes.
 # Usage:
-#   ./scripts/deploy.sh --domain idr.example.com
-#   ./scripts/deploy.sh --domain idr.example.com --seed --ai-provider anthropic --anthropic-key sk-...
+#   ./deploy/scripts/deploy.sh --domain idr.example.com
+#   ./deploy/scripts/deploy.sh --domain idr.example.com --seed --ai-provider anthropic --anthropic-key sk-...
 #
 # Requirements: Docker 20+, Docker Compose v2, ports 80/443 available, 4GB+ RAM
 # =============================================================================
@@ -20,10 +20,10 @@ ORG_NAME="My Organization"
 AI_PROVIDER="none"
 ANTHROPIC_KEY=""
 SEED=false
-COMPOSE_FILE="docker/docker-compose.prod.yml"
+COMPOSE_FILE="deploy/docker/docker-compose.prod.yml"
 ENV_FILE=".env.production"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # ---------------------------------------------------------------------------
 # Colors
@@ -53,7 +53,7 @@ while [[ $# -gt 0 ]]; do
     --anthropic-key) ANTHROPIC_KEY="$2"; shift 2 ;;
     --seed)          SEED=true; shift ;;
     --help|-h)
-      echo "Usage: ./scripts/deploy.sh [OPTIONS]"
+      echo "Usage: ./deploy/scripts/deploy.sh [OPTIONS]"
       echo ""
       echo "Options:"
       echo "  --domain <fqdn>        Domain for HTTPS (default: localhost)"
@@ -129,9 +129,9 @@ $OWN_CADDY && success "Ports 80/443 held by the existing idr-caddy (update in pl
 
 # Check required files exist
 [ -f "$COMPOSE_FILE" ] || fail "Missing: ${COMPOSE_FILE}. Are you in the project root?"
-[ -f "docker/Dockerfile" ] || fail "Missing: docker/Dockerfile"
-[ -f "docker/Caddyfile" ] || fail "Missing: docker/Caddyfile"
-[ -f "docker/backup-loop.sh" ] || fail "Missing: docker/backup-loop.sh"
+[ -f "deploy/docker/Dockerfile" ] || fail "Missing: deploy/docker/Dockerfile"
+[ -f "deploy/docker/Caddyfile" ] || fail "Missing: deploy/docker/Caddyfile"
+[ -f "deploy/docker/backup-loop.sh" ] || fail "Missing: deploy/docker/backup-loop.sh"
 [ -f ".env.example" ] || fail "Missing: .env.example"
 success "All required files present"
 
@@ -316,7 +316,7 @@ else
   success "No demo data loaded (production). Create the first account at ${APP_URL}/signup"
 fi
 docker ps --format '{{.Names}}' | grep -qx idr-scheduler && success "Scheduler running: scans start now and repeat on schedule" || warn "Scheduler is not running: docker logs idr-scheduler"
-docker ps --format '{{.Names}}' | grep -qx idr-backup && success "Daily backups to docker/backups/" || warn "Backup container is not running: docker logs idr-backup"
+docker ps --format '{{.Names}}' | grep -qx idr-backup && success "Daily backups to deploy/docker/backups/" || warn "Backup container is not running: docker logs idr-backup"
 
 # =============================================================================
 # Step 9: Done
@@ -339,7 +339,7 @@ if [ "$SEED" = true ]; then
 else
   info "First admin:      open ${APP_URL}/signup; the first account becomes the organization admin"
 fi
-info "Backups:          docker/backups/ (restore: ./scripts/restore.sh <file>)"
+info "Backups:          deploy/docker/backups/ (restore: ./deploy/scripts/restore.sh <file>)"
 info "Scan log:         docker logs idr-scheduler"
 echo ""
 info "Env file:         ${ENV_FILE}"
@@ -350,6 +350,6 @@ echo "  Status:   docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} ps"
 echo "  Logs:     docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} logs -f"
 echo "  Stop:     docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} down"
 echo "  Restart:  docker compose --env-file ${ENV_FILE} -f ${COMPOSE_FILE} restart"
-echo "  Backup:   automatic daily (docker/backups/); on demand: ./scripts/backup.sh"
+echo "  Backup:   automatic daily (deploy/docker/backups/); on demand: ./deploy/scripts/backup.sh"
 echo ""
 echo -e "${GREEN}Deployment complete.${NC}"

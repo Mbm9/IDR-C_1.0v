@@ -11,7 +11,7 @@
  *   BASE_URL            default http://localhost:3000
  *   SEED_ADMIN_PASSWORD password of admin@acmefs.sa
  *   UAT_PASSWORD        password of uat.<role>@acmefs.sa users
- *   UAT_OUT             output dir, default docs/uat
+ *   UAT_OUT             output dir, default tests/uat/reports
  *   UAT_DETAIL_IDS      JSON {identity, attackPath, gpo, threat} for detail routes
  *   UAT_FULL=1          also crawl every role (default: admin full matrix + viewer EN-light)
  *   PW_CHROMIUM         optional path to a Chromium binary
@@ -30,7 +30,7 @@ const require = createRequire(import.meta.url)
 const AXE_SOURCE = fs.readFileSync(require.resolve('axe-core/axe.min.js'), 'utf8')
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
-const OUT = process.env.UAT_OUT || 'docs/uat'
+const OUT = process.env.UAT_OUT || 'tests/uat/reports'
 const SCREENS = path.join(OUT, 'screens')
 const DATA = path.join(OUT, 'data')
 fs.mkdirSync(SCREENS, { recursive: true })

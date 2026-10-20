@@ -3,9 +3,9 @@
 # Identity Radar — Database Backup Script
 #
 # Usage:
-#   ./scripts/backup.sh                 # Backup with default settings
-#   ./scripts/backup.sh --keep 14       # Keep last 14 backups
-#   ./scripts/backup.sh --dir /mnt/bak  # Custom backup directory
+#   ./deploy/scripts/backup.sh                 # Backup with default settings
+#   ./deploy/scripts/backup.sh --keep 14       # Keep last 14 backups
+#   ./deploy/scripts/backup.sh --dir /mnt/bak  # Custom backup directory
 #
 # Crontab example (daily at 2am):
 #   0 2 * * * /opt/identity-radar/scripts/backup.sh >> /var/log/idr-backup.log 2>&1
@@ -22,7 +22,7 @@ DB_NAME="identity_radar"
 DB_USER="postgres"
 TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # ---------------------------------------------------------------------------
 # Colors
@@ -46,7 +46,7 @@ while [[ $# -gt 0 ]]; do
     --keep) KEEP="$2"; shift 2 ;;
     --dir)  BACKUP_DIR="$2"; shift 2 ;;
     --help|-h)
-      echo "Usage: ./scripts/backup.sh [OPTIONS]"
+      echo "Usage: ./deploy/scripts/backup.sh [OPTIONS]"
       echo ""
       echo "Options:"
       echo "  --keep <n>    Number of backups to retain (default: 7)"
@@ -121,4 +121,4 @@ echo ""
 success "Backup complete!"
 info "File: ${BACKUP_FILE}"
 info "Size: ${BACKUP_SIZE}"
-info "Restore with: ./scripts/restore.sh ${BACKUP_FILE}"
+info "Restore with: ./deploy/scripts/restore.sh ${BACKUP_FILE}"
