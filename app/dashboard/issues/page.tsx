@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { useLocale, useTranslations } from 'next-intl'
 import {
   ListChecks, X, Clipboard, Check, Clock, AlertTriangle,
@@ -11,6 +12,7 @@ import { formatRelativeTime } from '@/lib/utils/formatters'
 import { useAppRole } from '@/lib/hooks/use-app-role'
 import { useEnumLabel, humanizeEnum } from '@/components/ui/enum-label'
 import { TONE_TEXT, toneBadge, severityTone, type Tone } from '@/components/ui/tone'
+import { ViolationsPanel } from '@/components/dashboard/violations-panel'
 
 type Status = 'no_action' | 'in_progress' | 'done' | 'accepted_risk'
 type Severity = 'critical' | 'high' | 'medium' | 'low'
@@ -232,8 +234,17 @@ function DetailPanel({ fsid, onClose }: { fsid: string; onClose: () => void }) {
   )
 }
 
+// Two views of the same findings: rolled up by issue type, or each policy violation on its own.
+const VIEWS = ['types', 'violations'] as const
+type View = (typeof VIEWS)[number]
+
 export default function IssuesPage() {
   const t = useTranslations('issues')
+  const router = useRouter()
+  const pathname = usePathname() ?? '/dashboard/issues'
+  const viewParam = useSearchParams()?.get('view')
+  const view: View = viewParam === 'violations' ? 'violations' : 'types'
+  const setView = (v: View) => router.replace(v === 'types' ? pathname : `${pathname}?view=${v}`, { scroll: false })
   const tSeverity = useTranslations('severity')
   const locale = useLocale()
   const label = useEnumLabel()
@@ -254,6 +265,41 @@ export default function IssuesPage() {
         <p className="text-sm text-[var(--text-secondary)] mt-1 max-w-2xl">{t('subtitle')}</p>
       </div>
 
+      <div role="tablist" aria-label={t('viewsLabel')} className="flex gap-1 border-b border-[var(--border-default)]">
+        {VIEWS.map((v) => (
+          <button
+            key={v}
+            id={`issues-tab-${v}`}
+            type="button"
+            role="tab"
+            aria-selected={view === v}
+            aria-controls={`issues-panel-${v}`}
+            tabIndex={view === v ? 0 : -1}
+            onClick={() => setView(v)}
+            onKeyDown={(e) => {
+              if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return
+              e.preventDefault()
+              const next = VIEWS[(VIEWS.indexOf(v) + 1) % VIEWS.length]
+              setView(next)
+              document.getElementById(`issues-tab-${next}`)?.focus()
+            }}
+            className={`-mb-px px-3 py-2 text-sm font-medium border-b-2 transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-info)] ${
+              view === v
+                ? 'border-[var(--color-info)] text-[var(--text-primary)]'
+                : 'border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            {v === 'types' ? t('viewByType') : t('viewViolations')}
+          </button>
+        ))}
+      </div>
+
+      {view === 'violations' ? (
+        <div id="issues-panel-violations" role="tabpanel" aria-labelledby="issues-tab-violations">
+          <ViolationsPanel />
+        </div>
+      ) : (
+      <div id="issues-panel-types" role="tabpanel" aria-labelledby="issues-tab-types" className="space-y-5">
       {/* Filters */}
       <div className="flex flex-wrap gap-2">
         <div className="flex flex-wrap gap-2" role="group" aria-label={t('filterStatus')}>
@@ -334,6 +380,8 @@ export default function IssuesPage() {
       )}
 
       {open && <DetailPanel fsid={open} onClose={() => setOpen(null)} />}
+      </div>
+      )}
     </div>
   )
 }

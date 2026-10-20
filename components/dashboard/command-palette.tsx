@@ -33,7 +33,7 @@ export function CommandPalette() {
     { id: 'tiering', label: tNav('tiering'), category: 'page', href: '/dashboard/tiering', icon: Shield },
     { id: 'exposures', label: tNav('exposures'), category: 'page', href: '/dashboard/exposures', icon: ShieldAlert },
     { id: 'issues', label: tNav('issues'), category: 'page', href: '/dashboard/issues', icon: ListChecks },
-    { id: 'violations', label: tNav('violations'), category: 'page', href: '/dashboard/violations', icon: AlertTriangle },
+    { id: 'violations', label: tNav('violations'), category: 'page', href: '/dashboard/issues?view=violations', icon: AlertTriangle },
     { id: 'compliance', label: tNav('compliance'), category: 'page', href: '/dashboard/compliance', icon: Scale },
     { id: 'graph', label: tNav('graph'), category: 'page', href: '/dashboard/graph', icon: Network },
     { id: 'settings', label: tNav('settings'), category: 'page', href: '/dashboard/settings', icon: Settings },

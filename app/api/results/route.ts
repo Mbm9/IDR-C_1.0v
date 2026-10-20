@@ -117,7 +117,7 @@ export async function GET(req: NextRequest) {
               category: r.violationType || 'unknown',
               mitreTechnique: null,
               riskScore: null,
-              sourceUrl: `/dashboard/violations`,
+              sourceUrl: `/dashboard/issues?view=violations`,
               metadata: { policyName: r.policyName, violationType: r.violationType },
             })
           }

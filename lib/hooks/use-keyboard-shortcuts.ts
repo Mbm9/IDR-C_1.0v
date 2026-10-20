@@ -49,7 +49,7 @@ export function useKeyboardShortcuts() {
           d: '/dashboard',
           i: '/dashboard/identities',
           t: '/dashboard/tiering',
-          v: '/dashboard/violations',
+          v: '/dashboard/issues?view=violations',
           a: '/dashboard/ai',
           r: '/dashboard/reports',
           s: '/dashboard/settings',

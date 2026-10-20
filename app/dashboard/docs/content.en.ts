@@ -254,7 +254,7 @@ const guide: GuideSection[] = [
   {
     id: 'violations',
     title: 'Violations',
-    path: '/dashboard/violations',
+    path: '/dashboard/issues?view=violations',
     description:
       'The policy violations dashboard provides a real-time feed of all detected violations including tier breaches, SoD conflicts, excessive privileges, dormant access, orphaned identities, missing MFA, and expired certifications.',
     features: [
@@ -614,7 +614,7 @@ const compliance: ComplianceFramework[] = [
     rows: [
       { controlId: 'PDPL-5', controlName: 'Data Processing Records', feature: 'Audit Trail', link: '/dashboard/settings?tab=audit-trail' },
       { controlId: 'PDPL-14', controlName: 'Access Rights', feature: 'Entitlement Management', link: '/dashboard/entitlements' },
-      { controlId: 'PDPL-17', controlName: 'Security Measures', feature: 'Risk Scoring + Violations', link: '/dashboard/violations' },
+      { controlId: 'PDPL-17', controlName: 'Security Measures', feature: 'Risk Scoring + Violations', link: '/dashboard/issues?view=violations' },
       { controlId: 'PDPL-22', controlName: 'Data Breach Response', feature: 'Threat Detection', link: '/dashboard/threats' },
       { controlId: 'PDPL-24', controlName: 'Impact Assessment', feature: 'AI Analysis + Blast Radius', link: '/dashboard/ai' },
       { controlId: 'PDPL-29', controlName: 'Compliance Documentation', feature: 'Results Hub + Audit', link: '/dashboard/results' },

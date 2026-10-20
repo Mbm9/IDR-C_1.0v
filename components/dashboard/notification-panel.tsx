@@ -141,7 +141,7 @@ function NotificationActions({
               if (identityId) {
                 router.push(`/dashboard/identities/${identityId}`)
               } else {
-                router.push('/dashboard/violations')
+                router.push('/dashboard/issues?view=violations')
               }
               onActionComplete()
             }}

@@ -49,10 +49,17 @@ test.describe('Dashboard Overview', () => {
     await expect(page).toHaveURL(/\/dashboard\/identities/, { timeout: 10_000 })
   })
 
-  test('can navigate to violations page via sidebar', async ({ page }) => {
-    const violationsLink = page.getByRole('link', { name: /violation/i }).first()
-    await violationsLink.click()
-    await expect(page).toHaveURL(/\/dashboard\/violations/, { timeout: 10_000 })
+  test('can reach individual violations through Issues', async ({ page }) => {
+    // Violations are a view of the Issues page; the old URL redirects there.
+    await page.getByRole('navigation').first().getByRole('link', { name: /^issues$/i }).click()
+    await expect(page).toHaveURL(/\/dashboard\/issues/, { timeout: 10_000 })
+    await page.getByRole('tab', { name: /individual violations/i }).click()
+    await expect(page).toHaveURL(/view=violations/)
+    await expect(page.getByRole('tabpanel')).toBeVisible()
+
+    await page.goto('/dashboard/violations')
+    await page.waitForURL(/\/dashboard\/issues\?view=violations/)
+    await expect(page.getByRole('tab', { name: /individual violations/i })).toHaveAttribute('aria-selected', 'true')
   })
 
   test('can navigate to tiering page via sidebar', async ({ page }) => {

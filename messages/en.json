@@ -236,6 +236,9 @@
   "issues": {
     "title": "Issues",
     "subtitle": "Findings rolled up into managed issues — exposure points, exploitation profile, mitigation guidance, and a lifecycle timeline across scans.",
+    "viewsLabel": "Issue views",
+    "viewByType": "By issue type",
+    "viewViolations": "Individual violations",
     "all": "All",
     "status": "Status",
     "status_no_action": "No Action",

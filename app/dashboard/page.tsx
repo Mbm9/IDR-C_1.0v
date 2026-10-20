@@ -144,7 +144,7 @@ export default function DashboardOverview() {
       {/* Attention band — security posture at a glance, ordered by urgency */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         <StatTile label={t('attackPaths')} value={data.attackPathsCount} severity={data.attackPathsCount > 0 ? 'critical' : 'low'} href="/dashboard/attack-paths" hint={t('hintAttackPaths')} />
-        <StatTile label={t('activeViolations')} value={data.activeViolations} severity={data.activeViolations > 0 ? 'critical' : 'low'} href="/dashboard/violations" hint={t('hintOpenViolations')} />
+        <StatTile label={t('activeViolations')} value={data.activeViolations} severity={data.activeViolations > 0 ? 'critical' : 'low'} href="/dashboard/issues?view=violations" hint={t('hintOpenViolations')} />
         <StatTile label={t('adExposures')} value={data.exposuresCount} severity={data.exposuresCount > 0 ? 'high' : 'low'} href="/dashboard/exposures" hint={t('hintOpenFindings')} />
         <StatTile label={t('tierViolations')} value={data.tierViolations} severity={data.tierViolations > 0 ? 'high' : 'low'} href="/dashboard/tiering" hint={t('hintCrossTier')} />
         <StatTile label={t('criticalRisk')} value={criticalRisk} severity={criticalRisk > 0 ? 'critical' : 'low'} href="/dashboard/identities" hint={t('hintOfIdentities', { count: data.totalIdentities })} />

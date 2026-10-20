@@ -263,7 +263,7 @@ const guide: GuideSection[] = [
   {
     id: 'violations',
     title: 'المخالفات',
-    path: '/dashboard/violations',
+    path: '/dashboard/issues?view=violations',
     description:
       'توفر لوحة مخالفات السياسات موجزًا لحظيًا لجميع المخالفات المكتشفة، بما في ذلك تجاوز المستويات، وتعارضات فصل المهام، والصلاحيات المفرطة، والوصول الخامل، والهويات اليتيمة، وغياب المصادقة متعددة العوامل، والاعتمادات المنتهية.',
     features: [
@@ -623,7 +623,7 @@ const compliance: ComplianceFramework[] = [
     rows: [
       { controlId: 'PDPL-5', controlName: 'سجلات معالجة البيانات', feature: 'سجل التدقيق', link: '/dashboard/settings?tab=audit-trail' },
       { controlId: 'PDPL-14', controlName: 'حقوق الوصول', feature: 'إدارة الصلاحيات', link: '/dashboard/entitlements' },
-      { controlId: 'PDPL-17', controlName: 'التدابير الأمنية', feature: 'تقييم المخاطر + المخالفات', link: '/dashboard/violations' },
+      { controlId: 'PDPL-17', controlName: 'التدابير الأمنية', feature: 'تقييم المخاطر + المخالفات', link: '/dashboard/issues?view=violations' },
       { controlId: 'PDPL-22', controlName: 'الاستجابة لتسرب البيانات', feature: 'اكتشاف التهديدات', link: '/dashboard/threats' },
       { controlId: 'PDPL-24', controlName: 'تقييم الأثر', feature: 'تحليل الذكاء الاصطناعي + نطاق الانفجار', link: '/dashboard/ai' },
       { controlId: 'PDPL-29', controlName: 'توثيق الامتثال', feature: 'مركز النتائج + التدقيق', link: '/dashboard/results' },

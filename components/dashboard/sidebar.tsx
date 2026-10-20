@@ -8,7 +8,7 @@ import { brandName } from '@/lib/branding-shared'
 import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
-  LayoutDashboard, Users, Shield, Key, AlertTriangle, Settings,
+  LayoutDashboard, Users, Shield, Key, Settings,
   ChevronLeft, ChevronRight, Menu, X, Network, Route, Radar,
   Upload, Scale, ShieldAlert, Compass, ListChecks, Radio, FileText,
 } from 'lucide-react'
@@ -40,7 +40,6 @@ const NAV_SECTIONS = [
     labelKey: 'findings' as const,
     items: [
       { href: '/dashboard/issues', labelKey: 'issues' as const, icon: ListChecks },
-      { href: '/dashboard/violations', labelKey: 'violations' as const, icon: AlertTriangle },
       { href: '/dashboard/compliance', labelKey: 'compliance' as const, icon: Scale },
       { href: '/dashboard/reports', labelKey: 'reports' as const, icon: FileText },
     ],
